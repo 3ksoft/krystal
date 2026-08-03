@@ -22,7 +22,7 @@ const VALIDATION_SIZE = 200;
 
 const GPU_RATIO = 0.5;
 
-const OUTPUT_DIR = "./gpu-token-dataset";
+const OUTPUT_DIR = "./packages/finetune/gpu-token-dataset";
 
 type Message = {
   role: "system" | "user" | "assistant";
