@@ -1,0 +1,25 @@
+{
+  "name": "@sandblaster/schema",
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "build": "bun run src/build.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ark/schema": "^0.56.0",
+    "@schema-pop/core": "link:@schema-pop/core",
+    "@schema-pop/exporter": "link:@schema-pop/exporter",
+    "@schema-pop/schema": "link:@schema-pop/schema",
+    "arktype": "^2.1.29",
+    "colord": "^2.9.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "typescript": "~6.0.3"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  }
+}

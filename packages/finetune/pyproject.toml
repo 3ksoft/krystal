@@ -1,0 +1,16 @@
+[project]
+name = "chomato-finetune"
+version = "0.1.0"
+description = "LoRA training tooling for Chomato's reference model LFM2.5-1.2B-Instruct using Unsloth."
+readme = "README.md"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    # Unsloth (PyPI 2026.8.2+) pulls the full training stack:
+    # torch (CUDA build) + torchvision, xformers, bitsandbytes, triton,
+    # transformers, datasets, accelerate, peft, trl, sentencepiece.
+    "unsloth",
+]
+
+[tool.uv]
+# This package is a tooling venv, not a distributable Python package.
+package = false

@@ -1,0 +1,53 @@
+# ---------------------------------------------------------------------------
+# Chomato monorepo — root .gitignore
+# ---------------------------------------------------------------------------
+
+# Dependencies
+node_modules/
+
+# Model artifacts (GGUF, WQ4, safetensors downloads are large)
+models/
+
+# Build / dist output
+dist/
+build/
+*.tsbuildinfo
+.vite/
+
+# --- Python (packages/finetune, uv-managed) -------------------------------
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+unsloth_compiled_cache/
+# training output (adapters, checkpoints, runs)
+packages/finetune/out/
+
+# --- Nix / direnv ----------------------------------------------------------
+.direnv/
+result
+result-*
+
+# --- Environment / secrets --------------------------------------------------
+.env
+.env.*
+!.env.example
+
+# --- IDE / editors ----------------------------------------------------------
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# --- OS --------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+
+# --- Logs / caches ----------------------------------------------------------
+*.log
+.cache/

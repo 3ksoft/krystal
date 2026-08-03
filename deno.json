@@ -1,0 +1,6 @@
+{
+  "compilerOptions": {
+    "lib": ["ESNext", "deno.window", "deno.ns", "deno.webgpu"],
+    "types": []
+  }
+}
