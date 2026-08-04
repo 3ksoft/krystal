@@ -3,6 +3,10 @@ import { Lfm2Model } from "../lfm2/src/model.ts";
 import { type GenerateResult, type Lfm2CachedBlock, Lfm2Runtime } from "../lfm2/src/runtime.ts";
 import { $, LLM_STATUS } from "../schema/src/schema.ts";
 import { Lfm2Tokenizer } from "../lfm2/src/tokenizer.ts";
+import {
+  createLiteralEnumJsonConstraint,
+  type TokenByteTableEntry,
+} from "../engine-ts/src/index.ts";
 import { Sandblaster } from  "@sandblaster/core"
 
 const params = new URLSearchParams(location.search);
@@ -26,6 +30,15 @@ const maxTokensEl = byId<HTMLInputElement>("max-tokens");
 const profileEl = byId<HTMLInputElement>("profile");
 const runEl = byId<HTMLButtonElement>("run");
 const budgetEl = byId<HTMLSpanElement>("budget");
+
+const structuredPromptEl = byId<HTMLTextAreaElement>("structured-prompt");
+const structuredPropertyEl = byId<HTMLInputElement>("structured-property");
+const structuredVariantsEl = byId<HTMLInputElement>("structured-variants");
+const structuredMaxTokensEl = byId<HTMLInputElement>("structured-max-tokens");
+const runStructuredEl = byId<HTMLButtonElement>("run-structured");
+const structuredOutputEl = byId<HTMLPreElement>("structured-output");
+const structuredTraceEl = byId<HTMLPreElement>("structured-trace");
+const structuredStatusEl = byId<HTMLSpanElement>("structured-status");
 
 const blockInputEl = byId<HTMLTextAreaElement>("block-input");
 const blockRoleEl = byId<HTMLSelectElement>("block-role");
@@ -165,6 +178,7 @@ statVram.textContent = `${gib(allocatedModelBytes)} model`;
 outputEl.textContent = "Ready.";
 setStatus("ready", "ok");
 runEl.disabled = false;
+runStructuredEl.disabled = false;
 addBlockEl.disabled = false;
 for (const depth of runtime.blockCacheDepths) {
   const option = document.createElement("option");
@@ -172,6 +186,47 @@ for (const depth of runtime.blockCacheDepths) {
   option.textContent = depth === 2 ? `${depth} (exact)` : String(depth);
   option.selected = depth === runtime.blockCacheDepth;
   blockDepthEl.append(option);
+}
+
+let constraintTokenTable: TokenByteTableEntry[] | null = null;
+
+function getConstraintTokenTable(): TokenByteTableEntry[] {
+  if (constraintTokenTable) return constraintTokenTable;
+  constraintTokenTable = tokenizer.idToToken.map((_, id) => ({
+    id,
+    bytes: tokenizer.tokenBytes(id),
+    special: tokenizer.isSpecialToken(id),
+  }));
+  return constraintTokenTable;
+}
+
+function parseEnumVariants(value: string): string[] {
+  const variants = value.split(",").map((item) => item.trim()).filter(Boolean);
+  if (variants.length < 1) throw new Error("Enter at least one enum variant");
+  return [...new Set(variants)];
+}
+
+function renderConstraintTrace(trace: ReturnType<typeof createLiteralEnumJsonConstraint>["trace"]): string {
+  if (trace.length === 0) return "No constrained steps yet.";
+  const lines: string[] = [];
+  for (const item of trace) {
+    lines.push(
+      `step ${item.step} · ${item.decode ? "decode" : "prefill"} · allowed ${item.allowedCount}`,
+      `  prefix: ${JSON.stringify(item.prefixBefore)} -> ${JSON.stringify(item.prefixAfter)}`,
+      `  chosen: #${item.selectedToken} ${JSON.stringify(item.selectedBytes)}${item.complete ? " · COMPLETE" : ""}`,
+      `  survivors: ${item.survivingCandidates.map((candidate) => JSON.stringify(candidate)).join(" | ") || "<none>"}`,
+      "  top logits before mask:",
+    );
+    for (const top of item.topBefore) {
+      lines.push(`    ${top.allowed ? "ALLOW " : "reject"} #${top.token.toString().padEnd(5)} ${top.logit.toFixed(3).padStart(9)}  ${JSON.stringify(top.bytes)}`);
+    }
+    lines.push("  top allowed:");
+    for (const top of item.topAllowed) {
+      lines.push(`    #${top.token.toString().padEnd(5)} ${top.logit.toFixed(3).padStart(9)}  ${JSON.stringify(top.bytes)}`);
+    }
+    lines.push("");
+  }
+  return lines.join("\n");
 }
 
 type BlockRole = "system" | "context";
@@ -247,10 +302,15 @@ function renderRequestStats(result: GenerateResult, wallMs: number, promptTokens
 
 function beginRequest(label: string, promptTokens: number) {
   runEl.disabled = true;
+  runStructuredEl.disabled = true;
   addBlockEl.disabled = true;
   clearBlocksEl.disabled = true;
   runBlocksEl.disabled = true;
   promptEl.disabled = true;
+  structuredPromptEl.disabled = true;
+  structuredPropertyEl.disabled = true;
+  structuredVariantsEl.disabled = true;
+  structuredMaxTokensEl.disabled = true;
   blockInputEl.disabled = true;
   blockRoleEl.disabled = true;
   blockDepthEl.disabled = true;
@@ -270,10 +330,15 @@ function beginRequest(label: string, promptTokens: number) {
 
 function endRequest() {
   runEl.disabled = false;
+  runStructuredEl.disabled = false;
   addBlockEl.disabled = false;
   clearBlocksEl.disabled = storedBlocks.size === 0;
   runBlocksEl.disabled = storedBlocks.size === 0;
   promptEl.disabled = false;
+  structuredPromptEl.disabled = false;
+  structuredPropertyEl.disabled = false;
+  structuredVariantsEl.disabled = false;
+  structuredMaxTokensEl.disabled = false;
   blockInputEl.disabled = false;
   blockRoleEl.disabled = false;
   blockDepthEl.disabled = false;
@@ -313,6 +378,64 @@ async function runPrompt(): Promise<void> {
     const message = error instanceof Error ? error.message : String(error);
     outputEl.textContent = message;
     setStatus("request failed", "error");
+    statRequestStatus.textContent = "ERROR";
+    console.error(error);
+  } finally {
+    endRequest();
+  }
+}
+
+async function runStructuredPrompt(): Promise<void> {
+  const property = structuredPropertyEl.value.trim();
+  if (!property) throw new Error("Property name is empty");
+  const variants = parseEnumVariants(structuredVariantsEl.value);
+  const candidates = variants.map((variant) => JSON.stringify({ [property]: variant }));
+  const prompt = `${structuredPromptEl.value.trim()}\n\nAllowed outputs:\n${candidates.join("\n")}\nOutput exactly one allowed JSON object and nothing else.`;
+  const promptTokens = tokenizer.encodeUserPrompt(prompt);
+  const requested = Math.max(1, Math.floor(Number(structuredMaxTokensEl.value) || 32));
+  const maxPossible = contextCapacity - promptTokens.length + 1;
+  const maxNewTokens = Math.min(requested, runtimeMaxNewTokens, maxPossible);
+  if (maxNewTokens < 1) throw new Error(`Structured prompt has ${promptTokens.length} tokens and does not fit context ${contextCapacity}`);
+
+  const constraint = createLiteralEnumJsonConstraint({
+    property,
+    variants,
+    tokens: getConstraintTokenTable(),
+    eosToken: tokenizer.eos,
+  });
+
+  beginRequest("CPU constrained decode…", promptTokens.length);
+  structuredStatusEl.textContent = `running · ${candidates.length} candidates`;
+  structuredStatusEl.className = "muted";
+  structuredOutputEl.textContent = "…";
+  structuredTraceEl.textContent = "Reading logits back token by token…";
+
+  const started = performance.now();
+  try {
+    const result = await runtime.generateTokensWithCpuLogits(promptTokens, constraint, { maxNewTokens });
+    const elapsed = performance.now() - started;
+    const text = tokenizer.decode(result.tokenIds);
+    structuredOutputEl.textContent = text;
+    structuredTraceEl.textContent = renderConstraintTrace(constraint.trace);
+    structuredStatusEl.textContent = `${constraint.done ? "complete + EOS" : "stopped"} · ${result.state.generatedCount} tok · ${ms(elapsed)}`;
+    structuredStatusEl.className = constraint.done ? "ok" : "error";
+    renderRequestStats(result, elapsed, promptTokens.length);
+    outputEl.textContent = text;
+    setStatus("ready", "ok");
+    console.log("[chomato] constrained output", {
+      text,
+      candidates,
+      tokenIds: result.tokenIds,
+      state: result.state,
+      trace: constraint.trace,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    structuredOutputEl.textContent = message;
+    structuredTraceEl.textContent = renderConstraintTrace(constraint.trace);
+    structuredStatusEl.textContent = "ERROR";
+    structuredStatusEl.className = "error";
+    setStatus("constrained decode failed", "error");
     statRequestStatus.textContent = "ERROR";
     console.error(error);
   } finally {
@@ -615,6 +738,16 @@ async function runBlockOrder(order = blockOrderEl.value, prompt = blockPromptEl.
   }
 }
 
+runStructuredEl.addEventListener("click", () => {
+  void runStructuredPrompt().catch((error) => {
+    const message = error instanceof Error ? error.message : String(error);
+    structuredStatusEl.textContent = message;
+    structuredStatusEl.className = "error";
+    structuredOutputEl.textContent = message;
+    console.error(error);
+  });
+});
+
 form.addEventListener("submit", (event) => {
   event.preventDefault();
   void runPrompt();
@@ -656,6 +789,14 @@ Object.assign(globalThis, {
         id, role, depth, text, tokenCount: tokens.length, gpuBytes: cached.gpuBytes, runtimeId: cached.id,
       })),
       run: async (order: string, prompt = blockPromptEl.value) => await runBlockOrder(order, prompt),
+    },
+    constrainEnum: async (prompt: string, property: string, variants: readonly string[], maxNewTokens = 32) => {
+      const constraint = createLiteralEnumJsonConstraint({
+        property, variants, tokens: getConstraintTokenTable(), eosToken: tokenizer.eos,
+      });
+      const promptTokens = tokenizer.encodeUserPrompt(prompt);
+      const result = await runtime.generateTokensWithCpuLogits(promptTokens, constraint, { maxNewTokens });
+      return { result, text: tokenizer.decode(result.tokenIds), trace: constraint.trace };
     },
     memory: {
       modelBytes: allocatedModelBytes,

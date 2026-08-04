@@ -128,6 +128,23 @@ export interface GenerateResult {
   timings?: GenerateTimings;
 }
 
+/**
+ * Diagnostic-only hook used by the CPU constrained-decoding bring-up path.
+ * `process` may mutate logits in-place before the existing GPU argmax commits
+ * the token. `accept` observes the exact token that the GPU argmax will choose.
+ */
+export interface CpuLogitProcessor {
+  process(
+    logits: Float32Array,
+    context: { step: number; decode: boolean },
+  ): void | Promise<void>;
+  accept?(
+    tokenId: number,
+    context: { step: number; decode: boolean },
+  ): void | Promise<void>;
+  shouldStop?(): boolean;
+}
+
 export interface CacheBlockOptions {
   /** Maximum standalone prefix depth retained for this block. */
   depth?: number;
@@ -197,6 +214,19 @@ function ceilDiv(value: number, divisor: number): number {
 
 function gpuBufferSize(bytes: number): number {
   return Math.max(4, align(bytes, 4));
+}
+
+function cpuArgmax(logits: Float32Array): number {
+  let bestToken = 0;
+  let bestValue = -Number.MAX_VALUE;
+  for (let i = 0; i < logits.length; i++) {
+    const value = logits[i]!;
+    if (value > bestValue || (value === bestValue && i < bestToken)) {
+      bestValue = value;
+      bestToken = i;
+    }
+  }
+  return bestToken;
 }
 
 class ParamWriter {
@@ -289,6 +319,7 @@ export class Lfm2Runtime {
   private readonly weightGroups = new Map<string, GPUBindGroup>();
 
   private readonly telemetryStaging: GPUBuffer;
+  private readonly logitsStaging: GPUBuffer;
   private telemetryInFlight = false;
   private nextCachedBlockId = 0;
   private readonly cachedBlocks = new Set<Lfm2CachedBlock>();
@@ -430,6 +461,11 @@ export class Lfm2Runtime {
     this.telemetryStaging = this.device.createBuffer({
       label: "lfm2.telemetry-staging",
       size: gpuBufferSize(this.runtimeByteSize),
+      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+    });
+    this.logitsStaging = this.device.createBuffer({
+      label: "lfm2.logits-staging",
+      size: gpuBufferSize(this.model.config.vocabSize * 4),
       usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
     });
 
@@ -955,13 +991,16 @@ export class Lfm2Runtime {
     }, [ceilDiv(tokenCount * kvDim, 256)]);
   }
 
-  private sampleFromHidden(pass: GPUComputePassEncoder, tokenCount: number, decode: boolean): void {
+  private projectLogitsFromHidden(pass: GPUComputePassEncoder, tokenCount: number, decode: boolean): void {
     const h = this.model.config.hiddenSize;
     const finalInput = decode
       ? this.arena.hiddenA
       : this.arena.hiddenA + (tokenCount - 1) * h;
     this.norm(pass, "token_embd_norm.weight", finalInput, this.arena.tmpH, 1, h);
     this.matrix(pass, "token_embd.weight", this.arena.tmpH, this.arena.logits, 1, h, this.model.config.vocabSize);
+  }
+
+  private commitLogitsArgmax(pass: GPUComputePassEncoder, decode: boolean): void {
     this.dispatch(pass, "argmax", {
       inputOffset: this.arena.logits,
       inputDim: this.model.config.vocabSize,
@@ -969,10 +1008,20 @@ export class Lfm2Runtime {
     }, [1]);
   }
 
-  private forwardAndSample(pass: GPUComputePassEncoder, tokenCount: number, decode: boolean): void {
+  private sampleFromHidden(pass: GPUComputePassEncoder, tokenCount: number, decode: boolean): void {
+    this.projectLogitsFromHidden(pass, tokenCount, decode);
+    this.commitLogitsArgmax(pass, decode);
+  }
+
+  private forwardToLogits(pass: GPUComputePassEncoder, tokenCount: number, decode: boolean): void {
     this.embed(pass, tokenCount, decode);
     this.forwardLayers(pass, 0, this.model.config.blockCount, tokenCount, decode);
-    this.sampleFromHidden(pass, tokenCount, decode);
+    this.projectLogitsFromHidden(pass, tokenCount, decode);
+  }
+
+  private forwardAndSample(pass: GPUComputePassEncoder, tokenCount: number, decode: boolean): void {
+    this.forwardToLogits(pass, tokenCount, decode);
+    this.commitLogitsArgmax(pass, decode);
   }
 
   private copyArena(
@@ -1551,6 +1600,101 @@ export class Lfm2Runtime {
     return await this.readResult(maxNewTokens);
   }
 
+  /**
+   * Diagnostic constrained-decoding path. Each token deliberately performs a
+   * logits readback to CPU, lets `processor` mutate the values, writes them
+   * back, and then uses the normal GPU argmax/runtime bookkeeping.
+   *
+   * This is intentionally synchronization-heavy and exists as a correctness
+   * oracle before moving masking/state transitions into WGSL.
+   */
+  async generateTokensWithCpuLogits(
+    promptTokenIds: readonly number[],
+    processor: CpuLogitProcessor,
+    options: Pick<GenerateOptions, "maxNewTokens"> = {},
+  ): Promise<GenerateResult> {
+    const maxNewTokens = options.maxNewTokens ?? this.defaultMaxNewTokens;
+    if (promptTokenIds.length < 1) throw new Error("Prompt must contain at least one token");
+    if (promptTokenIds.length > this.contextCapacity) {
+      throw new Error(`Prompt has ${promptTokenIds.length} tokens, contextCapacity is ${this.contextCapacity}`);
+    }
+    if (maxNewTokens < 1 || maxNewTokens > this.defaultMaxNewTokens) {
+      throw new Error(`maxNewTokens must be 1..${this.defaultMaxNewTokens} for this allocated runtime`);
+    }
+    if (promptTokenIds.length + maxNewTokens - 1 > this.contextCapacity) {
+      throw new Error(`Prompt + decode positions exceed bring-up contextCapacity ${this.contextCapacity}`);
+    }
+
+    const state = createInitialRuntimeState({
+      contextCapacity: this.contextCapacity,
+      maxNewTokens,
+      eosToken: this.model.config.eosToken,
+      promptTokenCount: promptTokenIds.length,
+    });
+    this.writeRuntime(state);
+    this.device.queue.writeBuffer(this.tokenBuffer, 0, new Uint32Array(promptTokenIds));
+
+    // The normal path clears these once before the monolithic pass. Do the same
+    // here, then preserve them across token-level submissions.
+    const clearEncoder = this.device.createCommandEncoder({ label: "lfm2.cpu-logits.clear" });
+    clearEncoder.clearBuffer(this.kvBuffer);
+    clearEncoder.clearBuffer(this.convBuffer);
+    this.device.queue.submit([clearEncoder.finish()]);
+
+    for (let step = 0; step < maxNewTokens; step++) {
+      const decode = step > 0;
+      const tokenCount = decode ? 1 : promptTokenIds.length;
+
+      this.paramWriter.reset();
+      const forwardEncoder = this.device.createCommandEncoder({ label: `lfm2.cpu-logits.forward.${step}` });
+      const forwardPass = forwardEncoder.beginComputePass({ label: `lfm2.cpu-logits.forward-pass.${step}` });
+      this.forwardToLogits(forwardPass, tokenCount, decode);
+      forwardPass.end();
+      forwardEncoder.copyBufferToBuffer(
+        this.arenaBuffer,
+        this.arena.logits * 4,
+        this.logitsStaging,
+        0,
+        this.model.config.vocabSize * 4,
+      );
+      if (this.paramWriter.usedBytes > 0) {
+        this.device.queue.writeBuffer(this.paramBuffer, 0, this.paramWriter.usedView());
+      }
+      this.device.queue.submit([forwardEncoder.finish()]);
+
+      await this.logitsStaging.mapAsync(GPUMapMode.READ);
+      let logits: Float32Array;
+      try {
+        // Copy out before unmapping; mapped ranges become invalid immediately.
+        logits = new Float32Array(
+          new Float32Array(this.logitsStaging.getMappedRange()).slice().buffer,
+        );
+      } finally {
+        this.logitsStaging.unmap();
+      }
+
+      const context = { step, decode };
+      await processor.process(logits, context);
+      const selectedToken = cpuArgmax(logits);
+      await processor.accept?.(selectedToken, context);
+
+      this.device.queue.writeBuffer(this.arenaBuffer, this.arena.logits * 4, logits);
+      this.paramWriter.reset();
+      const commitEncoder = this.device.createCommandEncoder({ label: `lfm2.cpu-logits.commit.${step}` });
+      const commitPass = commitEncoder.beginComputePass({ label: `lfm2.cpu-logits.argmax.${step}` });
+      this.commitLogitsArgmax(commitPass, decode);
+      commitPass.end();
+      if (this.paramWriter.usedBytes > 0) {
+        this.device.queue.writeBuffer(this.paramBuffer, 0, this.paramWriter.usedView());
+      }
+      this.device.queue.submit([commitEncoder.finish()]);
+
+      if (selectedToken === this.model.config.eosToken || processor.shouldStop?.()) break;
+    }
+
+    return await this.readResult(maxNewTokens);
+  }
+
   private async generateProfiled(promptTokenCount: number, maxNewTokens: number): Promise<GenerateResult> {
     const totalStarted = performance.now();
 
@@ -1676,6 +1820,7 @@ export class Lfm2Runtime {
     this.convBuffer.destroy();
     this.paramBuffer.destroy();
     this.telemetryStaging.destroy();
+    this.logitsStaging.destroy();
     this.dummyWeightRaw.destroy();
     this.dummyWeight32.destroy();
   }

@@ -23,6 +23,9 @@
     textarea { min-height: 150px; resize: vertical; }
     #block-input { min-height: 90px; }
     #block-prompt { min-height: 72px; }
+    #structured-prompt { min-height: 86px; }
+    #structured-output { min-height: 70px; }
+    #structured-trace { min-height: 120px; max-height: 520px; overflow: auto; white-space: pre; }
     .controls { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; margin-top: 10px; }
     input[type="number"] { width: 90px; background: #0d0d0d; color: #eee; border: 1px solid #444; padding: 6px; font: inherit; }
     button { background: #ddd; color: #111; border: 0; padding: 8px 14px; font: inherit; cursor: pointer; }
@@ -74,6 +77,29 @@
         <span id="budget">model loading…</span>
       </div>
     </form>
+
+    <section class="panel" aria-label="structured output experiment">
+      <h2>Structured Output Lab · CPU logits readback oracle</h2>
+      <textarea id="structured-prompt" spellcheck="false">Choose the most appropriate status for a healthy connected device.</textarea>
+      <div class="controls">
+        <label>property <input id="structured-property" type="text" value="status" /></label>
+        <label style="flex:1; min-width:280px">enum <input id="structured-variants" type="text" value="error, offline, online" /></label>
+        <label>max new <input id="structured-max-tokens" type="number" min="1" value="32" /></label>
+        <button id="run-structured" type="button" disabled>Generate constrained</button>
+        <span id="structured-status" class="muted">literal + enum finite-language oracle</span>
+      </div>
+      <div class="compare-grid">
+        <label>
+          constrained output
+          <pre id="structured-output" class="mini-output">Model is loading…</pre>
+        </label>
+        <label>
+          token trace
+          <pre id="structured-trace" class="mini-output">No constrained run yet.</pre>
+        </label>
+      </div>
+      <p class="muted" style="margin-bottom:0">Diagnostic path: GPU forward → logits readback → CPU byte mask → logits upload → existing GPU argmax. It is intentionally slow and debuggable.</p>
+    </section>
 
     <section class="panel" aria-label="block store experiment">
       <h2>Semantic Block Lab · resident system/context blocks</h2>

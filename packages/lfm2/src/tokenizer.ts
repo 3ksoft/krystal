@@ -226,6 +226,27 @@ export class Lfm2Tokenizer {
     return ids;
   }
 
+  isSpecialToken(id: number): boolean {
+    return this.specialIds.has(id);
+  }
+
+  /**
+   * Exact byte payload represented by one ordinary BPE token. Control/user
+   * defined special tokens are not byte-level vocabulary entries and return
+   * null so constrained decoders can handle them explicitly (for example EOS).
+   */
+  tokenBytes(id: number): Uint8Array | null {
+    const token = this.idToToken[id];
+    if (token === undefined || this.specialIds.has(id)) return null;
+    const bytes: number[] = [];
+    for (const char of Array.from(token)) {
+      const byte = this.byteDecoder.get(char);
+      if (byte === undefined) return null;
+      bytes.push(byte);
+    }
+    return new Uint8Array(bytes);
+  }
+
   decode(ids: readonly number[], options: { skipSpecial?: boolean } = {}): string {
     const skipSpecial = options.skipSpecial ?? true;
     const bytes: number[] = [];
