@@ -70,8 +70,8 @@ EOF
 
 ## Reserved-token training (structured output)
 
-The LFM2.5 vocab has **377 `\<|reserved_N|>` tokens** (ids 14–395) plus 1,134 unused
-slots (ids 64,402–65,535), all inside the 65,536 vocab — so structural tokens can be
+The LFM2.5 vocab has **377 `\<|reserved_N|>` tokens** (ids 14–395) plus 1,136 unused
+slots (ids 64,400–65,535), all inside the 65,536 vocab — so structural tokens can be
 trained **without growing the vocabulary** (the runtime's `2^16` masks / WQ4 layout stay
 valid, and the TS tokenizer already treats reserved tokens as single special tokens).
 
@@ -104,7 +104,7 @@ attention/MLP, and `--eval val.jsonl` for post-training emission metrics.
 
 `src/generate_gpu_token_dataset.ts` builds a synthetic dataset that teaches the
 model to emit `<|reserved_100|>` / `<|reserved_101|>` as GPU-command delimiters
-(`<|reserved_100|>simulate count=64 …<|reserved_101|>`), with hard negatives
+(`<|reserved_100|>simulate<|reserved_101|>`), with hard negatives
 that mention simulation but must NOT emit tokens. Regenerate with:
 
 ```bash
@@ -122,7 +122,8 @@ bash run_gpu_tokens.sh
 ```
 
 This trains LoRA on attention/MLP **and** the two delimiter embedding rows
-(grad-masked), on assistant turns only, then reports validation metrics
+(grad-masked), on assistant turns only, saves the LoRA under `out/gpu-tokens/lora/`,
+then reports validation metrics
 (% examples emitting the tokens correctly, % clean on normal examples).
 
 Dry-run sanity check (loads the model, builds LoRA, reports stats, no training):

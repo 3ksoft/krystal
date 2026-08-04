@@ -1,7 +1,6 @@
-import { GgmlType, type GgufTensorInfo, type GgufValue } from "../gguf/types.ts";
-import { GgufReader } from "../gguf/reader.ts";
-import { DenoFileSource, type RandomAccessSource } from "../gguf/source.ts";
-import { WQ4_BLOCK_SIZE, WQ4_BYTES_PER_BLOCK, Wq4Reader, type Wq4TensorInfo } from "../wq4/reader.ts";
+import { DenoFileSource, type RandomAccessSource, GgufReader, GgmlType, type GgufTensorInfo, type GgufValue } from "../../quant/src/gguf";
+
+import { WQ4_BLOCK_SIZE, WQ4_BYTES_PER_BLOCK, Wq4Reader, type Wq4TensorInfo } from "../../quant/src/wq4/reader";
 
 const MIB = 1024 * 1024;
 const UPLOAD_CHUNK_BYTES = 16 * MIB;

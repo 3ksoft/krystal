@@ -1,9 +1,9 @@
-import { Sandblaster } from "./src/sandblaster.ts";
-import { HttpRangeSource } from "./src/gguf/source.ts";
-import { Lfm2Model } from "./src/lfm2/model.ts";
-import { type GenerateResult, type Lfm2CachedBlock, Lfm2Runtime } from "./src/lfm2/runtime.ts";
-import { $, LLM_STATUS } from "./src/lfm2/schema.ts";
-import { Lfm2Tokenizer } from "./src/lfm2/tokenizer.ts";
+import { HttpRangeSource } from "../quant/src/gguf/source.ts";
+import { Lfm2Model } from "../lfm2/src/model.ts";
+import { type GenerateResult, type Lfm2CachedBlock, Lfm2Runtime } from "../lfm2/src/runtime.ts";
+import { $, LLM_STATUS } from "../schema/src/schema.ts";
+import { Lfm2Tokenizer } from "../lfm2/src/tokenizer.ts";
+import { Sandblaster } from  "@sandblaster/core"
 
 const params = new URLSearchParams(location.search);
 const modelUrl = params.get("model") ?? "/models/LFM2.5-1.2B-Instruct-F16.gguf";

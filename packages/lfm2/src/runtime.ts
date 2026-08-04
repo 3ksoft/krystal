@@ -1,4 +1,4 @@
-import { type Sandblaster } from "../sandblaster.ts";
+import { type Sandblaster } from "@sandblaster/core";
 import { type GpuTensor, type GpuWeightFormat, Lfm2Model } from "./model.ts";
 import {
   createInitialRuntimeState,
@@ -6,7 +6,7 @@ import {
   LLM_RUNTIME_BYTES,
   serializeLlmRuntime,
   type LlmRuntimeState,
-} from "./schema.ts";
+} from "../../schema/src/schema.ts";
 
 const PARAM_BYTES = 64;
 const PARAM_BUFFER_BYTES = 8 * 1024 * 1024;

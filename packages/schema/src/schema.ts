@@ -1,5 +1,5 @@
 import { scope } from "arktype";
-import { sandblaster } from "../sandblaster.ts";
+import { sandblaster } from "@sandblaster/core";
 
 /**
  * CPU <-> GPU contract for one minimal inference request.

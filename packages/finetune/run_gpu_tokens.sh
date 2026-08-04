@@ -6,15 +6,18 @@
 #
 #   * LoRA on attention/MLP  +  the two delimiter embedding rows (grad-masked)
 #   * trains ONLY assistant turns (system/user masked out)
-#   * saves the tiny adapter (reserved_rows.safetensors + roles.json) to out/
-#     and reports validation metrics on gpu-token-dataset/validation.jsonl
+#   * saves reserved rows + roles.json and the PEFT LoRA adapter under out/
+#   * reports validation metrics on gpu-token-dataset/validation.jsonl
 #
 # Run from anywhere in the repo:  bash packages/finetune/run_gpu_tokens.sh
 set -euo pipefail
 cd "$(dirname "$0")"
 
+# Keep checked-in/generated data from going stale relative to the generator.
+deno run --allow-write src/generate_gpu_token_dataset.ts
+
 uv run python python/train_reserved_tokens.py \
-  --model ../models/safetensors \
+  --model ../../models/safetensors \
   --data gpu-token-dataset/train.jsonl \
   --eval gpu-token-dataset/validation.jsonl \
   --roles roles/gpu-tokens.json \

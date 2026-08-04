@@ -54,6 +54,7 @@ if _libcuda_dir and not os.getenv("TRITON_LIBCUDA_PATH"):
     os.environ["TRITON_LIBCUDA_PATH"] = _libcuda_dir
 # ------------------------------------------------------------------------
 
+from unsloth import FastLanguageModel
 import torch
 from datasets import Dataset
 from transformers import (
@@ -61,8 +62,6 @@ from transformers import (
     TrainerCallback,
     TrainingArguments,
 )
-
-from unsloth import FastLanguageModel
 
 # --------------------------------------------------------------------------
 # Configuration
@@ -418,6 +417,14 @@ def save_adapter(out_dir: Path, model, roles: dict[str, int], role_tokens: dict[
           f"({row_tensor.shape[0]} rows x {row_tensor.shape[1]}) + roles.json")
 
 
+def save_lora_adapter(out_dir: Path, model) -> None:
+    """Save PEFT/LoRA weights separately from the reserved embedding rows."""
+    lora_dir = out_dir / "lora"
+    lora_dir.mkdir(parents=True, exist_ok=True)
+    model.save_pretrained(str(lora_dir), safe_serialization=True)
+    print(f"  LoRA adapter -> {lora_dir}")
+
+
 class AdapterCheckpointCallback(TrainerCallback):
     """Periodically dump the tiny reserved-rows adapter (not full checkpoints)."""
 
@@ -435,11 +442,16 @@ class AdapterCheckpointCallback(TrainerCallback):
 # Verification
 # --------------------------------------------------------------------------
 
-def verify(model, tokenizer, role_tokens: dict[str, str], prompt: str = "Return a JSON object with keys name and age.") -> None:
+def verify(model, tokenizer, role_tokens: dict[str, str], prompt: str | None = None) -> None:
     from unsloth import FastLanguageModel as FLM
 
     FLM.for_inference(model)
-    sys_text = SYSTEM_PROMPT
+    if {"gpu_start", "gpu_end"}.issubset(role_tokens):
+        sys_text = "You are a helpful assistant."
+        prompt = prompt or "Actually simulate 1024 particles for 16 steps."
+    else:
+        sys_text = SYSTEM_PROMPT
+        prompt = prompt or "Return a JSON object with keys name and age."
     text = (f"<|im_start|>system\n{sys_text}<|im_end|>\n"
             f"<|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant\n")
     ids = tokenizer.encode(text, add_special_tokens=True)
@@ -584,7 +596,7 @@ def main() -> None:
         bf16=True,
         warmup_ratio=0.05,
         logging_steps=25,
-        save_strategy="no",        # full checkpoints are 2.4GB; the tiny adapter is saved via callback
+        save_strategy="no",        # skip full checkpoints; row adapter is checkpointed, LoRA saved at the end
         report_to=[],
         seed=args.seed,
         dataloader_drop_last=False,
@@ -609,6 +621,8 @@ def main() -> None:
     trainer.train()
 
     save_adapter(out_dir, model, roles, role_tokens)
+    if args.lora:
+        save_lora_adapter(out_dir, model)
     if args.eval:
         evaluate(model, tokenizer, args.eval, roles)
     verify(model, tokenizer, role_tokens)
