@@ -37,6 +37,7 @@ const CORE_PIPELINES = [
   "attention",
   "arena_copy",
   "argmax",
+  "argmax_candidates",
 ] as const;
 
 type PipelineName = typeof CORE_PIPELINES[number] | (string & {});
@@ -133,6 +134,17 @@ export interface GenerateResult {
  * `process` may mutate logits in-place before the existing GPU argmax commits
  * the token. `accept` observes the exact token that the GPU argmax will choose.
  */
+export interface CpuCandidateProcessor {
+  candidates(
+    context: { step: number; decode: boolean },
+  ): Uint32Array | Promise<Uint32Array>;
+  accept?(
+    tokenId: number,
+    context: { step: number; decode: boolean },
+  ): void | Promise<void>;
+  shouldStop?(): boolean;
+}
+
 export interface CpuLogitProcessor {
   process(
     logits: Float32Array,
@@ -320,6 +332,8 @@ export class Lfm2Runtime {
 
   private readonly telemetryStaging: GPUBuffer;
   private readonly logitsStaging: GPUBuffer;
+  private readonly candidateTokenBuffer: GPUBuffer;
+  private readonly selectedTokenStaging: GPUBuffer;
   private telemetryInFlight = false;
   private nextCachedBlockId = 0;
   private readonly cachedBlocks = new Set<Lfm2CachedBlock>();
@@ -420,6 +434,7 @@ export class Lfm2Runtime {
         { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } },
         { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } },
         { binding: 5, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } },
+        { binding: 6, visibility: GPUShaderStage.COMPUTE, buffer: { type: "read-only-storage" } },
       ],
     });
     this.group1Layout = this.device.createBindGroupLayout({
@@ -434,6 +449,17 @@ export class Lfm2Runtime {
       bindGroupLayouts: [this.group0Layout, this.group1Layout],
     });
 
+    this.candidateTokenBuffer = this.device.createBuffer({
+      label: "lfm2.candidate-tokens",
+      size: gpuBufferSize(this.model.config.vocabSize * 4),
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    });
+    this.selectedTokenStaging = this.device.createBuffer({
+      label: "lfm2.selected-token-staging",
+      size: 4,
+      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+    });
+
     this.group0 = this.device.createBindGroup({
       label: "lfm2.runtime-bg",
       layout: this.group0Layout,
@@ -444,6 +470,7 @@ export class Lfm2Runtime {
         { binding: 3, resource: { buffer: this.arenaBuffer } },
         { binding: 4, resource: { buffer: this.kvBuffer } },
         { binding: 5, resource: { buffer: this.convBuffer } },
+        { binding: 6, resource: { buffer: this.candidateTokenBuffer } },
       ],
     });
 
@@ -1601,6 +1628,86 @@ export class Lfm2Runtime {
   }
 
   /**
+   * Faster diagnostic constrained-decoding path. The CPU still computes the
+   * legal token ids, but logits never leave the GPU. Each step uploads only
+   * the sparse candidate list, runs forward + candidate argmax in one submit,
+   * then reads back the selected u32 so the CPU oracle can advance.
+   */
+  async generateTokensWithCpuCandidates(
+    promptTokenIds: readonly number[],
+    processor: CpuCandidateProcessor,
+    options: Pick<GenerateOptions, "maxNewTokens"> = {},
+  ): Promise<GenerateResult> {
+    const maxNewTokens = options.maxNewTokens ?? this.defaultMaxNewTokens;
+    if (promptTokenIds.length < 1) throw new Error("Prompt must contain at least one token");
+    if (promptTokenIds.length > this.contextCapacity) {
+      throw new Error(`Prompt has ${promptTokenIds.length} tokens, contextCapacity is ${this.contextCapacity}`);
+    }
+    if (maxNewTokens < 1 || maxNewTokens > this.defaultMaxNewTokens) {
+      throw new Error(`maxNewTokens must be 1..${this.defaultMaxNewTokens} for this allocated runtime`);
+    }
+    if (promptTokenIds.length + maxNewTokens - 1 > this.contextCapacity) {
+      throw new Error(`Prompt + decode positions exceed bring-up contextCapacity ${this.contextCapacity}`);
+    }
+
+    const state = createInitialRuntimeState({
+      contextCapacity: this.contextCapacity,
+      maxNewTokens,
+      eosToken: this.model.config.eosToken,
+      promptTokenCount: promptTokenIds.length,
+    });
+    this.writeRuntime(state);
+    this.device.queue.writeBuffer(this.tokenBuffer, 0, new Uint32Array(promptTokenIds));
+
+    const clearEncoder = this.device.createCommandEncoder({ label: "lfm2.cpu-candidates.clear" });
+    clearEncoder.clearBuffer(this.kvBuffer);
+    clearEncoder.clearBuffer(this.convBuffer);
+    this.device.queue.submit([clearEncoder.finish()]);
+
+    for (let step = 0; step < maxNewTokens; step++) {
+      const decode = step > 0;
+      const tokenCount = decode ? 1 : promptTokenIds.length;
+      const context = { step, decode };
+      const candidates = await processor.candidates(context);
+      if (candidates.length < 1) throw new Error(`CPU candidate processor returned an empty set at step ${step}`);
+      if (candidates.length > this.model.config.vocabSize) {
+        throw new Error(`CPU candidate processor returned ${candidates.length} ids for vocab ${this.model.config.vocabSize}`);
+      }
+      this.device.queue.writeBuffer(this.candidateTokenBuffer, 0, candidates);
+
+      this.paramWriter.reset();
+      const encoder = this.device.createCommandEncoder({ label: `lfm2.cpu-candidates.step.${step}` });
+      const pass = encoder.beginComputePass({ label: `lfm2.cpu-candidates.pass.${step}` });
+      this.forwardToLogits(pass, tokenCount, decode);
+      this.dispatch(pass, "argmax_candidates", {
+        inputOffset: this.arena.logits,
+        inputDim: candidates.length,
+        mode: decode ? 1 : 0,
+      }, [1]);
+      pass.end();
+
+      const selectedOffset = (this.contextCapacity + step) * 4;
+      encoder.copyBufferToBuffer(this.tokenBuffer, selectedOffset, this.selectedTokenStaging, 0, 4);
+      if (this.paramWriter.usedBytes > 0) {
+        this.device.queue.writeBuffer(this.paramBuffer, 0, this.paramWriter.usedView());
+      }
+      this.device.queue.submit([encoder.finish()]);
+
+      await this.selectedTokenStaging.mapAsync(GPUMapMode.READ);
+      let selectedToken: number;
+      try {
+        selectedToken = new Uint32Array(this.selectedTokenStaging.getMappedRange())[0]!;
+      } finally {
+        this.selectedTokenStaging.unmap();
+      }
+      await processor.accept?.(selectedToken, context);
+      if (selectedToken === this.model.config.eosToken || processor.shouldStop?.()) break;
+    }
+
+    return await this.readResult(maxNewTokens);
+  }
+
+  /**
    * Diagnostic constrained-decoding path. Each token deliberately performs a
    * logits readback to CPU, lets `processor` mutate the values, writes them
    * back, and then uses the normal GPU argmax/runtime bookkeeping.
@@ -1821,6 +1928,8 @@ export class Lfm2Runtime {
     this.paramBuffer.destroy();
     this.telemetryStaging.destroy();
     this.logitsStaging.destroy();
+    this.candidateTokenBuffer.destroy();
+    this.selectedTokenStaging.destroy();
     this.dummyWeightRaw.destroy();
     this.dummyWeight32.destroy();
   }

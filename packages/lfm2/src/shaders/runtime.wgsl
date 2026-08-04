@@ -44,6 +44,7 @@ struct OpParams {
 @group(0) @binding(3) var<storage, read_write> arena: array<f32>;
 @group(0) @binding(4) var<storage, read_write> kvCache: array<f32>;
 @group(0) @binding(5) var<storage, read_write> convCache: array<f32>;
+@group(0) @binding(6) var<storage, read> candidateTokens: array<u32>;
 
 // Only one of the two weight bindings is used by a given kernel. Keeping both
 // bindings stable makes every weight tensor share one bind-group layout.
@@ -534,6 +535,62 @@ fn arena_copy(@builtin(global_invocation_id) gid: vec3<u32>) {
   let i = gid.x;
   if (i >= total) { return; }
   arena[op.outputOffset + i] = arena[op.inputOffset + i];
+}
+
+@compute @workgroup_size(256)
+fn argmax_candidates(
+  @builtin(local_invocation_id) lid: vec3<u32>,
+) {
+  var bestValue = -3.402823466e+38;
+  var bestToken = 0u;
+  var i = lid.x;
+  loop {
+    if (i >= op.inputDim) { break; }
+    let token = candidateTokens[i];
+    let v = arena[op.inputOffset + token];
+    if (v > bestValue || (v == bestValue && token < bestToken)) {
+      bestValue = v;
+      bestToken = token;
+    }
+    i += ARGMAX_WG;
+  }
+  reduceF32[lid.x] = bestValue;
+  reduceU32[lid.x] = bestToken;
+  workgroupBarrier();
+
+  var width = ARGMAX_WG >> 1u;
+  loop {
+    if (width == 0u) { break; }
+    if (lid.x < width) {
+      let rv = reduceF32[lid.x + width];
+      let rt = reduceU32[lid.x + width];
+      let lv = reduceF32[lid.x];
+      let lt = reduceU32[lid.x];
+      if (rv > lv || (rv == lv && rt < lt)) {
+        reduceF32[lid.x] = rv;
+        reduceU32[lid.x] = rt;
+      }
+    }
+    workgroupBarrier();
+    width >>= 1u;
+  }
+
+  if (lid.x == 0u && runtime.status == 1u) {
+    if (op.mode != 0u) { runtime.position += 1u; }
+    let outIndex = runtime.contextCapacity + runtime.generatedCount;
+    let token = reduceU32[0];
+    tokens[outIndex] = token;
+    runtime.currentToken = token;
+    runtime.lastToken = token;
+    runtime.generatedCount += 1u;
+    runtime.telemetryRevision += 1u;
+
+    if (token == runtime.eosToken) {
+      runtime.status = 2u;
+    } else if (runtime.generatedCount >= runtime.maxNewTokens) {
+      runtime.status = 3u;
+    }
+  }
 }
 
 @compute @workgroup_size(256)

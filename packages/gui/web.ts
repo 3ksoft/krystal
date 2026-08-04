@@ -12,6 +12,9 @@ import {
   type TokenByteTableEntry,
 } from "../engine-ts/src/index.ts";
 import { Sandblaster } from  "@sandblaster/core"
+import { SchemaAnalyzer } from "@schema-pop/core";
+import { jsonSchemaToType } from "@ark/json-schema";
+import { scope } from "arktype";
 
 const params = new URLSearchParams(location.search);
 const modelUrl = params.get("model") ?? "/models/LFM2.5-1.2B-Instruct-F16.gguf";
@@ -42,6 +45,9 @@ const structuredRandomEl = byId<HTMLButtonElement>("structured-random");
 const structuredNextEl = byId<HTMLButtonElement>("structured-next");
 const structuredMaxTokensEl = byId<HTMLInputElement>("structured-max-tokens");
 const runStructuredEl = byId<HTMLButtonElement>("run-structured");
+const runStructuredAllEl = byId<HTMLButtonElement>("run-structured-all");
+const stopStructuredAllEl = byId<HTMLButtonElement>("stop-structured-all");
+const structuredBatchEl = byId<HTMLPreElement>("structured-batch");
 const structuredOutputEl = byId<HTMLPreElement>("structured-output");
 const structuredPlanEl = byId<HTMLPreElement>("structured-plan");
 const structuredTraceEl = byId<HTMLPreElement>("structured-trace");
@@ -210,39 +216,98 @@ interface SchemaDatasetRow {
   seed: number;
   id: number;
   task: string;
-  schema: unknown;
+  /** New compact dataset shape. */
+  rawSchema?: unknown;
+  /** Backward compatibility with the current dataset. */
+  schema?: unknown;
   value: unknown;
   sampleText: string;
-  analysis: {
-    plan: Parameters<typeof compileLayoutPlanProgram>[0];
+  /** Backward compatibility only; fresh analysis is preferred when a schema is present. */
+  analysis?: {
+    plan?: Parameters<typeof compileLayoutPlanProgram>[0];
     warnings?: unknown[];
     errors?: unknown[];
   };
 }
 
+type ArkValidator = {
+  assert(value: unknown): unknown;
+};
+
 interface CompiledDatasetRow {
   row: SchemaDatasetRow;
+  plan: Parameters<typeof compileLayoutPlanProgram>[0] | null;
   program: LayoutConstraintProgram | null;
+  arkType: ArkValidator | null;
+  sampleError: string | null;
   error: string | null;
+  lastResult?: "pass" | "validation-fail" | "incomplete" | "decode-fail";
 }
 
 let structuredDataset: CompiledDatasetRow[] = [];
+let structuredBatchRunning = false;
+let structuredBatchStopRequested = false;
+
+function rowSchema(row: SchemaDatasetRow): unknown | undefined {
+  return row.rawSchema ?? row.schema;
+}
+
+function compileDatasetRow(row: SchemaDatasetRow, index: number): CompiledDatasetRow {
+  try {
+    const rawSchema = rowSchema(row);
+    let plan: Parameters<typeof compileLayoutPlanProgram>[0] | undefined;
+    let arkType: ArkValidator | null = null;
+
+    if (rawSchema !== undefined) {
+      const converted = jsonSchemaToType(rawSchema as any);
+      if (converted === undefined) throw new Error("jsonSchemaToType returned undefined");
+      arkType = converted as unknown as ArkValidator;
+      const module = scope({ value: converted });
+      const analysis = new SchemaAnalyzer().analyze(module, { mode: "binary" });
+      if (!analysis.plan || analysis.errors.length > 0) {
+        throw new Error(`SchemaAnalyzer failed: ${JSON.stringify(analysis.errors)}`);
+      }
+      plan = analysis.plan as Parameters<typeof compileLayoutPlanProgram>[0];
+    } else if (row.analysis?.plan) {
+      // Old fixture fallback: usable for constraint debugging, but cannot validate
+      // the generated value without the original schema.
+      plan = row.analysis.plan;
+    } else {
+      throw new Error("dataset row has neither rawSchema/schema nor analysis.plan");
+    }
+
+    let sampleError: string | null = null;
+    if (arkType) {
+      try {
+        arkType.assert(row.value);
+      } catch (error) {
+        sampleError = error instanceof Error ? error.message : String(error);
+      }
+    }
+
+    return {
+      row,
+      plan,
+      program: compileLayoutPlanProgram(plan),
+      arkType,
+      sampleError,
+      error: null,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.debug(`[chomato] dataset row ${index} unsupported`, message);
+    return { row, plan: null, program: null, arkType: null, sampleError: null, error: message };
+  }
+}
 
 async function loadStructuredDataset(): Promise<CompiledDatasetRow[]> {
   const url = new URL("./schema-dataset.jsonl", import.meta.url);
   const response = await fetch(url);
   if (!response.ok) throw new Error(`Could not load schema dataset: HTTP ${response.status}`);
   const text = await response.text();
-  return text.split(/\r?\n/).filter(Boolean).map((line, index) => {
-    const row = JSON.parse(line) as SchemaDatasetRow;
-    try {
-      return { row, program: compileLayoutPlanProgram(row.analysis.plan), error: null };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.debug(`[chomato] dataset row ${index} unsupported`, message);
-      return { row, program: null, error: message };
-    }
-  });
+  return text.split(/\r?\n/).filter(Boolean).map((line, index) =>
+    compileDatasetRow(JSON.parse(line) as SchemaDatasetRow, index)
+  );
 }
 
 function selectedDatasetIndex(): number {
@@ -274,11 +339,23 @@ function renderProgramSummary(item: CompiledDatasetRow): string {
       `SUPPORTED · root ${s.rootType} · ${s.segments} segments`,
       `fields ${s.fields} · enum ${s.enums} · string ${s.strings} · number ${s.numbers} · bool ${s.booleans} · fixed arrays ${s.arrays}`,
       `optional included ${s.optionalIncluded} · skipped unsupported optional ${s.optionalSkipped}`,
+      `validator ${item.arkType ? "ArkType ready" : "unavailable (legacy row without schema)"}`,
+      `sample value ${item.arkType ? item.sampleError ? `ArkType FAIL · ${item.sampleError}` : "ArkType PASS" : "not checked"}`,
     );
   } else {
     lines.push(`UNSUPPORTED · ${error}`);
   }
-  lines.push("", "sample value:", JSON.stringify(row.value, null, 2), "", "LayoutPlan:", JSON.stringify(row.analysis.plan, null, 2));
+  lines.push(
+    "",
+    "schema:",
+    JSON.stringify(row.rawSchema ?? row.schema ?? null, null, 2),
+    "",
+    "sample value:",
+    JSON.stringify(row.value, null, 2),
+    "",
+    "LayoutPlan:",
+    JSON.stringify(item.plan, null, 2),
+  );
   return lines.join("\n");
 }
 
@@ -295,12 +372,13 @@ function updateStructuredSelection(index = selectedDatasetIndex()): void {
     const s = item.program.summary;
     structuredStatusEl.textContent = `supported · ${s.fields} fields · ${s.segments} segments`;
     structuredStatusEl.className = "ok";
-    runStructuredEl.disabled = false;
   } else {
     structuredStatusEl.textContent = item.error ?? "unsupported";
     structuredStatusEl.className = "error";
-    runStructuredEl.disabled = true;
   }
+  runStructuredEl.disabled = structuredBatchRunning || !item.program;
+  runStructuredAllEl.disabled = structuredBatchRunning || !structuredDataset.some((entry) => entry.program && entry.arkType);
+  stopStructuredAllEl.disabled = !structuredBatchRunning;
 }
 
 function moveStructuredSelection(direction: -1 | 1): void {
@@ -339,6 +417,7 @@ async function initializeStructuredDataset(): Promise<void> {
   structuredPrevEl.disabled = false;
   structuredRandomEl.disabled = supported === 0;
   structuredNextEl.disabled = false;
+  runStructuredAllEl.disabled = !structuredDataset.some((item) => item.program && item.arkType);
   const firstSupported = structuredDataset.findIndex((item) => item.program !== null && item.program.summary.fields > 0);
   updateStructuredSelection(firstSupported >= 0 ? firstSupported : 0);
   console.log(`[chomato] structured dataset ${supported}/${structuredDataset.length} non-trivial rows supported by current LayoutPlan subset`);
@@ -367,13 +446,15 @@ function renderConstraintTrace(trace: readonly ConstraintTraceStep[]): string {
     if (item.survivingCandidates) {
       lines.push(`  survivors: ${item.survivingCandidates.map((candidate) => JSON.stringify(candidate)).join(" | ") || "<none>"}`);
     }
-    lines.push("  top logits before mask:");
-    for (const top of item.topBefore) {
-      lines.push(`    ${top.allowed ? "ALLOW " : "reject"} #${top.token.toString().padEnd(5)} ${top.logit.toFixed(3).padStart(9)}  ${JSON.stringify(top.bytes)}`);
-    }
-    lines.push("  top allowed:");
-    for (const top of item.topAllowed) {
-      lines.push(`    #${top.token.toString().padEnd(5)} ${top.logit.toFixed(3).padStart(9)}  ${JSON.stringify(top.bytes)}`);
+    if (item.topBefore.length > 0) {
+      lines.push("  top logits before mask:");
+      for (const top of item.topBefore) {
+        lines.push(`    ${top.allowed ? "ALLOW " : "reject"} #${top.token.toString().padEnd(5)} ${top.logit.toFixed(3).padStart(9)}  ${JSON.stringify(top.bytes)}`);
+      }
+      lines.push("  top allowed:");
+      for (const top of item.topAllowed) {
+        lines.push(`    #${top.token.toString().padEnd(5)} ${top.logit.toFixed(3).padStart(9)}  ${JSON.stringify(top.bytes)}`);
+      }
     }
     lines.push("");
   }
@@ -454,6 +535,8 @@ function renderRequestStats(result: GenerateResult, wallMs: number, promptTokens
 function beginRequest(label: string, promptTokens: number) {
   runEl.disabled = true;
   runStructuredEl.disabled = true;
+  runStructuredAllEl.disabled = true;
+  stopStructuredAllEl.disabled = !structuredBatchRunning;
   addBlockEl.disabled = true;
   clearBlocksEl.disabled = true;
   runBlocksEl.disabled = true;
@@ -484,6 +567,8 @@ function beginRequest(label: string, promptTokens: number) {
 function endRequest() {
   runEl.disabled = false;
   runStructuredEl.disabled = false;
+  runStructuredAllEl.disabled = structuredBatchRunning || !structuredDataset.some((item) => item.program && item.arkType);
+  stopStructuredAllEl.disabled = !structuredBatchRunning;
   addBlockEl.disabled = false;
   clearBlocksEl.disabled = storedBlocks.size === 0;
   runBlocksEl.disabled = storedBlocks.size === 0;
@@ -541,58 +626,231 @@ async function runPrompt(): Promise<void> {
   }
 }
 
-async function runStructuredPrompt(): Promise<void> {
-  const item = selectedDatasetRow();
-  if (!item.program) throw new Error(item.error ?? "Selected LayoutPlan is unsupported");
-  const prompt = structuredPromptEl.value.trim();
+interface ValidationResult {
+  ok: boolean;
+  value?: unknown;
+  error?: string;
+}
+
+function validateStructuredText(item: CompiledDatasetRow, text: string): ValidationResult {
+  if (!item.arkType) return { ok: false, error: "ArkType validator unavailable for this dataset row" };
+  try {
+    const value = JSON.parse(text);
+    item.arkType.assert(value);
+    return { ok: true, value };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+interface StructuredRunResult {
+  kind: "pass" | "validation-fail" | "incomplete" | "decode-fail";
+  text: string;
+  elapsedMs: number;
+  generated: number;
+  validation?: ValidationResult;
+  error?: string;
+  trace: readonly ConstraintTraceStep[];
+}
+
+async function executeStructuredRow(
+  item: CompiledDatasetRow,
+  prompt: string,
+  requestedMaxTokens: number,
+  renderDetails: boolean,
+): Promise<StructuredRunResult> {
+  if (!item.program || !item.plan) {
+    return {
+      kind: "decode-fail",
+      text: "",
+      elapsedMs: 0,
+      generated: 0,
+      error: item.error ?? "Selected LayoutPlan is unsupported",
+      trace: [],
+    };
+  }
+
   const promptTokens = tokenizer.encodeUserPrompt(prompt);
-  const requested = Math.max(1, Math.floor(Number(structuredMaxTokensEl.value) || 64));
   const maxPossible = contextCapacity - promptTokens.length + 1;
-  const maxNewTokens = Math.min(requested, runtimeMaxNewTokens, maxPossible);
-  if (maxNewTokens < 1) throw new Error(`Structured prompt has ${promptTokens.length} tokens and does not fit context ${contextCapacity}`);
+  const maxNewTokens = Math.min(requestedMaxTokens, runtimeMaxNewTokens, maxPossible);
+  if (maxNewTokens < 1) {
+    return {
+      kind: "decode-fail",
+      text: "",
+      elapsedMs: 0,
+      generated: 0,
+      error: `Structured prompt has ${promptTokens.length} tokens and does not fit context ${contextCapacity}`,
+      trace: [],
+    };
+  }
 
   const constraint = createLayoutPlanJsonConstraint({
-    plan: item.row.analysis.plan,
+    plan: item.plan,
     tokens: getConstraintTokenTable(),
     eosToken: tokenizer.eos,
   });
 
-  beginRequest("LayoutPlan CPU constrained decode…", promptTokens.length);
-  structuredStatusEl.textContent = `running · row #${item.row.id} · ${constraint.program.summary.segments} segments`;
-  structuredStatusEl.className = "muted";
-  structuredOutputEl.textContent = "…";
-  structuredTraceEl.textContent = "Reading logits back token by token…";
+  if (renderDetails) {
+    structuredStatusEl.textContent = `running · row #${item.row.id} · ${constraint.program.summary.segments} segments`;
+    structuredStatusEl.className = "muted";
+    structuredOutputEl.textContent = "…";
+    structuredTraceEl.textContent = "CPU constraint → sparse candidate ids → GPU argmax…";
+  }
 
   const started = performance.now();
   try {
-    const result = await runtime.generateTokensWithCpuLogits(promptTokens, constraint, { maxNewTokens });
-    const elapsed = performance.now() - started;
+    const result = await runtime.generateTokensWithCpuCandidates(promptTokens, constraint, { maxNewTokens });
+    const elapsedMs = performance.now() - started;
     const text = tokenizer.decode(result.tokenIds);
-    structuredOutputEl.textContent = text;
-    structuredTraceEl.textContent = renderConstraintTrace(constraint.trace);
-    structuredStatusEl.textContent = `${constraint.done ? "complete + EOS" : "stopped"} · row #${item.row.id} · ${result.state.generatedCount} tok · ${ms(elapsed)}`;
-    structuredStatusEl.className = constraint.done ? "ok" : "error";
-    renderRequestStats(result, elapsed, promptTokens.length);
-    outputEl.textContent = text;
-    setStatus("ready", "ok");
+    const validation = validateStructuredText(item, text);
+    const kind: StructuredRunResult["kind"] = !constraint.done
+      ? "incomplete"
+      : validation.ok
+        ? "pass"
+        : "validation-fail";
+
+    if (renderDetails) {
+      structuredOutputEl.textContent = text;
+      structuredTraceEl.textContent = renderConstraintTrace(constraint.trace);
+      const validationText = validation.ok ? "ArkType PASS" : `ArkType FAIL · ${validation.error}`;
+      structuredStatusEl.textContent = `${constraint.done ? "complete + EOS" : "stopped"} · ${validationText} · row #${item.row.id} · ${result.state.generatedCount} tok · ${ms(elapsedMs)}`;
+      structuredStatusEl.className = kind === "pass" ? "ok" : "error";
+      renderRequestStats(result, elapsedMs, promptTokens.length);
+      outputEl.textContent = text;
+    }
+
     console.log("[chomato] LayoutPlan constrained output", {
       row: item.row,
       program: constraint.program.summary,
       text,
+      validation,
       tokenIds: result.tokenIds,
       state: result.state,
       trace: constraint.trace,
     });
+
+    return {
+      kind,
+      text,
+      elapsedMs,
+      generated: result.state.generatedCount,
+      validation,
+      trace: constraint.trace,
+    };
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    structuredOutputEl.textContent = message;
-    structuredTraceEl.textContent = renderConstraintTrace(constraint.trace);
-    structuredStatusEl.textContent = "ERROR";
-    structuredStatusEl.className = "error";
-    setStatus("constrained decode failed", "error");
-    statRequestStatus.textContent = "ERROR";
-    console.error(error);
+    return {
+      kind: "decode-fail",
+      text: "",
+      elapsedMs: performance.now() - started,
+      generated: constraint.trace.length,
+      error: error instanceof Error ? error.message : String(error),
+      trace: constraint.trace,
+    };
+  }
+}
+
+function renderBatchResults(
+  current: number,
+  total: number,
+  results: Array<{ id: number; task: string; result: StructuredRunResult }>,
+  unsupported: number,
+): void {
+  const counts = { pass: 0, "validation-fail": 0, incomplete: 0, "decode-fail": 0 };
+  let tokens = 0;
+  let elapsed = 0;
+  for (const entry of results) {
+    counts[entry.result.kind]++;
+    tokens += entry.result.generated;
+    elapsed += entry.result.elapsedMs;
+  }
+  const lines = [
+    `progress ${current}/${total}${structuredBatchStopRequested ? " · stopping after current row" : ""}`,
+    `PASS ${counts.pass} · validation fail ${counts["validation-fail"]} · incomplete ${counts.incomplete} · decode fail ${counts["decode-fail"]} · unsupported skipped ${unsupported}`,
+    `generated ${tokens} tok · ${elapsed > 0 ? rate(tokens, elapsed) : "—"} · ${ms(elapsed)}`,
+    "",
+  ];
+  for (const entry of results) {
+    const suffix = entry.result.kind === "validation-fail"
+      ? ` · ${entry.result.validation?.error ?? "validation failed"}`
+      : entry.result.error
+        ? ` · ${entry.result.error}`
+        : "";
+    lines.push(`${entry.result.kind === "pass" ? "PASS" : "FAIL"} #${entry.id} · ${entry.result.kind} · ${entry.result.generated} tok · ${ms(entry.result.elapsedMs)} · ${entry.task}${suffix}`);
+  }
+  structuredBatchEl.textContent = lines.join("\n");
+}
+
+async function runStructuredPrompt(): Promise<void> {
+  const item = selectedDatasetRow();
+  if (!item.program) throw new Error(item.error ?? "Selected LayoutPlan is unsupported");
+  const prompt = structuredPromptEl.value.trim();
+  const requested = Math.max(1, Math.floor(Number(structuredMaxTokensEl.value) || 64));
+  const promptTokens = tokenizer.encodeUserPrompt(prompt);
+
+  beginRequest("LayoutPlan CPU constrained decode…", promptTokens.length);
+  try {
+    const result = await executeStructuredRow(item, prompt, requested, true);
+    item.lastResult = result.kind;
+    if (result.kind === "pass") {
+      setStatus("ready", "ok");
+    } else {
+      setStatus(`structured ${result.kind}`, "error");
+      statRequestStatus.textContent = "ERROR";
+      if (result.error) {
+        structuredOutputEl.textContent = result.error;
+        structuredStatusEl.textContent = `${result.kind} · ${result.error}`;
+        structuredStatusEl.className = "error";
+      }
+      if (result.trace.length > 0) structuredTraceEl.textContent = renderConstraintTrace(result.trace);
+    }
   } finally {
+    endRequest();
+  }
+}
+
+async function runAllStructuredRows(): Promise<void> {
+  if (structuredBatchRunning) return;
+  const runnable = structuredDataset
+    .map((item, index) => ({ item, index }))
+    .filter(({ item }) => item.program !== null && item.arkType !== null);
+  if (runnable.length === 0) throw new Error("No supported dataset rows with ArkType validators");
+
+  const unsupported = structuredDataset.length - runnable.length;
+  const requested = Math.max(1, Math.floor(Number(structuredMaxTokensEl.value) || 64));
+  const results: Array<{ id: number; task: string; result: StructuredRunResult }> = [];
+  structuredBatchRunning = true;
+  structuredBatchStopRequested = false;
+  beginRequest("structured dataset runner…", 0);
+  stopStructuredAllEl.disabled = false;
+  structuredBatchEl.textContent = `starting 0/${runnable.length} · unsupported skipped ${unsupported}`;
+
+  try {
+    for (let i = 0; i < runnable.length; i++) {
+      if (structuredBatchStopRequested) break;
+      const { item, index } = runnable[i]!;
+      structuredDatasetEl.value = String(index);
+      updateStructuredSelection(index);
+      const prompt = datasetPrompt(item.row);
+      structuredPromptEl.value = prompt;
+      structuredStatusEl.textContent = `batch ${i + 1}/${runnable.length} · row #${item.row.id}`;
+      structuredStatusEl.className = "muted";
+
+      const result = await executeStructuredRow(item, prompt, requested, true);
+      item.lastResult = result.kind;
+      results.push({ id: item.row.id, task: item.row.task, result });
+      renderBatchResults(i + 1, runnable.length, results, unsupported);
+    }
+
+    const failed = results.some((entry) => entry.result.kind !== "pass");
+    const stopped = structuredBatchStopRequested;
+    structuredStatusEl.textContent = stopped
+      ? `batch stopped · ${results.length}/${runnable.length}`
+      : `batch complete · ${results.length}/${runnable.length} · ${failed ? "FAILURES" : "ALL PASS"}`;
+    structuredStatusEl.className = !stopped && !failed ? "ok" : stopped ? "muted" : "error";
+    setStatus(!stopped && !failed ? "ready" : stopped ? "batch stopped" : "batch completed with failures", !stopped && !failed ? "ok" : "error");
+  } finally {
+    structuredBatchRunning = false;
+    stopStructuredAllEl.disabled = true;
     endRequest();
   }
 }
@@ -896,6 +1154,18 @@ structuredDatasetEl.addEventListener("change", () => updateStructuredSelection()
 structuredPrevEl.addEventListener("click", () => moveStructuredSelection(-1));
 structuredRandomEl.addEventListener("click", randomSupportedDatasetRow);
 structuredNextEl.addEventListener("click", () => moveStructuredSelection(1));
+runStructuredAllEl.addEventListener("click", () => {
+  void runAllStructuredRows().catch((error) => {
+    const message = error instanceof Error ? error.message : String(error);
+    structuredStatusEl.textContent = message;
+    structuredStatusEl.className = "error";
+    console.error(error);
+  });
+});
+stopStructuredAllEl.addEventListener("click", () => {
+  structuredBatchStopRequested = true;
+  stopStructuredAllEl.disabled = true;
+});
 
 runStructuredEl.addEventListener("click", () => {
   void runStructuredPrompt().catch((error) => {
@@ -963,12 +1233,12 @@ Object.assign(globalThis, {
       if (!item) throw new Error(`Dataset index ${index} does not exist`);
       if (!item.program) throw new Error(item.error ?? `Dataset index ${index} is unsupported`);
       const constraint = createLayoutPlanJsonConstraint({
-        plan: item.row.analysis.plan,
+        plan: item.plan,
         tokens: getConstraintTokenTable(),
         eosToken: tokenizer.eos,
       });
       const promptTokens = tokenizer.encodeUserPrompt(prompt ?? datasetPrompt(item.row));
-      const result = await runtime.generateTokensWithCpuLogits(promptTokens, constraint, { maxNewTokens });
+      const result = await runtime.generateTokensWithCpuCandidates(promptTokens, constraint, { maxNewTokens });
       return { result, text: tokenizer.decode(result.tokenIds), trace: constraint.trace, program: constraint.program.summary, row: item.row };
     },
     constrainEnum: async (prompt: string, property: string, variants: readonly string[], maxNewTokens = 32) => {

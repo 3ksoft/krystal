@@ -387,7 +387,6 @@ while (done < COUNT) {
 			throw new Error("Could not convert schema to ArkType")
 		}
 
-
 		const module = scope({ value: arkType })
 		const analyzer = new SchemaAnalyzer()
 		const analysis = analyzer.analyze(module, { mode : "binary"})
@@ -449,11 +448,9 @@ while (done < COUNT) {
 				seed: n,
 				id: done,
 				task,
-				schema: sampleSchema,
+				rawSchema,
 				value: sample,
 				sampleText,
-				analysis,
-				plan
 			}) + "\n",
 		)
 

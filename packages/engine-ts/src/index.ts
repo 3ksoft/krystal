@@ -245,31 +245,34 @@ export function createLiteralEnumJsonConstraint(options: {
 }
 
 // ---------------------------------------------------------------------------
-// LayoutPlan -> canonical compact JSON byte program
+// LayoutPlan -> canonical compact JSON constraint graph
 // ---------------------------------------------------------------------------
 
-type LiteralSegment = {
+type LiteralNode = {
   kind: "literal";
   bytes: Uint8Array;
   text: string;
   label: string;
+  next: number;
 };
 
-type ChoiceSegment = {
+type ChoiceNode = {
   kind: "choice";
   alternatives: readonly Uint8Array[];
   texts: readonly string[];
   label: string;
+  next: number;
 };
 
-type StringSegment = {
+type StringNode = {
   kind: "string";
   minLength: number;
   maxLength: number;
   label: string;
+  next: number;
 };
 
-type NumberSegment = {
+type NumberNode = {
   kind: "number";
   integer: boolean;
   min?: number;
@@ -277,15 +280,29 @@ type NumberSegment = {
   step?: number;
   maxChars: number;
   label: string;
+  next: number;
 };
 
-type JsonSegment = LiteralSegment | ChoiceSegment | StringSegment | NumberSegment;
+type SplitNode = {
+  kind: "split";
+  targets: readonly number[];
+  label: string;
+};
+
+type AcceptNode = {
+  kind: "accept";
+  label: string;
+};
+
+type JsonNode = LiteralNode | ChoiceNode | StringNode | NumberNode | SplitNode | AcceptNode;
 
 export interface LayoutConstraintProgramSummary {
   rootType: string;
+  /** Number of graph nodes. Kept as `segments` for GUI/backward compatibility. */
   segments: number;
   fields: number;
   optionalIncluded: number;
+  /** Always zero now: unsupported optional fields reject the whole plan. */
   optionalSkipped: number;
   enums: number;
   strings: number;
@@ -295,7 +312,9 @@ export interface LayoutConstraintProgramSummary {
 }
 
 export interface LayoutConstraintProgram {
-  readonly segments: readonly JsonSegment[];
+  readonly nodes: readonly JsonNode[];
+  readonly entry: number;
+  readonly accept: number;
   readonly summary: Readonly<LayoutConstraintProgramSummary>;
 }
 
@@ -306,22 +325,13 @@ export class UnsupportedLayoutPlanError extends Error {
   }
 }
 
-function literalSegment(text: string, label: string): LiteralSegment {
-  return { kind: "literal", bytes: encoder.encode(text), text, label };
-}
-
-function choiceSegment(texts: readonly string[], label: string): ChoiceSegment {
-  const unique = [...new Set(texts)];
-  if (unique.length === 0) throw new UnsupportedLayoutPlanError(label, "empty choice");
-  return { kind: "choice", alternatives: unique.map((value) => encoder.encode(value)), texts: unique, label };
-}
-
 /**
- * Compile the analyzed LayoutPlan directly. The compiler deliberately emits a
- * canonical, whitespace-free JSON shape with struct fields in analyzed order.
- * Optional fields are included when their inner type is supported; an
- * unsupported optional field is omitted because omission is schema-valid.
- * Required unsupported fields reject the record instead of guessing.
+ * Compile the analyzed LayoutPlan directly into a finite control-flow graph.
+ * Struct fields keep analyzed order. Optional fields become runtime branches:
+ * the model may emit the field or skip it, while required fields cannot be
+ * skipped. Unsupported optional payloads are NOT silently dropped; they make
+ * the whole record unsupported, because otherwise the compiled language would
+ * be a strict subset of the schema without saying so.
  */
 export function compileLayoutPlanProgram(
   plan: LayoutPlan,
@@ -329,6 +339,7 @@ export function compileLayoutPlanProgram(
 ): LayoutConstraintProgram {
   const rootType = options.rootType ?? "value";
   const types = new Map<string, any>((plan.types as readonly any[]).map((type) => [type.name, type]));
+  const nodes: JsonNode[] = [];
   const summary: LayoutConstraintProgramSummary = {
     rootType,
     segments: 0,
@@ -341,25 +352,112 @@ export function compileLayoutPlanProgram(
     booleans: 0,
     arrays: 0,
   };
+  const counted = new Set<string>();
 
-  const compileFieldType = (
+  const countOnce = (key: string, fn: () => void): void => {
+    if (counted.has(key)) return;
+    counted.add(key);
+    fn();
+  };
+
+  const addNode = (node: JsonNode): number => {
+    const id = nodes.length;
+    nodes.push(node);
+    return id;
+  };
+
+  const literal = (text: string, label: string, next: number): number =>
+    addNode({ kind: "literal", bytes: encoder.encode(text), text, label, next });
+
+  const choice = (texts: readonly string[], label: string, next: number): number => {
+    const unique = [...new Set(texts)];
+    if (unique.length === 0) throw new UnsupportedLayoutPlanError(label, "empty choice");
+    return addNode({
+      kind: "choice",
+      alternatives: unique.map((value) => encoder.encode(value)),
+      texts: unique,
+      label,
+      next,
+    });
+  };
+
+  let compileFieldType: (
     field: any,
     path: string,
-    out: JsonSegment[],
+    next: number,
     visited: Set<string>,
-  ): void => {
+  ) => number;
+
+  const compileStruct = (
+    struct: any,
+    path: string,
+    next: number,
+    visited: Set<string>,
+  ): number => {
+    const fields = [...(struct.fields ?? [])] as any[];
+    const close = literal("}", `object-close ${path}`, next);
+    const memo = new Map<string, number>();
+
+    const compileFields = (index: number, emitted: boolean): number => {
+      if (index >= fields.length) return close;
+      const memoKey = `${index}:${emitted ? 1 : 0}`;
+      const cached = memo.get(memoKey);
+      if (cached !== undefined) return cached;
+
+      const fieldPlan = fields[index]!;
+      const fieldPath = `${path}.${fieldPlan.name}`;
+      const fieldType = fieldPlan.type;
+      const optional = fieldType?.kind === "optional";
+      const valueType = optional ? fieldType.inner : fieldType;
+
+      // Compile the value first. Any unsupported inner type propagates even for
+      // optional fields; silently skipping it would lie about supported schema.
+      const afterPresent = compileFields(index + 1, true);
+      const valueEntry = compileFieldType(valueType, fieldPath, afterPresent, visited);
+      const propertyPrefix = `${emitted ? "," : ""}${JSON.stringify(String(fieldPlan.name))}:`;
+      const presentEntry = literal(propertyPrefix, `field ${fieldPath}`, valueEntry);
+
+      countOnce(`field:${fieldPath}`, () => {
+        summary.fields++;
+        if (optional) summary.optionalIncluded++;
+      });
+
+      let entry = presentEntry;
+      if (optional) {
+        const skippedEntry = compileFields(index + 1, emitted);
+        entry = addNode({
+          kind: "split",
+          targets: [presentEntry, skippedEntry],
+          label: `optional ${fieldPath}`,
+        });
+      }
+
+      memo.set(memoKey, entry);
+      return entry;
+    };
+
+    const fieldsEntry = compileFields(0, false);
+    return literal("{", `object-open ${path}`, fieldsEntry);
+  };
+
+  compileFieldType = (
+    field: any,
+    path: string,
+    next: number,
+    visited: Set<string>,
+  ): number => {
     switch (field?.kind) {
       case "primitive": {
         const primitiveType = String(field.type ?? "");
         const name = String(field.name ?? "").toLowerCase();
         if (primitiveType === "boolean" || name === "bool" || name === "boolean") {
-          out.push(choiceSegment(["true", "false"], `bool ${path}`));
-          summary.booleans++;
-          return;
+          countOnce(`bool:${path}`, () => summary.booleans++);
+          return choice(["true", "false"], `bool ${path}`, next);
         }
         if (primitiveType === "number" || /^(u|i|f)\d+$/.test(name) || ["float", "double", "usize"].includes(name)) {
           const integer = !(field.isFloat || name === "f32" || name === "f64" || name === "float" || name === "double");
-          out.push({
+          countOnce(`number:${path}`, () => summary.numbers++);
+          return addNode({
             kind: "number",
             integer,
             min: typeof field.min === "number" ? field.min : undefined,
@@ -367,9 +465,8 @@ export function compileLayoutPlanProgram(
             step: typeof field.step === "number" && field.step > 0 ? field.step : undefined,
             maxChars: 32,
             label: `number ${path}`,
+            next,
           });
-          summary.numbers++;
-          return;
         }
         throw new UnsupportedLayoutPlanError(path, `primitive '${field.name ?? field.type ?? "?"}'`);
       }
@@ -380,60 +477,54 @@ export function compileLayoutPlanProgram(
         if (maxLength === undefined || !Number.isFinite(maxLength)) {
           throw new UnsupportedLayoutPlanError(path, "string has no finite maxLength/exactLength in LayoutPlan");
         }
-        out.push({
+        countOnce(`string:${path}`, () => summary.strings++);
+        return addNode({
           kind: "string",
           minLength: exactLength ?? (typeof field.minLength === "number" ? field.minLength : 0),
           maxLength,
           label: `string ${path}`,
+          next,
         });
-        summary.strings++;
-        return;
       }
 
       case "reference": {
         const target = types.get(field.name);
         if (!target) throw new UnsupportedLayoutPlanError(path, `missing referenced type '${field.name}'`);
         if (visited.has(field.name)) throw new UnsupportedLayoutPlanError(path, `cyclic reference '${field.name}'`);
-        const next = new Set(visited);
-        next.add(field.name);
+        const nextVisited = new Set(visited);
+        nextVisited.add(field.name);
         if (target.kind === "enum") {
-          out.push(choiceSegment(target.variants.map((variant: any) => JSON.stringify(String(variant.name))), `enum ${path}`));
-          summary.enums++;
-          return;
+          countOnce(`enum:${path}`, () => summary.enums++);
+          return choice(
+            target.variants.map((variant: any) => JSON.stringify(String(variant.name))),
+            `enum ${path}`,
+            next,
+          );
         }
-        if (target.kind === "struct") {
-          compileStruct(target, path, out, next);
-          return;
-        }
-        if (target.kind === "alias") {
-          compileFieldType(target.type, path, out, next);
-          return;
-        }
+        if (target.kind === "struct") return compileStruct(target, path, next, nextVisited);
+        if (target.kind === "alias") return compileFieldType(target.type, path, next, nextVisited);
         throw new UnsupportedLayoutPlanError(path, `referenced type '${field.name}' has kind '${target.kind}'`);
       }
 
       case "optional":
-        compileFieldType(field.inner, path, out, visited);
-        return;
+        throw new UnsupportedLayoutPlanError(path, "optional is only supported as a struct field");
 
       case "array": {
         const exactLength = typeof field.exactLength === "number" ? field.exactLength : undefined;
         if (exactLength === undefined) {
           throw new UnsupportedLayoutPlanError(path, "array has no exactLength in LayoutPlan");
         }
-        out.push(literalSegment("[", `array-open ${path}`));
-        for (let i = 0; i < exactLength; i++) {
-          if (i > 0) out.push(literalSegment(",", `array-comma ${path}[${i}]`));
-          compileFieldType(field.item, `${path}[${i}]`, out, visited);
+        countOnce(`array:${path}`, () => summary.arrays++);
+        let entry = literal("]", `array-close ${path}`, next);
+        for (let i = exactLength - 1; i >= 0; i--) {
+          entry = compileFieldType(field.item, `${path}[${i}]`, entry, visited);
+          if (i > 0) entry = literal(",", `array-comma ${path}[${i}]`, entry);
         }
-        out.push(literalSegment("]", `array-close ${path}`));
-        summary.arrays++;
-        return;
+        return literal("[", `array-open ${path}`, entry);
       }
 
       case "inlineStruct":
-        compileStruct(field, path, out, visited);
-        return;
+        return compileStruct(field, path, next, visited);
 
       case "unit":
         throw new UnsupportedLayoutPlanError(path, "unit carries no JSON value semantics");
@@ -443,54 +534,21 @@ export function compileLayoutPlanProgram(
     }
   };
 
-  const compileStruct = (
-    struct: any,
-    path: string,
-    out: JsonSegment[],
-    visited: Set<string>,
-  ): void => {
-    out.push(literalSegment("{", `object-open ${path}`));
-    let emitted = 0;
-    for (const fieldPlan of struct.fields ?? []) {
-      const fieldPath = `${path}.${fieldPlan.name}`;
-      const fieldType = fieldPlan.type;
-      let valueSegments: JsonSegment[] = [];
-      if (fieldType?.kind === "optional") {
-        try {
-          compileFieldType(fieldType.inner, fieldPath, valueSegments, visited);
-          summary.optionalIncluded++;
-        } catch (error) {
-          if (!(error instanceof UnsupportedLayoutPlanError)) throw error;
-          summary.optionalSkipped++;
-          continue;
-        }
-      } else {
-        compileFieldType(fieldType, fieldPath, valueSegments, visited);
-      }
-
-      const propertyPrefix = `${emitted > 0 ? "," : ""}${JSON.stringify(String(fieldPlan.name))}:`;
-      out.push(literalSegment(propertyPrefix, `field ${fieldPath}`));
-      out.push(...valueSegments);
-      emitted++;
-      summary.fields++;
-    }
-    out.push(literalSegment("}", `object-close ${path}`));
-  };
-
+  const accept = addNode({ kind: "accept", label: "<complete>" });
   const root = types.get(rootType);
   if (!root) throw new UnsupportedLayoutPlanError(rootType, `root type not found; available: ${[...types.keys()].join(", ")}`);
 
-  const segments: JsonSegment[] = [];
+  let entry: number;
   const visited = new Set<string>([rootType]);
-  if (root.kind === "struct") compileStruct(root, rootType, segments, visited);
+  if (root.kind === "struct") entry = compileStruct(root, rootType, accept, visited);
   else if (root.kind === "enum") {
-    segments.push(choiceSegment(root.variants.map((variant: any) => JSON.stringify(String(variant.name))), `enum ${rootType}`));
-    summary.enums++;
-  } else if (root.kind === "alias") compileFieldType(root.type, rootType, segments, visited);
+    countOnce(`enum:${rootType}`, () => summary.enums++);
+    entry = choice(root.variants.map((variant: any) => JSON.stringify(String(variant.name))), `enum ${rootType}`, accept);
+  } else if (root.kind === "alias") entry = compileFieldType(root.type, rootType, accept, visited);
   else throw new UnsupportedLayoutPlanError(rootType, `top-level kind '${root.kind}'`);
 
-  summary.segments = segments.length;
-  return { segments, summary };
+  summary.segments = nodes.length;
+  return { nodes, entry, accept, summary };
 }
 
 type LiteralLocal = { kind: "literal"; offset: number };
@@ -502,33 +560,68 @@ type StringLocal = {
   unicodeRemaining: number;
 };
 type NumberLocal = { kind: "number"; text: string };
-type SegmentLocal = LiteralLocal | ChoiceLocal | StringLocal | NumberLocal;
+type NodeLocal = LiteralLocal | ChoiceLocal | StringLocal | NumberLocal;
 
-type ProgramState = {
-  segment: number;
-  local: SegmentLocal | null;
+type BranchState = {
+  node: number;
+  local: NodeLocal | null;
 };
 
-function cloneProgramState(state: ProgramState): ProgramState {
-  if (!state.local) return { segment: state.segment, local: null };
-  if (state.local.kind === "choice") return { segment: state.segment, local: { kind: "choice", prefix: [...state.local.prefix] } };
-  return { segment: state.segment, local: { ...state.local } } as ProgramState;
+type ProgramState = readonly BranchState[];
+
+function cloneBranchState(state: BranchState): BranchState {
+  if (!state.local) return { node: state.node, local: null };
+  if (state.local.kind === "choice") return { node: state.node, local: { kind: "choice", prefix: [...state.local.prefix] } };
+  return { node: state.node, local: { ...state.local } } as BranchState;
 }
 
-function ensureLocal(segment: JsonSegment, state: ProgramState): SegmentLocal {
+function cloneProgramState(state: ProgramState): BranchState[] {
+  return state.map(cloneBranchState);
+}
+
+function localKey(local: NodeLocal | null): string {
+  if (!local) return "-";
+  switch (local.kind) {
+    case "literal": return `l:${local.offset}`;
+    case "choice": return `c:${local.prefix.join(".")}`;
+    case "string": return `s:${local.phase}:${local.length}:${local.unicodeRemaining}`;
+    case "number": return `n:${local.text}`;
+  }
+}
+
+function normalizeProgramState(program: LayoutConstraintProgram, state: ProgramState): BranchState[] {
+  const queue = cloneProgramState(state);
+  const out: BranchState[] = [];
+  const seenSplit = new Set<number>();
+  const seenConcrete = new Set<string>();
+
+  while (queue.length > 0) {
+    const branch = queue.pop()!;
+    const node = program.nodes[branch.node];
+    if (!node) continue;
+    if (node.kind === "split") {
+      if (seenSplit.has(branch.node)) continue;
+      seenSplit.add(branch.node);
+      for (const target of node.targets) queue.push({ node: target, local: null });
+      continue;
+    }
+    const key = `${branch.node}|${localKey(branch.local)}`;
+    if (seenConcrete.has(key)) continue;
+    seenConcrete.add(key);
+    out.push(branch);
+  }
+  return out;
+}
+
+function ensureLocal(node: Exclude<JsonNode, SplitNode | AcceptNode>, state: BranchState): NodeLocal {
   if (state.local) return state.local;
-  switch (segment.kind) {
+  switch (node.kind) {
     case "literal": state.local = { kind: "literal", offset: 0 }; break;
     case "choice": state.local = { kind: "choice", prefix: [] }; break;
     case "string": state.local = { kind: "string", phase: "open", length: 0, unicodeRemaining: 0 }; break;
     case "number": state.local = { kind: "number", text: "" }; break;
   }
   return state.local;
-}
-
-function advanceSegment(state: ProgramState): void {
-  state.segment++;
-  state.local = null;
 }
 
 function isHex(byte: number): boolean {
@@ -572,162 +665,212 @@ function isJsonNumberPrefix(text: string, integer: boolean): boolean {
   return i === text.length;
 }
 
-function isJsonNumberComplete(segment: NumberSegment, text: string): boolean {
-  const pattern = segment.integer
+function isJsonNumberComplete(node: NumberNode, text: string): boolean {
+  const pattern = node.integer
     ? /^-?(?:0|[1-9]\d*)$/
     : /^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$/;
   if (!pattern.test(text)) return false;
   const value = Number(text);
   if (!Number.isFinite(value)) return false;
-  if (segment.min !== undefined && value < segment.min) return false;
-  if (segment.max !== undefined && value > segment.max) return false;
-  if (segment.step !== undefined) {
-    const base = segment.min ?? 0;
-    const scaled = (value - base) / segment.step;
+  if (node.min !== undefined && value < node.min) return false;
+  if (node.max !== undefined && value > node.max) return false;
+  if (node.step !== undefined) {
+    const base = node.min ?? 0;
+    const scaled = (value - base) / node.step;
     if (Math.abs(scaled - Math.round(scaled)) > 1e-9 * Math.max(1, Math.abs(scaled))) return false;
   }
   return true;
 }
 
-function choiceMatchesPrefix(segment: ChoiceSegment, prefix: readonly number[]): boolean {
-  return segment.alternatives.some((candidate) => {
+function choiceMatchesPrefix(node: ChoiceNode, prefix: readonly number[]): boolean {
+  return node.alternatives.some((candidate) => {
     if (prefix.length > candidate.length) return false;
     for (let i = 0; i < prefix.length; i++) if (candidate[i] !== prefix[i]) return false;
     return true;
   });
 }
 
-function choiceComplete(segment: ChoiceSegment, prefix: readonly number[]): boolean {
-  return segment.alternatives.some((candidate) => {
+function choiceComplete(node: ChoiceNode, prefix: readonly number[]): boolean {
+  return node.alternatives.some((candidate) => {
     if (prefix.length !== candidate.length) return false;
     for (let i = 0; i < prefix.length; i++) if (candidate[i] !== prefix[i]) return false;
     return true;
   });
 }
 
-function feedByte(program: LayoutConstraintProgram, state: ProgramState, byte: number): boolean {
-  // Number completion does not consume the delimiter. When it completes, retry
-  // the same byte against the next segment. No other segment needs pushback.
-  for (let retry = 0; retry < 2; retry++) {
-    const segment = program.segments[state.segment];
-    if (!segment) return false;
-    const local = ensureLocal(segment, state);
+function feedByteFromBranch(
+  program: LayoutConstraintProgram,
+  initial: BranchState,
+  byte: number,
+  depth = 0,
+): BranchState[] {
+  if (depth > 128) throw new Error("LayoutPlan constraint exceeded control-flow retry limit");
+  const starts = normalizeProgramState(program, [initial]);
+  const results: BranchState[] = [];
 
-    if (segment.kind === "literal") {
-      const literal = local as LiteralLocal;
-      if (segment.bytes[literal.offset] !== byte) return false;
-      literal.offset++;
-      if (literal.offset === segment.bytes.length) advanceSegment(state);
-      return true;
+  for (const start of starts) {
+    const node = program.nodes[start.node];
+    if (!node || node.kind === "accept" || node.kind === "split") continue;
+    const state = cloneBranchState(start);
+    const local = ensureLocal(node, state);
+
+    if (node.kind === "literal") {
+      const literalState = local as LiteralLocal;
+      if (node.bytes[literalState.offset] !== byte) continue;
+      literalState.offset++;
+      if (literalState.offset === node.bytes.length) {
+        results.push(...normalizeProgramState(program, [{ node: node.next, local: null }]));
+      } else results.push(state);
+      continue;
     }
 
-    if (segment.kind === "choice") {
-      const choice = local as ChoiceLocal;
-      choice.prefix.push(byte);
-      if (!choiceMatchesPrefix(segment, choice.prefix)) return false;
-      if (choiceComplete(segment, choice.prefix)) advanceSegment(state);
-      return true;
+    if (node.kind === "choice") {
+      const choiceState = local as ChoiceLocal;
+      choiceState.prefix.push(byte);
+      if (!choiceMatchesPrefix(node, choiceState.prefix)) continue;
+      if (choiceComplete(node, choiceState.prefix)) {
+        results.push(...normalizeProgramState(program, [{ node: node.next, local: null }]));
+      } else results.push(state);
+      continue;
     }
 
-    if (segment.kind === "string") {
-      const string = local as StringLocal;
-      if (string.phase === "open") {
-        if (byte !== 0x22) return false;
-        string.phase = "body";
-        return true;
+    if (node.kind === "string") {
+      const stringState = local as StringLocal;
+      if (stringState.phase === "open") {
+        if (byte !== 0x22) continue;
+        stringState.phase = "body";
+        results.push(state);
+        continue;
       }
-      if (string.phase === "escape") {
+      if (stringState.phase === "escape") {
         if (byte === 0x75) {
-          string.phase = "unicode";
-          string.unicodeRemaining = 4;
-          return true;
+          stringState.phase = "unicode";
+          stringState.unicodeRemaining = 4;
+          results.push(state);
+          continue;
         }
-        if (![0x22, 0x5c, 0x2f, 0x62, 0x66, 0x6e, 0x72, 0x74].includes(byte)) return false;
-        if (string.length >= segment.maxLength) return false;
-        string.length++;
-        string.phase = "body";
-        return true;
+        if (![0x22, 0x5c, 0x2f, 0x62, 0x66, 0x6e, 0x72, 0x74].includes(byte)) continue;
+        if (stringState.length >= node.maxLength) continue;
+        stringState.length++;
+        stringState.phase = "body";
+        results.push(state);
+        continue;
       }
-      if (string.phase === "unicode") {
-        if (!isHex(byte)) return false;
-        string.unicodeRemaining--;
-        if (string.unicodeRemaining === 0) {
-          if (string.length >= segment.maxLength) return false;
-          string.length++;
-          string.phase = "body";
+      if (stringState.phase === "unicode") {
+        if (!isHex(byte)) continue;
+        stringState.unicodeRemaining--;
+        if (stringState.unicodeRemaining === 0) {
+          if (stringState.length >= node.maxLength) continue;
+          stringState.length++;
+          stringState.phase = "body";
         }
-        return true;
+        results.push(state);
+        continue;
       }
       if (byte === 0x22) {
-        if (string.length < segment.minLength) return false;
-        advanceSegment(state);
-        return true;
+        if (stringState.length < node.minLength) continue;
+        results.push(...normalizeProgramState(program, [{ node: node.next, local: null }]));
+        continue;
       }
       if (byte === 0x5c) {
-        if (string.length >= segment.maxLength) return false;
-        string.phase = "escape";
-        return true;
+        if (stringState.length >= node.maxLength) continue;
+        stringState.phase = "escape";
+        results.push(state);
+        continue;
       }
-      if (byte < 0x20 || string.length >= segment.maxLength) return false;
-      string.length++;
-      return true;
+      if (byte < 0x20 || stringState.length >= node.maxLength) continue;
+      stringState.length++;
+      results.push(state);
+      continue;
     }
 
-    const number = local as NumberLocal;
+    const numberState = local as NumberLocal;
     const char = byte <= 0x7f ? String.fromCharCode(byte) : "";
-    if (char && number.text.length < segment.maxChars) {
-      const next = number.text + char;
-      if (isJsonNumberPrefix(next, segment.integer)) {
-        if (next.length === segment.maxChars && !isJsonNumberComplete(segment, next)) return false;
-        number.text = next;
-        return true;
+    if (char && numberState.text.length < node.maxChars) {
+      const nextText = numberState.text + char;
+      if (isJsonNumberPrefix(nextText, node.integer)) {
+        if (nextText.length === node.maxChars && !isJsonNumberComplete(node, nextText)) continue;
+        numberState.text = nextText;
+        results.push(state);
+        continue;
       }
     }
-    if (!isJsonNumberComplete(segment, number.text)) return false;
-    advanceSegment(state);
+    if (!isJsonNumberComplete(node, numberState.text)) continue;
+    // Number completion does not consume the delimiter. Retry this byte from
+    // every epsilon-expanded continuation branch.
+    const continuations = normalizeProgramState(program, [{ node: node.next, local: null }]);
+    for (const continuation of continuations) {
+      results.push(...feedByteFromBranch(program, continuation, byte, depth + 1));
+    }
   }
-  return false;
+
+  return normalizeProgramState(program, results);
 }
 
-function feedBytes(program: LayoutConstraintProgram, state: ProgramState, bytes: Uint8Array): boolean {
-  for (const byte of bytes) if (!feedByte(program, state, byte)) return false;
-  return true;
+function feedByte(program: LayoutConstraintProgram, state: ProgramState, byte: number): BranchState[] {
+  const normalized = normalizeProgramState(program, state);
+  const next: BranchState[] = [];
+  for (const branch of normalized) next.push(...feedByteFromBranch(program, branch, byte));
+  return normalizeProgramState(program, next);
 }
 
-function describeProgramState(program: LayoutConstraintProgram, state: ProgramState): string {
-  const segment = program.segments[state.segment];
-  if (!segment) return "<complete>";
-  const local = ensureLocal(segment, state);
-  switch (segment.kind) {
+function feedBytes(program: LayoutConstraintProgram, state: ProgramState, bytes: Uint8Array): BranchState[] {
+  let current = normalizeProgramState(program, state);
+  for (const byte of bytes) {
+    current = feedByte(program, current, byte);
+    if (current.length === 0) break;
+  }
+  return current;
+}
+
+function describeBranch(program: LayoutConstraintProgram, branch: BranchState): string {
+  const node = program.nodes[branch.node];
+  if (!node) return `<invalid node ${branch.node}>`;
+  if (node.kind === "accept") return "<complete>";
+  if (node.kind === "split") return `${node.label} · split ${node.targets.length}`;
+  const local = ensureLocal(node, branch);
+  switch (node.kind) {
     case "literal":
-      return `${segment.label} · literal ${JSON.stringify(segment.text)} @ ${(local as LiteralLocal).offset}/${segment.bytes.length}`;
+      return `${node.label} · literal ${JSON.stringify(node.text)} @ ${(local as LiteralLocal).offset}/${node.bytes.length}`;
     case "choice": {
       const prefix = new Uint8Array((local as ChoiceLocal).prefix);
-      const alive = segment.texts.filter((_, index) => startsWithBytes(segment.alternatives[index]!, prefix));
-      return `${segment.label} · prefix ${JSON.stringify(displayBytes(prefix))} · ${alive.length} choices`;
+      const alive = node.texts.filter((_, index) => startsWithBytes(node.alternatives[index]!, prefix));
+      return `${node.label} · prefix ${JSON.stringify(displayBytes(prefix))} · ${alive.length} choices`;
     }
     case "string": {
       const value = local as StringLocal;
-      return `${segment.label} · ${value.phase} · len ${value.length}/${segment.maxLength}`;
+      return `${node.label} · ${value.phase} · len ${value.length}/${node.maxLength}`;
     }
     case "number": {
       const value = local as NumberLocal;
-      const range = `${segment.min ?? "-∞"}..${segment.max ?? "+∞"}${segment.step ? ` step ${segment.step}` : ""}`;
-      return `${segment.label} · ${JSON.stringify(value.text)} · ${range}`;
+      const range = `${node.min ?? "-∞"}..${node.max ?? "+∞"}${node.step ? ` step ${node.step}` : ""}`;
+      return `${node.label} · ${JSON.stringify(value.text)} · ${range}`;
     }
   }
+}
+
+function describeProgramState(program: LayoutConstraintProgram, state: ProgramState): string {
+  const normalized = normalizeProgramState(program, state);
+  if (normalized.length === 0) return "<dead-end>";
+  const descriptions = normalized.slice(0, 4).map((branch) => describeBranch(program, cloneBranchState(branch)));
+  if (normalized.length > descriptions.length) descriptions.push(`… +${normalized.length - descriptions.length} branches`);
+  return descriptions.join(" OR ");
+}
+
+function programComplete(program: LayoutConstraintProgram, state: ProgramState): boolean {
+  return normalizeProgramState(program, state).some((branch) => branch.node === program.accept);
 }
 
 /**
  * Token-level CPU oracle driven directly by LayoutPlan. It scans every vocab
- * token against a clone of the byte-state machine, masks illegal logits, then
+ * token against a clone of the byte-state NFA, masks illegal logits, then
  * advances the real machine with the selected token.
  */
 export class LayoutPlanJsonConstraint {
   readonly trace: ConstraintTraceStep[] = [];
   readonly program: LayoutConstraintProgram;
 
-  private state: ProgramState = { segment: 0, local: null };
+  private state: BranchState[];
   private prefix = new Uint8Array(0);
   private pending: PendingMask | null = null;
   private eosAccepted = false;
@@ -739,6 +882,7 @@ export class LayoutPlanJsonConstraint {
     options: { rootType?: string } = {},
   ) {
     this.program = compileLayoutPlanProgram(plan, options);
+    this.state = normalizeProgramState(this.program, [{ node: this.program.entry, local: null }]);
     if (!tokens[eosToken]) throw new Error(`EOS token ${eosToken} is outside token table`);
   }
 
@@ -747,39 +891,67 @@ export class LayoutPlanJsonConstraint {
   }
 
   get complete(): boolean {
-    return this.state.segment >= this.program.segments.length;
+    return programComplete(this.program, this.state);
   }
 
   get done(): boolean {
     return this.eosAccepted;
   }
 
-  process(logits: Float32Array, context: { step: number; decode: boolean }): void {
-    if (logits.length !== this.tokens.length) throw new Error(`Logit/token table mismatch: ${logits.length} vs ${this.tokens.length}`);
-    if (this.pending) throw new Error("Constraint process() called twice without accept()");
+  private prepareAllowed(context: { step: number; decode: boolean }): { allowed: Uint8Array; ids: Uint32Array; prefixBefore: string; stateBefore: string } {
+    if (this.pending) throw new Error("Constraint candidates/process called twice without accept()");
 
-    const allowed = new Uint8Array(logits.length);
-    let allowedCount = 0;
+    const allowed = new Uint8Array(this.tokens.length);
+    const ids: number[] = [];
+
     if (this.complete) {
       allowed[this.eosToken] = 1;
-      allowedCount = 1;
+      ids.push(this.eosToken);
     } else {
       for (let id = 0; id < this.tokens.length; id++) {
         const entry = this.tokens[id]!;
         if (entry.special || !entry.bytes || entry.bytes.length === 0) continue;
-        const candidateState = cloneProgramState(this.state);
-        if (feedBytes(this.program, candidateState, entry.bytes)) {
+        const candidateState = feedBytes(this.program, this.state, entry.bytes);
+        if (candidateState.length > 0) {
           allowed[id] = 1;
-          allowedCount++;
+          ids.push(id);
         }
       }
     }
 
     const prefixBefore = this.generatedPrefix;
-    const stateBefore = describeProgramState(this.program, cloneProgramState(this.state));
-    if (allowedCount === 0) throw new Error(`LayoutPlan constraint dead-end after ${JSON.stringify(prefixBefore)} · ${stateBefore}`);
-    const traced = maskAndTrace(logits, this.tokens, allowed, this.eosToken);
-    this.pending = { step: context.step, decode: context.decode, prefixBefore, stateBefore, allowed, ...traced };
+    const stateBefore = describeProgramState(this.program, this.state);
+    if (ids.length === 0) throw new Error(`LayoutPlan constraint dead-end after ${JSON.stringify(prefixBefore)} · ${stateBefore}`);
+    return { allowed, ids: Uint32Array.from(ids), prefixBefore, stateBefore };
+  }
+
+  /** Fast diagnostic path: return sparse legal token ids without touching logits. */
+  candidates(context: { step: number; decode: boolean }): Uint32Array {
+    const prepared = this.prepareAllowed(context);
+    this.pending = {
+      step: context.step,
+      decode: context.decode,
+      prefixBefore: prepared.prefixBefore,
+      stateBefore: prepared.stateBefore,
+      allowed: prepared.allowed,
+      topBefore: [],
+      topAllowed: [],
+    };
+    return prepared.ids;
+  }
+
+  process(logits: Float32Array, context: { step: number; decode: boolean }): void {
+    if (logits.length !== this.tokens.length) throw new Error(`Logit/token table mismatch: ${logits.length} vs ${this.tokens.length}`);
+    const prepared = this.prepareAllowed(context);
+    const traced = maskAndTrace(logits, this.tokens, prepared.allowed, this.eosToken);
+    this.pending = {
+      step: context.step,
+      decode: context.decode,
+      prefixBefore: prepared.prefixBefore,
+      stateBefore: prepared.stateBefore,
+      allowed: prepared.allowed,
+      ...traced,
+    };
   }
 
   accept(tokenId: number, _context: { step: number; decode: boolean }): void {
@@ -795,8 +967,10 @@ export class LayoutPlanJsonConstraint {
     } else {
       const bytes = this.tokens[tokenId]?.bytes;
       if (!bytes) throw new Error(`Selected token ${tokenId} has no byte payload`);
+      const nextState = feedBytes(this.program, this.state, bytes);
+      if (nextState.length === 0) throw new Error(`Selected token ${tokenId} failed replay against LayoutPlan machine`);
       selectedBytes = displayBytes(bytes);
-      if (!feedBytes(this.program, this.state, bytes)) throw new Error(`Selected token ${tokenId} failed replay against LayoutPlan machine`);
+      this.state = nextState;
       this.prefix = concatBytes(this.prefix, bytes);
     }
 
@@ -806,7 +980,7 @@ export class LayoutPlanJsonConstraint {
       prefixBefore: pending.prefixBefore,
       prefixAfter: this.generatedPrefix,
       stateBefore: pending.stateBefore,
-      stateAfter: describeProgramState(this.program, cloneProgramState(this.state)),
+      stateAfter: describeProgramState(this.program, this.state),
       allowedCount: pending.allowed.reduce((sum, value) => sum + value, 0),
       selectedToken: tokenId,
       selectedBytes,
