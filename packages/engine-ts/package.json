@@ -2,5 +2,8 @@
   "name": "@chomato/engine-ts",
   "private": true,
   "type": "module",
+  "dependencies": {
+    "@schema-pop/schema": "link:@schema-pop/schema"
+  },
   "exports": "./src/index.ts"
 }

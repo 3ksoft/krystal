@@ -79,14 +79,22 @@
     </form>
 
     <section class="panel" aria-label="structured output experiment">
-      <h2>Structured Output Lab · CPU logits readback oracle</h2>
-      <textarea id="structured-prompt" spellcheck="false">Choose the most appropriate status for a healthy connected device.</textarea>
+      <h2>Structured Output Lab · LayoutPlan CPU oracle</h2>
       <div class="controls">
-        <label>property <input id="structured-property" type="text" value="status" /></label>
-        <label style="flex:1; min-width:280px">enum <input id="structured-variants" type="text" value="error, offline, online" /></label>
-        <label>max new <input id="structured-max-tokens" type="number" min="1" value="32" /></label>
+        <label style="flex:1; min-width:360px">dataset
+          <select id="structured-dataset" style="width:100%" disabled>
+            <option>loading schema-dataset.jsonl…</option>
+          </select>
+        </label>
+        <button id="structured-prev" type="button" disabled>Previous</button>
+        <button id="structured-random" type="button" disabled>Random supported</button>
+        <button id="structured-next" type="button" disabled>Next</button>
+      </div>
+      <textarea id="structured-prompt" spellcheck="false">Dataset is loading…</textarea>
+      <div class="controls">
+        <label>max new <input id="structured-max-tokens" type="number" min="1" value="64" /></label>
         <button id="run-structured" type="button" disabled>Generate constrained</button>
-        <span id="structured-status" class="muted">literal + enum finite-language oracle</span>
+        <span id="structured-status" class="muted">LayoutPlan not loaded yet</span>
       </div>
       <div class="compare-grid">
         <label>
@@ -94,11 +102,15 @@
           <pre id="structured-output" class="mini-output">Model is loading…</pre>
         </label>
         <label>
-          token trace
-          <pre id="structured-trace" class="mini-output">No constrained run yet.</pre>
+          selected LayoutPlan / sample
+          <pre id="structured-plan" class="mini-output">Dataset is loading…</pre>
         </label>
       </div>
-      <p class="muted" style="margin-bottom:0">Diagnostic path: GPU forward → logits readback → CPU byte mask → logits upload → existing GPU argmax. It is intentionally slow and debuggable.</p>
+      <label style="display:block; margin-top:12px">
+        token trace
+        <pre id="structured-trace" class="mini-output">No constrained run yet.</pre>
+      </label>
+      <p class="muted" style="margin-bottom:0">Dataset path: JSONL → saved analysis.plan (LayoutPlan) → compact JSON byte machine. Diagnostic decode remains GPU forward → logits readback → CPU mask → logits upload → existing GPU argmax.</p>
     </section>
 
     <section class="panel" aria-label="block store experiment">

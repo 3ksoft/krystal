@@ -4,7 +4,11 @@ import { type GenerateResult, type Lfm2CachedBlock, Lfm2Runtime } from "../lfm2/
 import { $, LLM_STATUS } from "../schema/src/schema.ts";
 import { Lfm2Tokenizer } from "../lfm2/src/tokenizer.ts";
 import {
+  compileLayoutPlanProgram,
+  createLayoutPlanJsonConstraint,
   createLiteralEnumJsonConstraint,
+  type ConstraintTraceStep,
+  type LayoutConstraintProgram,
   type TokenByteTableEntry,
 } from "../engine-ts/src/index.ts";
 import { Sandblaster } from  "@sandblaster/core"
@@ -32,11 +36,14 @@ const runEl = byId<HTMLButtonElement>("run");
 const budgetEl = byId<HTMLSpanElement>("budget");
 
 const structuredPromptEl = byId<HTMLTextAreaElement>("structured-prompt");
-const structuredPropertyEl = byId<HTMLInputElement>("structured-property");
-const structuredVariantsEl = byId<HTMLInputElement>("structured-variants");
+const structuredDatasetEl = byId<HTMLSelectElement>("structured-dataset");
+const structuredPrevEl = byId<HTMLButtonElement>("structured-prev");
+const structuredRandomEl = byId<HTMLButtonElement>("structured-random");
+const structuredNextEl = byId<HTMLButtonElement>("structured-next");
 const structuredMaxTokensEl = byId<HTMLInputElement>("structured-max-tokens");
 const runStructuredEl = byId<HTMLButtonElement>("run-structured");
 const structuredOutputEl = byId<HTMLPreElement>("structured-output");
+const structuredPlanEl = byId<HTMLPreElement>("structured-plan");
 const structuredTraceEl = byId<HTMLPreElement>("structured-trace");
 const structuredStatusEl = byId<HTMLSpanElement>("structured-status");
 
@@ -178,7 +185,6 @@ statVram.textContent = `${gib(allocatedModelBytes)} model`;
 outputEl.textContent = "Ready.";
 setStatus("ready", "ok");
 runEl.disabled = false;
-runStructuredEl.disabled = false;
 addBlockEl.disabled = false;
 for (const depth of runtime.blockCacheDepths) {
   const option = document.createElement("option");
@@ -200,23 +206,168 @@ function getConstraintTokenTable(): TokenByteTableEntry[] {
   return constraintTokenTable;
 }
 
-function parseEnumVariants(value: string): string[] {
-  const variants = value.split(",").map((item) => item.trim()).filter(Boolean);
-  if (variants.length < 1) throw new Error("Enter at least one enum variant");
-  return [...new Set(variants)];
+interface SchemaDatasetRow {
+  seed: number;
+  id: number;
+  task: string;
+  schema: unknown;
+  value: unknown;
+  sampleText: string;
+  analysis: {
+    plan: Parameters<typeof compileLayoutPlanProgram>[0];
+    warnings?: unknown[];
+    errors?: unknown[];
+  };
 }
 
-function renderConstraintTrace(trace: ReturnType<typeof createLiteralEnumJsonConstraint>["trace"]): string {
+interface CompiledDatasetRow {
+  row: SchemaDatasetRow;
+  program: LayoutConstraintProgram | null;
+  error: string | null;
+}
+
+let structuredDataset: CompiledDatasetRow[] = [];
+
+async function loadStructuredDataset(): Promise<CompiledDatasetRow[]> {
+  const url = new URL("./schema-dataset.jsonl", import.meta.url);
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Could not load schema dataset: HTTP ${response.status}`);
+  const text = await response.text();
+  return text.split(/\r?\n/).filter(Boolean).map((line, index) => {
+    const row = JSON.parse(line) as SchemaDatasetRow;
+    try {
+      return { row, program: compileLayoutPlanProgram(row.analysis.plan), error: null };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.debug(`[chomato] dataset row ${index} unsupported`, message);
+      return { row, program: null, error: message };
+    }
+  });
+}
+
+function selectedDatasetIndex(): number {
+  const index = Number(structuredDatasetEl.value);
+  if (!Number.isInteger(index) || index < 0 || index >= structuredDataset.length) {
+    throw new Error("No schema dataset row selected");
+  }
+  return index;
+}
+
+function selectedDatasetRow(): CompiledDatasetRow {
+  return structuredDataset[selectedDatasetIndex()]!;
+}
+
+function datasetPrompt(row: SchemaDatasetRow): string {
+  const description = row.sampleText?.trim() || row.task;
+  return `Convert the following description into a compact JSON object for ${row.task}. Output only the JSON object.\n\n${description}`;
+}
+
+function renderProgramSummary(item: CompiledDatasetRow): string {
+  const { row, program, error } = item;
+  const lines = [
+    `row #${row.id} · seed ${row.seed}`,
+    `task: ${row.task}`,
+  ];
+  if (program) {
+    const s = program.summary;
+    lines.push(
+      `SUPPORTED · root ${s.rootType} · ${s.segments} segments`,
+      `fields ${s.fields} · enum ${s.enums} · string ${s.strings} · number ${s.numbers} · bool ${s.booleans} · fixed arrays ${s.arrays}`,
+      `optional included ${s.optionalIncluded} · skipped unsupported optional ${s.optionalSkipped}`,
+    );
+  } else {
+    lines.push(`UNSUPPORTED · ${error}`);
+  }
+  lines.push("", "sample value:", JSON.stringify(row.value, null, 2), "", "LayoutPlan:", JSON.stringify(row.analysis.plan, null, 2));
+  return lines.join("\n");
+}
+
+function updateStructuredSelection(index = selectedDatasetIndex()): void {
+  if (structuredDataset.length === 0) return;
+  const clamped = Math.max(0, Math.min(structuredDataset.length - 1, index));
+  structuredDatasetEl.value = String(clamped);
+  const item = structuredDataset[clamped]!;
+  structuredPromptEl.value = datasetPrompt(item.row);
+  structuredPlanEl.textContent = renderProgramSummary(item);
+  structuredTraceEl.textContent = "No constrained run yet.";
+  structuredOutputEl.textContent = "Ready.";
+  if (item.program) {
+    const s = item.program.summary;
+    structuredStatusEl.textContent = `supported · ${s.fields} fields · ${s.segments} segments`;
+    structuredStatusEl.className = "ok";
+    runStructuredEl.disabled = false;
+  } else {
+    structuredStatusEl.textContent = item.error ?? "unsupported";
+    structuredStatusEl.className = "error";
+    runStructuredEl.disabled = true;
+  }
+}
+
+function moveStructuredSelection(direction: -1 | 1): void {
+  if (structuredDataset.length === 0) return;
+  const start = selectedDatasetIndex();
+  for (let n = 1; n <= structuredDataset.length; n++) {
+    const index = (start + direction * n + structuredDataset.length) % structuredDataset.length;
+    if (structuredDataset[index]!.program) {
+      updateStructuredSelection(index);
+      return;
+    }
+  }
+}
+
+function randomSupportedDatasetRow(): void {
+  const supported = structuredDataset.map((item, index) => item.program && item.program.summary.fields > 0 ? index : -1).filter((index) => index >= 0);
+  if (supported.length === 0) return;
+  updateStructuredSelection(supported[Math.floor(Math.random() * supported.length)]!);
+}
+
+async function initializeStructuredDataset(): Promise<void> {
+  structuredStatusEl.textContent = "loading schema-dataset.jsonl…";
+  structuredDataset = await loadStructuredDataset();
+  structuredDatasetEl.replaceChildren();
+  let supported = 0;
+  for (let index = 0; index < structuredDataset.length; index++) {
+    const item = structuredDataset[index]!;
+    const option = document.createElement("option");
+    option.value = String(index);
+    const useful = item.program && item.program.summary.fields > 0;
+    option.textContent = `${useful ? "✓" : item.program ? "·" : "×"} #${item.row.id} · ${item.row.task}`;
+    if (useful) supported++;
+    structuredDatasetEl.append(option);
+  }
+  structuredDatasetEl.disabled = false;
+  structuredPrevEl.disabled = false;
+  structuredRandomEl.disabled = supported === 0;
+  structuredNextEl.disabled = false;
+  const firstSupported = structuredDataset.findIndex((item) => item.program !== null && item.program.summary.fields > 0);
+  updateStructuredSelection(firstSupported >= 0 ? firstSupported : 0);
+  console.log(`[chomato] structured dataset ${supported}/${structuredDataset.length} non-trivial rows supported by current LayoutPlan subset`);
+}
+
+await initializeStructuredDataset().catch((error) => {
+  const message = error instanceof Error ? error.message : String(error);
+  structuredStatusEl.textContent = message;
+  structuredStatusEl.className = "error";
+  structuredPlanEl.textContent = message;
+  structuredOutputEl.textContent = "Dataset load failed.";
+  console.error(error);
+});
+
+function renderConstraintTrace(trace: readonly ConstraintTraceStep[]): string {
   if (trace.length === 0) return "No constrained steps yet.";
   const lines: string[] = [];
   for (const item of trace) {
     lines.push(
       `step ${item.step} · ${item.decode ? "decode" : "prefill"} · allowed ${item.allowedCount}`,
       `  prefix: ${JSON.stringify(item.prefixBefore)} -> ${JSON.stringify(item.prefixAfter)}`,
+      `  state:  ${item.stateBefore}`,
+      `       -> ${item.stateAfter}`,
       `  chosen: #${item.selectedToken} ${JSON.stringify(item.selectedBytes)}${item.complete ? " · COMPLETE" : ""}`,
-      `  survivors: ${item.survivingCandidates.map((candidate) => JSON.stringify(candidate)).join(" | ") || "<none>"}`,
-      "  top logits before mask:",
     );
+    if (item.survivingCandidates) {
+      lines.push(`  survivors: ${item.survivingCandidates.map((candidate) => JSON.stringify(candidate)).join(" | ") || "<none>"}`);
+    }
+    lines.push("  top logits before mask:");
     for (const top of item.topBefore) {
       lines.push(`    ${top.allowed ? "ALLOW " : "reject"} #${top.token.toString().padEnd(5)} ${top.logit.toFixed(3).padStart(9)}  ${JSON.stringify(top.bytes)}`);
     }
@@ -308,8 +459,10 @@ function beginRequest(label: string, promptTokens: number) {
   runBlocksEl.disabled = true;
   promptEl.disabled = true;
   structuredPromptEl.disabled = true;
-  structuredPropertyEl.disabled = true;
-  structuredVariantsEl.disabled = true;
+  structuredDatasetEl.disabled = true;
+  structuredPrevEl.disabled = true;
+  structuredRandomEl.disabled = true;
+  structuredNextEl.disabled = true;
   structuredMaxTokensEl.disabled = true;
   blockInputEl.disabled = true;
   blockRoleEl.disabled = true;
@@ -336,9 +489,12 @@ function endRequest() {
   runBlocksEl.disabled = storedBlocks.size === 0;
   promptEl.disabled = false;
   structuredPromptEl.disabled = false;
-  structuredPropertyEl.disabled = false;
-  structuredVariantsEl.disabled = false;
+  structuredDatasetEl.disabled = structuredDataset.length === 0;
+  structuredPrevEl.disabled = structuredDataset.length === 0;
+  structuredRandomEl.disabled = !structuredDataset.some((item) => item.program && item.program.summary.fields > 0);
+  structuredNextEl.disabled = structuredDataset.length === 0;
   structuredMaxTokensEl.disabled = false;
+  if (structuredDataset.length > 0) runStructuredEl.disabled = !selectedDatasetRow().program;
   blockInputEl.disabled = false;
   blockRoleEl.disabled = false;
   blockDepthEl.disabled = false;
@@ -386,26 +542,23 @@ async function runPrompt(): Promise<void> {
 }
 
 async function runStructuredPrompt(): Promise<void> {
-  const property = structuredPropertyEl.value.trim();
-  if (!property) throw new Error("Property name is empty");
-  const variants = parseEnumVariants(structuredVariantsEl.value);
-  const candidates = variants.map((variant) => JSON.stringify({ [property]: variant }));
-  const prompt = `${structuredPromptEl.value.trim()}\n\nAllowed outputs:\n${candidates.join("\n")}\nOutput exactly one allowed JSON object and nothing else.`;
+  const item = selectedDatasetRow();
+  if (!item.program) throw new Error(item.error ?? "Selected LayoutPlan is unsupported");
+  const prompt = structuredPromptEl.value.trim();
   const promptTokens = tokenizer.encodeUserPrompt(prompt);
-  const requested = Math.max(1, Math.floor(Number(structuredMaxTokensEl.value) || 32));
+  const requested = Math.max(1, Math.floor(Number(structuredMaxTokensEl.value) || 64));
   const maxPossible = contextCapacity - promptTokens.length + 1;
   const maxNewTokens = Math.min(requested, runtimeMaxNewTokens, maxPossible);
   if (maxNewTokens < 1) throw new Error(`Structured prompt has ${promptTokens.length} tokens and does not fit context ${contextCapacity}`);
 
-  const constraint = createLiteralEnumJsonConstraint({
-    property,
-    variants,
+  const constraint = createLayoutPlanJsonConstraint({
+    plan: item.row.analysis.plan,
     tokens: getConstraintTokenTable(),
     eosToken: tokenizer.eos,
   });
 
-  beginRequest("CPU constrained decode…", promptTokens.length);
-  structuredStatusEl.textContent = `running · ${candidates.length} candidates`;
+  beginRequest("LayoutPlan CPU constrained decode…", promptTokens.length);
+  structuredStatusEl.textContent = `running · row #${item.row.id} · ${constraint.program.summary.segments} segments`;
   structuredStatusEl.className = "muted";
   structuredOutputEl.textContent = "…";
   structuredTraceEl.textContent = "Reading logits back token by token…";
@@ -417,14 +570,15 @@ async function runStructuredPrompt(): Promise<void> {
     const text = tokenizer.decode(result.tokenIds);
     structuredOutputEl.textContent = text;
     structuredTraceEl.textContent = renderConstraintTrace(constraint.trace);
-    structuredStatusEl.textContent = `${constraint.done ? "complete + EOS" : "stopped"} · ${result.state.generatedCount} tok · ${ms(elapsed)}`;
+    structuredStatusEl.textContent = `${constraint.done ? "complete + EOS" : "stopped"} · row #${item.row.id} · ${result.state.generatedCount} tok · ${ms(elapsed)}`;
     structuredStatusEl.className = constraint.done ? "ok" : "error";
     renderRequestStats(result, elapsed, promptTokens.length);
     outputEl.textContent = text;
     setStatus("ready", "ok");
-    console.log("[chomato] constrained output", {
+    console.log("[chomato] LayoutPlan constrained output", {
+      row: item.row,
+      program: constraint.program.summary,
       text,
-      candidates,
       tokenIds: result.tokenIds,
       state: result.state,
       trace: constraint.trace,
@@ -738,6 +892,11 @@ async function runBlockOrder(order = blockOrderEl.value, prompt = blockPromptEl.
   }
 }
 
+structuredDatasetEl.addEventListener("change", () => updateStructuredSelection());
+structuredPrevEl.addEventListener("click", () => moveStructuredSelection(-1));
+structuredRandomEl.addEventListener("click", randomSupportedDatasetRow);
+structuredNextEl.addEventListener("click", () => moveStructuredSelection(1));
+
 runStructuredEl.addEventListener("click", () => {
   void runStructuredPrompt().catch((error) => {
     const message = error instanceof Error ? error.message : String(error);
@@ -789,6 +948,28 @@ Object.assign(globalThis, {
         id, role, depth, text, tokenCount: tokens.length, gpuBytes: cached.gpuBytes, runtimeId: cached.id,
       })),
       run: async (order: string, prompt = blockPromptEl.value) => await runBlockOrder(order, prompt),
+    },
+    structuredDataset: () => structuredDataset.map((item, index) => ({
+      index,
+      id: item.row.id,
+      seed: item.row.seed,
+      task: item.row.task,
+      supported: item.program !== null,
+      summary: item.program?.summary,
+      error: item.error,
+    })),
+    constrainLayout: async (index: number, prompt?: string, maxNewTokens = 64) => {
+      const item = structuredDataset[index];
+      if (!item) throw new Error(`Dataset index ${index} does not exist`);
+      if (!item.program) throw new Error(item.error ?? `Dataset index ${index} is unsupported`);
+      const constraint = createLayoutPlanJsonConstraint({
+        plan: item.row.analysis.plan,
+        tokens: getConstraintTokenTable(),
+        eosToken: tokenizer.eos,
+      });
+      const promptTokens = tokenizer.encodeUserPrompt(prompt ?? datasetPrompt(item.row));
+      const result = await runtime.generateTokensWithCpuLogits(promptTokens, constraint, { maxNewTokens });
+      return { result, text: tokenizer.decode(result.tokenIds), trace: constraint.trace, program: constraint.program.summary, row: item.row };
     },
     constrainEnum: async (prompt: string, property: string, variants: readonly string[], maxNewTokens = 32) => {
       const constraint = createLiteralEnumJsonConstraint({
