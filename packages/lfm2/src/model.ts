@@ -1,23 +1,56 @@
-import { DenoFileSource, type RandomAccessSource, GgufReader, GgmlType, type GgufTensorInfo, type GgufValue } from "../../quant/src/gguf";
+import { DenoFileSource, type RandomAccessSource, GgufReader, GgmlType, type GgufTensorInfo } from "../../quant/src/gguf";
 
 import { WQ4_BLOCK_SIZE, WQ4_BYTES_PER_BLOCK, Wq4Reader, type Wq4TensorInfo } from "../../quant/src/wq4/reader";
 
 const MIB = 1024 * 1024;
 const UPLOAD_CHUNK_BYTES = 16 * MIB;
 
-function asNumber(value: GgufValue, key: string): number {
+function asNumber(value: unknown, key: string): number {
   if (typeof value === "number") return value;
   if (typeof value === "bigint") return Number(value);
   throw new Error(`${key} must be numeric`);
 }
 
-function asNumberArray(value: GgufValue, key: string): number[] {
+function asNumberArray(value: unknown, key: string): number[] {
   if (!Array.isArray(value)) throw new Error(`${key} must be an array`);
   return value.map((v) => {
     if (typeof v === "number") return v;
     if (typeof v === "bigint") return Number(v);
     throw new Error(`${key} contains a non-numeric value`);
   });
+}
+
+
+function metadataValue(reader: GgufReader, wq4Reader: Wq4Reader | undefined, key: string): unknown {
+  return wq4Reader?.hasMetadata(key) ? wq4Reader.metadataValue(key) : reader.metadata(key);
+}
+
+function validateWq4SourceManifest(reader: GgufReader, wq4Reader: Wq4Reader | undefined): void {
+  if (!wq4Reader || wq4Reader.sourceTensors.size === 0) return;
+
+  if (wq4Reader.sourceTensors.size !== reader.info.tensors.size) {
+    throw new Error(
+      `WQ4 source manifest contains ${wq4Reader.sourceTensors.size} tensors, ` +
+      `GGUF contains ${reader.info.tensors.size}`,
+    );
+  }
+
+  for (const [name, sidecar] of wq4Reader.sourceTensors) {
+    const gguf = reader.info.tensors.get(name);
+    if (!gguf) throw new Error(`WQ4 source manifest tensor not found in GGUF: ${name}`);
+
+    if (gguf.dimensions.length !== sidecar.dimensions.length || !gguf.dimensions.every((v, i) => v === sidecar.dimensions[i])) {
+      throw new Error(
+        `${name}: WQ4 source shape [${sidecar.dimensions.join(", ")}] != ` +
+        `GGUF shape [${gguf.dimensions.join(", ")}]`,
+      );
+    }
+
+    const ggufTypeName = GgmlType[gguf.type] ?? String(gguf.type);
+    if (sidecar.type !== ggufTypeName) {
+      throw new Error(`${name}: WQ4 source type ${sidecar.type} != GGUF type ${ggufTypeName}`);
+    }
+  }
 }
 
 function elementSize(type: GgmlType): number | null {
@@ -83,7 +116,7 @@ export interface Lfm2LoadProgress {
 
 export interface Lfm2LoadOptions {
   onProgress?: (progress: Lfm2LoadProgress) => void;
-  /** Optional WQ4 v2 sidecar. GGUF remains the metadata/tokenizer/fallback source. */
+  /** Optional WQ4 v2 sidecar. Its embedded metadata drives model config; GGUF remains tokenizer/fallback tensor storage. */
   wq4Source?: RandomAccessSource;
   /** Deno convenience used by loadPath(). */
   wq4Path?: string;
@@ -128,22 +161,27 @@ export class Lfm2Model {
     source: RandomAccessSource,
     options: Lfm2LoadOptions = {},
   ): Promise<Lfm2Model> {
-    const reader = await GgufReader.open(source);
-    const wq4Reader = options.wq4Source ? await Wq4Reader.open(options.wq4Source) : undefined;
-    const architecture = reader.metadata<string>("general.architecture");
-    if (architecture !== "lfm2") throw new Error(`Expected lfm2 GGUF, got '${architecture}'`);
+    const [reader, wq4Reader] = await Promise.all([
+      GgufReader.open(source),
+      options.wq4Source ? Wq4Reader.open(options.wq4Source) : Promise.resolve(undefined),
+    ]);
+    validateWq4SourceManifest(reader, wq4Reader);
+
+    const meta = (key: string) => metadataValue(reader, wq4Reader, key);
+    const architecture = meta("general.architecture");
+    if (architecture !== "lfm2") throw new Error(`Expected lfm2 model metadata, got '${String(architecture)}'`);
 
     const kvHeadsByLayer = asNumberArray(
-      reader.metadata("lfm2.attention.head_count_kv"),
+      meta("lfm2.attention.head_count_kv"),
       "lfm2.attention.head_count_kv",
     );
-    const blockCount = asNumber(reader.metadata("lfm2.block_count"), "lfm2.block_count");
+    const blockCount = asNumber(meta("lfm2.block_count"), "lfm2.block_count");
     if (kvHeadsByLayer.length !== blockCount) {
       throw new Error(`Expected ${blockCount} per-layer KV head entries, got ${kvHeadsByLayer.length}`);
     }
 
-    const hiddenSize = asNumber(reader.metadata("lfm2.embedding_length"), "lfm2.embedding_length");
-    const attentionHeads = asNumber(reader.metadata("lfm2.attention.head_count"), "lfm2.attention.head_count");
+    const hiddenSize = asNumber(meta("lfm2.embedding_length"), "lfm2.embedding_length");
+    const attentionHeads = asNumber(meta("lfm2.attention.head_count"), "lfm2.attention.head_count");
     const layers: Lfm2LayerKind[] = kvHeadsByLayer.map((n) => n === 0 ? "conv" : "attention");
     const attentionLayerSlots = new Array(blockCount).fill(-1);
     let attentionSlot = 0;
@@ -154,20 +192,20 @@ export class Lfm2Model {
     const config: Lfm2Config = {
       architecture: "lfm2",
       blockCount,
-      contextLength: asNumber(reader.metadata("lfm2.context_length"), "lfm2.context_length"),
+      contextLength: asNumber(meta("lfm2.context_length"), "lfm2.context_length"),
       hiddenSize,
-      feedForwardSize: asNumber(reader.metadata("lfm2.feed_forward_length"), "lfm2.feed_forward_length"),
+      feedForwardSize: asNumber(meta("lfm2.feed_forward_length"), "lfm2.feed_forward_length"),
       attentionHeads,
       kvHeadsByLayer,
       headDim: hiddenSize / attentionHeads,
-      ropeTheta: asNumber(reader.metadata("lfm2.rope.freq_base"), "lfm2.rope.freq_base"),
-      vocabSize: asNumber(reader.metadata("lfm2.vocab_size"), "lfm2.vocab_size"),
-      convCacheLength: asNumber(reader.metadata("lfm2.shortconv.l_cache"), "lfm2.shortconv.l_cache"),
-      normEpsilon: asNumber(reader.metadata("lfm2.attention.layer_norm_rms_epsilon"), "lfm2.attention.layer_norm_rms_epsilon"),
-      bosToken: asNumber(reader.metadata("tokenizer.ggml.bos_token_id"), "tokenizer.ggml.bos_token_id"),
-      eosToken: asNumber(reader.metadata("tokenizer.ggml.eos_token_id"), "tokenizer.ggml.eos_token_id"),
-      addBosToken: Boolean(reader.metadata("tokenizer.ggml.add_bos_token")),
-      addEosToken: Boolean(reader.metadata("tokenizer.ggml.add_eos_token")),
+      ropeTheta: asNumber(meta("lfm2.rope.freq_base"), "lfm2.rope.freq_base"),
+      vocabSize: asNumber(meta("lfm2.vocab_size"), "lfm2.vocab_size"),
+      convCacheLength: asNumber(meta("lfm2.shortconv.l_cache"), "lfm2.shortconv.l_cache"),
+      normEpsilon: asNumber(meta("lfm2.attention.layer_norm_rms_epsilon"), "lfm2.attention.layer_norm_rms_epsilon"),
+      bosToken: asNumber(meta("tokenizer.ggml.bos_token_id"), "tokenizer.ggml.bos_token_id"),
+      eosToken: asNumber(meta("tokenizer.ggml.eos_token_id"), "tokenizer.ggml.eos_token_id"),
+      addBosToken: Boolean(meta("tokenizer.ggml.add_bos_token")),
+      addEosToken: Boolean(meta("tokenizer.ggml.add_eos_token")),
       layers,
       attentionLayerSlots,
     };

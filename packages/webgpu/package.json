@@ -12,6 +12,8 @@
   },
   "scripts": {
    "artifact:build": "bun run ./scripts/build-lfm2-artifact.ts",
+   "build:shaders": "deno run --allow-read --sloppy-imports scripts/validate-lfm2-shaders.ts",
+   "build:shaders:full": "deno run --allow-read --sloppy-imports scripts/validate-lfm2-shaders.ts --full",
    "dev": "bun run artifact:build && vite --config vite.config.ts",
    "build:browser": "bun run artifact:build && vite build --config vite.config.ts"
   }

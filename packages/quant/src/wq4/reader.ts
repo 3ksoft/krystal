@@ -14,8 +14,19 @@ export interface Wq4TensorInfo {
   sourceBytes: number;
 }
 
+export interface Wq4SourceTensorInfo {
+  name: string;
+  type: string;
+  dimensions: number[];
+  quantizedToWq4: boolean;
+  reasonIfNotQuantized?: string;
+}
+
 interface Wq4IndexJson {
+  version?: number;
+  metadata?: Record<string, unknown>;
   tensors: Wq4TensorInfo[];
+  ggufTensors?: Wq4SourceTensorInfo[];
 }
 
 function asSafeNumber(value: bigint, label: string): number {
@@ -31,10 +42,12 @@ function sameShape(a: readonly number[], b: readonly number[]): boolean {
 
 export class Wq4Reader {
   readonly tensors = new Map<string, Wq4TensorInfo>();
+  readonly sourceTensors = new Map<string, Wq4SourceTensorInfo>();
 
   private constructor(
     readonly source: RandomAccessSource,
     readonly tensorCount: number,
+    readonly metadata: Readonly<Record<string, unknown>>,
   ) {}
 
   static async open(source: RandomAccessSource): Promise<Wq4Reader> {
@@ -66,11 +79,20 @@ export class Wq4Reader {
       throw new Error(`Invalid WQ4 index JSON: ${error instanceof Error ? error.message : String(error)}`);
     }
     if (!parsed || !Array.isArray(parsed.tensors)) throw new Error("Invalid WQ4 index: missing tensors array");
+    if (parsed.version !== undefined && parsed.version !== version) {
+      throw new Error(`WQ4 index version ${parsed.version} does not match header version ${version}`);
+    }
+    if (parsed.metadata !== undefined && (parsed.metadata === null || Array.isArray(parsed.metadata) || typeof parsed.metadata !== "object")) {
+      throw new Error("Invalid WQ4 index: metadata must be an object");
+    }
+    if (parsed.ggufTensors !== undefined && !Array.isArray(parsed.ggufTensors)) {
+      throw new Error("Invalid WQ4 index: ggufTensors must be an array");
+    }
     if (parsed.tensors.length !== tensorCount) {
       throw new Error(`WQ4 header says ${tensorCount} tensors, index contains ${parsed.tensors.length}`);
     }
 
-    const reader = new Wq4Reader(source, tensorCount);
+    const reader = new Wq4Reader(source, tensorCount, Object.freeze({ ...(parsed.metadata ?? {}) }));
     for (const entry of parsed.tensors) {
       if (!entry || typeof entry.name !== "string" || !Array.isArray(entry.dimensions)) {
         throw new Error("Invalid WQ4 tensor index entry");
@@ -91,7 +113,52 @@ export class Wq4Reader {
       });
     }
 
+    for (const entry of parsed.ggufTensors ?? []) {
+      if (
+        !entry ||
+        typeof entry.name !== "string" ||
+        typeof entry.type !== "string" ||
+        !Array.isArray(entry.dimensions) ||
+        typeof entry.quantizedToWq4 !== "boolean"
+      ) {
+        throw new Error("Invalid WQ4 source tensor index entry");
+      }
+      if (reader.sourceTensors.has(entry.name)) throw new Error(`Duplicate WQ4 source tensor '${entry.name}'`);
+      reader.sourceTensors.set(entry.name, {
+        name: entry.name,
+        type: entry.type,
+        dimensions: entry.dimensions.map(Number),
+        quantizedToWq4: entry.quantizedToWq4,
+        ...(entry.reasonIfNotQuantized !== undefined
+          ? { reasonIfNotQuantized: String(entry.reasonIfNotQuantized) }
+          : {}),
+      });
+    }
+
+    for (const [name, sourceTensor] of reader.sourceTensors) {
+      const hasWq4Tensor = reader.tensors.has(name);
+      if (sourceTensor.quantizedToWq4 !== hasWq4Tensor) {
+        throw new Error(
+          `${name}: ggufTensors says quantizedToWq4=${sourceTensor.quantizedToWq4}, ` +
+          `but WQ4 tensor entry ${hasWq4Tensor ? "exists" : "is missing"}`,
+        );
+      }
+    }
+
     return reader;
+  }
+
+  hasMetadata(key: string): boolean {
+    return Object.hasOwn(this.metadata, key);
+  }
+
+  metadataValue<T = unknown>(key: string): T {
+    if (!this.hasMetadata(key)) throw new Error(`WQ4 metadata not found: ${key}`);
+    return this.metadata[key] as T;
+  }
+
+  sourceTensor(name: string): Wq4SourceTensorInfo | undefined {
+    return this.sourceTensors.get(name);
   }
 
   tensor(name: string): Wq4TensorInfo | undefined {
