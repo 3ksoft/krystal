@@ -1,10 +1,12 @@
-// WQ4 v2 prototype sidecar converter.
+// WQ4 v3 self-contained model converter.
 //
 // deno run --allow-read --allow-write convert_gguf_to_wq4.ts input.gguf output.wq4
 //
-// The GGUF remains the source of model metadata/tokenizer and of small tensors
-// that are intentionally kept in F32/F16. This file contains only matrices
-// consumed by Chomato's WQ4 embedding/matmul kernels.
+// The output is a complete runtime model container:
+//   - quantizable matrices are stored as WQ4 blocks
+//   - all other tensors are stored byte-for-byte as raw GGML tensors
+//   - full GGUF metadata, including tokenizer tables, is embedded in the index
+// Runtime therefore needs only the .wq4 file.
 
 import { DenoFileSource } from "../gguf/source.ts";
 import { GgufReader } from "../gguf/reader.ts";
@@ -175,37 +177,11 @@ async function writeAll(file: Deno.FsFile, bytes: Uint8Array): Promise<void> {
   }
 }
 
-interface FullGgufTensorInfo {
-  name: string;
-  type: string;
-  dimensions: number[];
-  quantizedToWq4: boolean;
-  reasonIfNotQuantized?: string;
-}
-
 const inputPath = Deno.args[0] ?? "./models/LFM2.5-1.2B-Instruct-F16.gguf";
 const outputPath = Deno.args[1] ?? "./models/LFM2.5-1.2B-Instruct-WQ4.wq4";
 
 console.log(`[WQ4 v${WQ4_VERSION}] Otwieranie: ${inputPath}`);
 const source = await DenoFileSource.open(inputPath);
-
-// Skip tokens ?
-const SKIP_METADATA_KEYS = new Set([
-  "tokenizer.ggml.tokens",
-  "tokenizer.ggml.scores",
-  "tokenizer.ggml.token_type",
-  "tokenizer.ggml.merges",
-]);
-
-function filterGgufMetadata(metadata: Map<string, unknown>) {
-  const clean: Record<string, unknown> = {};
-  for (const [key, val] of metadata.entries()) {
-    if (SKIP_METADATA_KEYS.has(key)) continue; // Odrzucamy gigantyczne tablice
-    clean[key] = makeJsonSerializable(val);
-  }
-  return clean;
-}
-
 
 try {
   const reader = await GgufReader.open(source);
@@ -216,36 +192,40 @@ try {
     await writeAll(outFile, new Uint8Array(WQ4_HEADER_BYTES));
 
     let currentOffset = WQ4_HEADER_BYTES;
-    let totalOriginal = 0;
+    let quantizedSourceBytes = 0;
+    let totalSourceBytes = 0;
     let totalQuantized = 0;
     const tensorInfos: Wq4TensorInfo[] = [];
-    const ggufTensorsMeta: FullGgufTensorInfo[] = [];
+    let rawTensorCount = 0;
+    let rawStoredBytes = 0;
 
     for (const [name, tensor] of reader.info.tensors.entries()) {
       const decision = shouldQuantize(tensor);
-      
-      // Zachowujemy pełny rekord o każdym tensorze w GGUF
-      const tensorTypeName = GgmlType[tensor.type] ?? String(tensor.type);
+      const rawBytes = await reader.readTensor(tensor);
+      totalSourceBytes += rawBytes.byteLength;
+
       if ("reason" in decision) {
-        console.log(`  [Keep] ${name.padEnd(42)} ${decision.reason}`);
-        ggufTensorsMeta.push({
+        // v3 keeps every non-WQ4 tensor inside the same file, byte-for-byte.
+        await writeAll(outFile, rawBytes);
+        tensorInfos.push({
           name,
-          type: tensorTypeName,
           dimensions: [...tensor.dimensions],
-          quantizedToWq4: false,
+          offset: currentOffset,
+          size: rawBytes.byteLength,
+          sourceBytes: rawBytes.byteLength,
+          encoding: "raw",
+          sourceType: tensor.type,
           reasonIfNotQuantized: decision.reason,
         });
+        currentOffset += rawBytes.byteLength;
+        rawTensorCount++;
+        rawStoredBytes += rawBytes.byteLength;
+        console.log(
+          `  [RAW] ${name.padEnd(42)} ${(rawBytes.byteLength / 1e6).toFixed(2)} MB  ${decision.reason}`,
+        );
         continue;
       }
 
-      ggufTensorsMeta.push({
-        name,
-        type: tensorTypeName,
-        dimensions: [...tensor.dimensions],
-        quantizedToWq4: true,
-      });
-
-      const rawBytes = await reader.readTensor(tensor);
       const rawCopy = new Uint8Array(rawBytes);
       let f32Data: Float32Array;
 
@@ -274,9 +254,11 @@ try {
         offset: currentOffset,
         size: quantBytes.byteLength,
         sourceBytes: rawBytes.byteLength,
+        encoding: "wq4",
+        sourceType: tensor.type,
       });
       currentOffset += quantBytes.byteLength;
-      totalOriginal += rawBytes.byteLength;
+      quantizedSourceBytes += rawBytes.byteLength;
       totalQuantized += quantBytes.byteLength;
 
       const ratio = rawBytes.byteLength / quantBytes.byteLength;
@@ -286,16 +268,15 @@ try {
       );
     }
 
-    
-    // const serializedGgufMetadata = makeJsonSerializable(reader.info.metadata);
-    const serializedGgufMetadata = makeJsonSerializable(filterGgufMetadata(reader.info.metadata));
+    // v3 intentionally keeps the complete metadata, including tokenizer tables.
+    // This makes the WQ4 file sufficient for both model loading and tokenization.
+    const serializedGgufMetadata = makeJsonSerializable(reader.info.metadata);
 
     const indexOffset = currentOffset;
     const indexData = {
       version: WQ4_VERSION,
-      metadata: serializedGgufMetadata,  // Pełne metadane (pary KV z GGUF)
-      tensors: tensorInfos,               // WQ4 tensor layout (offsety i rozmiary w pliku .wq4)
-      ggufTensors: ggufTensorsMeta,       // Lista wszystkich tensorów z pliku źródłowego GGUF
+      metadata: serializedGgufMetadata,
+      tensors: tensorInfos,
     };
 
     const indexBytes = new TextEncoder().encode(JSON.stringify(indexData));
@@ -312,12 +293,18 @@ try {
     await outFile.seek(0, Deno.SeekMode.Start);
     await writeAll(outFile, new Uint8Array(header));
 
+    const quantizedTensorCount = tensorInfos.length - rawTensorCount;
+    const storedTensorBytes = totalQuantized + rawStoredBytes;
     console.log("=================================================");
-    console.log(`Gotowe. Skwantyzowano ${tensorInfos.length} z ${ggufTensorsMeta.length} tensorów.`);
-    console.log(`Źródło objęte WQ4: ${(totalOriginal / 1e9).toFixed(2)} GB`);
-    console.log(`WQ4:              ${(totalQuantized / 1e9).toFixed(2)} GB`);
-    console.log(`Kompresja:         ${(totalOriginal / totalQuantized).toFixed(2)}x`);
-    console.log(`Index + Meta JSON: ${(indexBytes.byteLength / 1024).toFixed(1)} KiB`);
+    console.log(`Gotowe. WQ4 v${WQ4_VERSION} jest samowystarczalny.`);
+    console.log(`Tensory:           ${tensorInfos.length} (${quantizedTensorCount} WQ4 + ${rawTensorCount} raw)`);
+    console.log(`Source tensors:    ${(totalSourceBytes / 1e9).toFixed(2)} GB`);
+    console.log(`Quantized source:  ${(quantizedSourceBytes / 1e9).toFixed(2)} GB`);
+    console.log(`WQ4 matrices:      ${(totalQuantized / 1e9).toFixed(2)} GB`);
+    console.log(`Raw passthrough:   ${(rawStoredBytes / 1e6).toFixed(1)} MB`);
+    console.log(`Stored tensors:    ${(storedTensorBytes / 1e9).toFixed(2)} GB`);
+    console.log(`Index + metadata:  ${(indexBytes.byteLength / 1024 / 1024).toFixed(2)} MiB`);
+    console.log(`Final file:        ${((storedTensorBytes + WQ4_HEADER_BYTES + indexBytes.byteLength) / 1e9).toFixed(2)} GB`);
     console.log("=================================================");
   } finally {
     outFile.close();
