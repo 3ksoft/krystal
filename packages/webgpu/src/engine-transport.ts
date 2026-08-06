@@ -2,17 +2,41 @@ import {
   InProcessTransport,
   completed,
   decodeU32Payload,
+  executionStats,
   failed,
   tokenEmitted,
   type EngineTransport,
   type TransportFrame,
 } from "@chomato/engine-ts/transport";
 import type { v1_0_0 as ABI } from "@chomato/bridge/types";
+export interface Lfm2RuntimeCheckpoint {
+  readonly position: number;
+  readonly byteLength: number;
+  destroy(): void;
+}
+
+export interface Lfm2RuntimeGenerationResult {
+  readonly tokens: number[];
+  readonly execution: {
+    readonly prefillTokens: number;
+    readonly restoredCheckpointBytes: number;
+  };
+}
+
 export interface Lfm2GenerationRuntime {
   generateGreedy(
     promptTokens: Uint32Array | readonly number[],
     options?: { readonly maxNewTokens?: number; readonly resetState?: boolean },
-  ): Promise<{ readonly tokens: number[] }>;
+  ): Promise<Lfm2RuntimeGenerationResult>;
+  createCheckpoint(
+    tailTokens: Uint32Array | readonly number[],
+    base?: Lfm2RuntimeCheckpoint,
+  ): Promise<Lfm2RuntimeCheckpoint>;
+  generateGreedyFromCheckpoint(
+    checkpoint: Lfm2RuntimeCheckpoint,
+    tailTokens: Uint32Array | readonly number[],
+    options?: { readonly maxNewTokens?: number },
+  ): Promise<Lfm2RuntimeGenerationResult>;
 }
 
 function concatTokens(parts: readonly Uint32Array[]): Uint32Array {
@@ -30,29 +54,35 @@ function concatTokens(parts: readonly Uint32Array[]): Uint32Array {
 /**
  * In-process implementation of the portable Chomato engine protocol.
  *
- * Checkpoints are exact but currently recomputable: the transport stores the
- * immutable token prefix represented by a checkpoint and normal prefill is
- * replayed for generation. Replacing this with KV/conv state snapshots does
- * not change the bridge or engine-ts API.
+ * Checkpoints are exact physical GPU snapshots. The backend keeps the immutable
+ * token prefix for context composition, while Lfm2GenerationRuntime owns the
+ * actual KV/conv/last-hidden state. engine-ts and the bridge remain transport-agnostic.
  */
 export class Lfm2WebGpuEngineBackend {
   private readonly blocks = new Map<number, Uint32Array>();
-  private readonly checkpoints = new Map<number, Uint32Array>();
+  private readonly checkpoints = new Map<number, {
+    readonly tokens: Uint32Array;
+    readonly state: Lfm2RuntimeCheckpoint;
+  }>();
   private readonly cancelled = new Set<number>();
 
   constructor(readonly forward: Lfm2GenerationRuntime) {}
 
-  private contextTokens(
+  private resolveContext(
     context: ABI.ContextRef,
     payload: Uint8Array | undefined,
-  ): Uint32Array {
+  ): {
+    readonly checkpoint?: { readonly tokens: Uint32Array; readonly state: Lfm2RuntimeCheckpoint };
+    readonly appended: Uint32Array;
+    readonly full: Uint32Array;
+  } {
     const blockIds = decodeU32Payload(payload, context.blockCount);
     const parts: Uint32Array[] = [];
+    let checkpoint: { readonly tokens: Uint32Array; readonly state: Lfm2RuntimeCheckpoint } | undefined;
 
     if (context.checkpoint !== 0) {
-      const checkpoint = this.checkpoints.get(context.checkpoint);
+      checkpoint = this.checkpoints.get(context.checkpoint);
       if (!checkpoint) throw new Error(`Checkpoint ${context.checkpoint} not found`);
-      parts.push(checkpoint);
     }
 
     for (const blockId of blockIds) {
@@ -61,7 +91,9 @@ export class Lfm2WebGpuEngineBackend {
       parts.push(block);
     }
 
-    return concatTokens(parts);
+    const appended = concatTokens(parts);
+    const full = checkpoint ? concatTokens([checkpoint.tokens, appended]) : appended;
+    return { checkpoint, appended, full };
   }
 
   private async execute(
@@ -89,29 +121,44 @@ export class Lfm2WebGpuEngineBackend {
         if (this.checkpoints.has(command.checkpoint)) {
           throw new Error(`Checkpoint ${command.checkpoint} already exists`);
         }
-        const tokens = this.contextTokens(command.context, frame.payload);
-        this.checkpoints.set(command.checkpoint, tokens.slice());
+        const context = this.resolveContext(command.context, frame.payload);
+        if (context.full.length === 0) throw new Error("Checkpoint context is empty");
+        const state = await this.forward.createCheckpoint(
+          context.appended,
+          context.checkpoint?.state,
+        );
+        this.checkpoints.set(command.checkpoint, {
+          tokens: context.full.slice(),
+          state,
+        });
         emit(completed(command.operation));
         return;
       }
 
       case "DropCheckpoint": {
-        if (!this.checkpoints.delete(command.checkpoint)) {
-          throw new Error(`Checkpoint ${command.checkpoint} not found`);
-        }
+        const checkpoint = this.checkpoints.get(command.checkpoint);
+        if (!checkpoint) throw new Error(`Checkpoint ${command.checkpoint} not found`);
+        this.checkpoints.delete(command.checkpoint);
+        checkpoint.state.destroy();
         emit(completed(command.operation));
         return;
       }
 
       case "Generate": {
-        const prompt = this.contextTokens(command.context, frame.payload);
-        if (prompt.length === 0) throw new Error("Generation context is empty");
+        const context = this.resolveContext(command.context, frame.payload);
+        if (context.full.length === 0) throw new Error("Generation context is empty");
         this.cancelled.delete(command.operation);
 
-        const result = await this.forward.generateGreedy(prompt, {
-          maxNewTokens: command.maxTokens,
-          resetState: true,
-        });
+        const result = context.checkpoint
+          ? await this.forward.generateGreedyFromCheckpoint(
+              context.checkpoint.state,
+              context.appended,
+              { maxNewTokens: command.maxTokens },
+            )
+          : await this.forward.generateGreedy(context.appended, {
+              maxNewTokens: command.maxTokens,
+              resetState: true,
+            });
 
         if (this.cancelled.has(command.operation)) {
           this.cancelled.delete(command.operation);
@@ -119,6 +166,12 @@ export class Lfm2WebGpuEngineBackend {
           return;
         }
 
+        emit(executionStats(command.operation, {
+          prefillTokens: result.execution.prefillTokens,
+          checkpointHits: context.checkpoint ? 1 : 0,
+          checkpointMisses: 0,
+          restoredBytes: result.execution.restoredCheckpointBytes,
+        }));
         for (const token of result.tokens) emit(tokenEmitted(command.operation, token));
         emit(completed(command.operation));
         return;
@@ -132,6 +185,13 @@ export class Lfm2WebGpuEngineBackend {
     }
   }
 
+  close(): void {
+    for (const checkpoint of this.checkpoints.values()) checkpoint.state.destroy();
+    this.checkpoints.clear();
+    this.blocks.clear();
+    this.cancelled.clear();
+  }
+
   handle = async (
     frame: TransportFrame<ABI.EngineCommand>,
     emit: (frame: TransportFrame<ABI.EngineEvent>) => void,
@@ -141,6 +201,9 @@ export class Lfm2WebGpuEngineBackend {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       const code: ABI.ErrorCode = message.includes("not found") ? "NotFound" : "InternalError";
+      if (frame.message.kind === "Generate" && frame.message.context.checkpoint !== 0) {
+        emit(executionStats(frame.message.operation, { checkpointMisses: 1 }));
+      }
       emit(failed(frame.message.operation, code, message));
     }
   };
@@ -149,5 +212,5 @@ export class Lfm2WebGpuEngineBackend {
 /** Create the local WebGPU transport consumed by @chomato/engine-ts. */
 export function createLfm2WebGpuTransport(forward: Lfm2GenerationRuntime): EngineTransport {
   const backend = new Lfm2WebGpuEngineBackend(forward);
-  return new InProcessTransport(backend.handle);
+  return new InProcessTransport(backend.handle, () => backend.close());
 }

@@ -94,6 +94,16 @@ export const $ = scope({
     token: "u32",
   },
 
+  /** Backend-reported execution facts for one Generate operation. */
+  ExecutionStats: {
+    kind: "'ExecutionStats'",
+    operation: "u32",
+    prefillTokens: "u32",
+    checkpointHits: "u32",
+    checkpointMisses: "u32",
+    restoredBytes: "u32",
+  },
+
   Failed: {
     kind: "'Failed'",
     operation: "u32",
@@ -102,7 +112,7 @@ export const $ = scope({
     reserved: "u8",
   },
 
-  EngineEvent: "Completed | TokenEmitted | Failed",
+  EngineEvent: "Completed | TokenEmitted | ExecutionStats | Failed",
 });
 
 export const bridge = $.export();

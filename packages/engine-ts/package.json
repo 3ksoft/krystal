@@ -9,7 +9,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./transport": "./src/transport.ts",
-    "./binary-transport": "./src/binary-transport.ts"
+    "./binary-transport": "./src/binary-transport.ts",
+    "./spawn": "./src/spawn-native-channel.ts"
   },
   "scripts": {
     "test": "bun test test"

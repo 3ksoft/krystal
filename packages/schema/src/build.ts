@@ -45,4 +45,7 @@ const exports = exportPlan(schemaIR, "ts:exports");
 
 save(paths.types, ts_import + exports);
 
+const cpp = exportPlan(schemaIR, "cpp");
+save("../backend/src/abi.cpp", cpp)
+
 console.log("🐏 Schema build complete.");

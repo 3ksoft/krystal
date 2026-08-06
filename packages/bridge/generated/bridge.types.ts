@@ -1,10 +1,11 @@
 export namespace v1_0_0 {
 	export const EngineEventTag = {
 		Completed: 0,
-		Failed: 1,
-		TokenEmitted: 2,
+		ExecutionStats: 1,
+		Failed: 2,
+		TokenEmitted: 3,
 	} as const;
-	export type EngineEventTag = "Completed" | "Failed" | "TokenEmitted";
+	export type EngineEventTag = "Completed" | "ExecutionStats" | "Failed" | "TokenEmitted";
 
 	export const EngineCommandTag = {
 		Cancel: 0,
@@ -91,6 +92,14 @@ export namespace v1_0_0 {
 		token: number;
 	}
 
+	export interface ExecutionStats {
+		operation: number;
+		prefillTokens: number;
+		checkpointHits: number;
+		checkpointMisses: number;
+		restoredBytes: number;
+	}
+
 	export interface Failed {
 		operation: number;
 		messageBytes: number;
@@ -98,6 +107,6 @@ export namespace v1_0_0 {
 		reserved: number;
 	}
 
-	export type EngineEvent = ({ kind: "Completed" } & Completed) | ({ kind: "Failed" } & Failed) | ({ kind: "TokenEmitted" } & TokenEmitted);
+	export type EngineEvent = ({ kind: "Completed" } & Completed) | ({ kind: "ExecutionStats" } & ExecutionStats) | ({ kind: "Failed" } & Failed) | ({ kind: "TokenEmitted" } & TokenEmitted);
 
 	}

@@ -1,0 +1,14 @@
+import { createDawnGeneration } from "./src/exe/dawn-backend.ts";
+const t0 = Date.now();
+const log = (msg: string) => console.log(`[${((Date.now()-t0)/1000).toFixed(1)}s] ${msg}`);
+log("first");
+const a = await createDawnGeneration("/home/kr/Projects/chomato-monorepo/models/LFM2.5-1.2B-Instruct-WQ4.wq4");
+log("first ready");
+const r1 = await a.generate([1, 42], 2);
+log("first tokens: " + JSON.stringify(r1.tokens));
+log("second");
+const b = await createDawnGeneration("/home/kr/Projects/chomato-monorepo/models/LFM2.5-1.2B-Instruct-WQ4.wq4");
+log("second ready");
+const r2 = await b.generate([1, 42], 2);
+log("second tokens: " + JSON.stringify(r2.tokens));
+log("DONE");

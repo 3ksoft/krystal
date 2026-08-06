@@ -4,6 +4,7 @@ import {
   InProcessTransport,
   completed,
   decodeU32Payload,
+  executionStats,
   failed,
   tokenEmitted,
 } from "../src/transport";
@@ -57,6 +58,40 @@ test("engine-ts surfaces Failed events as EngineOperationError", async () => {
     name: "EngineOperationError",
     code: "NotFound",
     message: "missing resource",
+  });
+  await engine.close();
+});
+
+
+test("execution stats come from the backend, not from requested context", async () => {
+  const transport = new InProcessTransport((frame, emit) => {
+    const command = frame.message;
+    if (command.kind === "Generate") {
+      emit(executionStats(command.operation, {
+        prefillTokens: 7,
+        checkpointHits: 0,
+        checkpointMisses: 1,
+        restoredBytes: 0,
+      }));
+      emit(completed(command.operation));
+      return;
+    }
+    emit(completed(command.operation));
+  });
+
+  const engine = new Engine(transport);
+  const tail = await engine.putBlock(Uint32Array.of(50, 51));
+  engine.debug.resetStats();
+
+  for await (const _ of engine.generate({ checkpoint: 999, blocks: [tail] }, { maxTokens: 1 })) {
+    // no tokens needed for this telemetry test
+  }
+
+  expect(engine.debug.stats()).toMatchObject({
+    prefillTokens: 7,
+    checkpointHits: 0,
+    checkpointMisses: 1,
+    restoredCheckpointBytes: 0,
   });
   await engine.close();
 });

@@ -17,15 +17,26 @@
     "packages/backend": {
       "name": "@chomato/backend",
       "dependencies": {
+        "@chomato/engine-ts": "workspace:*",
         "webgpu": "^0.4.0",
       },
       "devDependencies": {
         "scriptc": "^0.0.22",
       },
     },
+    "packages/bridge": {
+      "name": "@chomato/bridge",
+      "dependencies": {
+        "@schema-pop/core": "link:@schema-pop/core",
+        "@schema-pop/exporter": "link:@schema-pop/exporter",
+        "@schema-pop/schema": "link:@schema-pop/schema",
+        "arktype": "2.2.3",
+      },
+    },
     "packages/engine-ts": {
       "name": "@chomato/engine-ts",
       "dependencies": {
+        "@chomato/bridge": "workspace:*",
         "@schema-pop/schema": "link:@schema-pop/schema",
       },
     },
@@ -66,6 +77,10 @@
     },
     "packages/webgpu": {
       "name": "@chomato/webgpu",
+      "dependencies": {
+        "@chomato/bridge": "workspace:*",
+        "@chomato/engine-ts": "workspace:*",
+      },
       "devDependencies": {
         "@sandblaster/core-next": "link:@sandblaster/core-next",
         "@types/deno": "^2.7.0",
@@ -91,6 +106,8 @@
     "@babel/types": ["@babel/types@7.29.8", "", { "dependencies": { "@babel/helper-string-parser": "^7.29.7", "@babel/helper-validator-identifier": "^7.29.7" } }, "sha512-Vj1jF3cPfxg7OAfoI7QnVKLoILlm2JF9pnVHrX8qx7AHMiYWT+NDAA7jChlNgRS4WTLc/fD1lXLmPixluj+3Gg=="],
 
     "@chomato/backend": ["@chomato/backend@workspace:packages/backend"],
+
+    "@chomato/bridge": ["@chomato/bridge@workspace:packages/bridge"],
 
     "@chomato/engine-ts": ["@chomato/engine-ts@workspace:packages/engine-ts"],
 

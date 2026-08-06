@@ -1,6 +1,7 @@
-import { BlobSource } from "../packages/gguf/src/source.ts";
-import { GgufReader } from "../packages/gguf/src/reader.ts";
-import { GgmlType, GgufValueType } from "../packages/gguf/src/types.ts";
+import { expect, test } from "bun:test";
+import { BlobSource } from "../packages/quant/src/gguf/source.ts";
+import { GgufReader } from "../packages/quant/src/gguf/reader.ts";
+import { GgmlType, GgufValueType } from "../packages/quant/src/gguf/types.ts";
 import { pretokenizeLfm2 } from "../packages/lfm2/src/tokenizer.ts";
 
 function syntheticGguf(): Blob {
@@ -47,17 +48,18 @@ function syntheticGguf(): Blob {
   return new Blob(chunks);
 }
 
-Deno.test("GGUF v3 directory + tensor range", async () => {
+test("GGUF v3 directory + tensor range", async () => {
   const reader = await GgufReader.open(new BlobSource(syntheticGguf()));
-  if (reader.metadata("general.architecture") !== "lfm2") throw new Error("metadata mismatch");
+  expect(reader.metadata("general.architecture")).toBe("lfm2");
   const tensor = reader.tensor("probe");
-  if (tensor.byteLength !== 8 || tensor.dimensions.join(",") !== "2,2") throw new Error("tensor mismatch");
+  expect(tensor.byteLength).toBe(8);
+  expect(tensor.dimensions.join(",")).toBe("2,2");
   const bytes = await reader.readTensor(tensor);
-  if (bytes.join(",") !== "1,2,3,4,5,6,7,8") throw new Error("payload mismatch");
+  expect(bytes.join(",")).toBe("1,2,3,4,5,6,7,8");
 });
 
-Deno.test("LFM2 pretokenizer preserves source text", () => {
+test("LFM2 pretokenizer preserves source text", () => {
   const text = "Hello, world! 1234\nNext";
   const pieces = pretokenizeLfm2(text);
-  if (pieces.join("") !== text) throw new Error(`lost text: ${JSON.stringify(pieces)}`);
+  expect(pieces.join("")).toBe(text);
 });

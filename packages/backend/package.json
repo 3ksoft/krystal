@@ -1,0 +1,24 @@
+{
+  "name": "@chomato/backend",
+  "private": true,
+  "type": "module",
+  "exports": "./src/main.ts",
+  "scripts": {
+    "compile": "scriptc build src/main.ts",
+    "coverage": "scriptc coverage src/main.ts",
+    "coverage:dynamic": "scriptc coverage src/main.ts --dynamic",
+    "run:native": "scriptc run src/main.ts",
+    "shim": "clang -c src/exe/shim.c -o src/exe/shim.o && ar rcs src/exe/libchomshim.a src/exe/shim.o",
+    "compile:native-exe": "npm run shim && scriptc build src/exe/native-exe.ts --ffi src/exe/ffi.json",
+    "demo": "bun run src/demo-native.ts",
+    "demo:dawn": "bun run src/demo-native.ts --dawn",
+    "test:local": "bun run src/run-local-tests.ts"
+  },
+  "devDependencies": {
+    "scriptc": "^0.0.22"
+  },
+  "dependencies": {
+    "@chomato/engine-ts": "workspace:*",
+    "webgpu": "^0.4.0"
+  }
+}

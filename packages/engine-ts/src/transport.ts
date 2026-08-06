@@ -13,6 +13,59 @@ export interface Context {
 
 export interface GenerateOptions {
   readonly maxTokens: number;
+  /** Sampling strategy. The transport/backends currently only implement argmax. */
+  readonly sampler?: "argmax";
+}
+
+export interface EngineStats {
+  /** Total commands sent through the transport. */
+  commands: number;
+  blocksPut: number;
+  /** Tokens stored via PutBlock. */
+  contextTokens: number;
+  blocksDropped: number;
+  checkpointsCreated: number;
+  checkpointsDropped: number;
+  generations: number;
+  /** Tokens emitted by generations. */
+  generatedTokens: number;
+  cancellations: number;
+  /**
+   * Tokens that had to be computed fresh during Generate — context tokens NOT
+   * covered by a checkpoint. A checkpoint is already-materialized KV/conv
+   * state, so its prefix must never be re-prefilled.
+   */
+  prefillTokens: number;
+  /** Generations that used a checkpoint successfully. */
+  checkpointHits: number;
+  /** Generations that requested a checkpoint but could not restore one. */
+  checkpointMisses: number;
+  /** Bytes of physical checkpoint state restored by backends. */
+  restoredCheckpointBytes: number;
+}
+
+export function emptyEngineStats(): EngineStats {
+  return {
+    commands: 0,
+    blocksPut: 0,
+    contextTokens: 0,
+    blocksDropped: 0,
+    checkpointsCreated: 0,
+    checkpointsDropped: 0,
+    generations: 0,
+    generatedTokens: 0,
+    cancellations: 0,
+    prefillTokens: 0,
+    checkpointHits: 0,
+    checkpointMisses: 0,
+    restoredCheckpointBytes: 0,
+  };
+}
+
+export interface EngineDebug {
+  /** Snapshot of operation counters since creation or the last resetStats(). */
+  stats(): EngineStats;
+  resetStats(): void;
 }
 
 export interface TransportFrame<T> {
@@ -117,6 +170,7 @@ export function decodeU32Payload(payload: Uint8Array | undefined, count: number)
   if ((payload?.byteLength ?? 0) !== expected) {
     throw new Error(`Invalid u32 payload: expected ${expected} bytes, got ${payload?.byteLength ?? 0}`);
   }
+  if (count === 0) return new Uint32Array(0);
   const result = new Uint32Array(count);
   const view = new DataView(payload!.buffer, payload!.byteOffset, payload!.byteLength);
   for (let i = 0; i < count; i++) result[i] = view.getUint32(i * 4, true);
@@ -167,6 +221,19 @@ export class Engine {
   private readonly generations = new Map<OperationId, TokenQueue>();
   private readonly unsubscribe: () => void;
   private closed = false;
+  private stats: EngineStats = emptyEngineStats();
+
+  /**
+   * Client-known lifecycle counters plus backend-reported execution facts.
+   * prefill/checkpoint counters are updated only from ExecutionStats events;
+   * engine-ts never infers backend work from the requested Context.
+   */
+  readonly debug: EngineDebug = {
+    stats: () => ({ ...this.stats }),
+    resetStats: () => {
+      this.stats = emptyEngineStats();
+    },
+  };
 
   constructor(readonly transport: EngineTransport) {
     this.unsubscribe = transport.subscribe((frame) => this.onEvent(frame));
@@ -205,7 +272,16 @@ export class Engine {
   private onEvent(frame: TransportFrame<ABI.EngineEvent>): void {
     const event = frame.message;
     if (event.kind === "TokenEmitted") {
+      this.stats.generatedTokens++;
       this.generations.get(event.operation)?.push(event.token);
+      return;
+    }
+
+    if (event.kind === "ExecutionStats") {
+      this.stats.prefillTokens += event.prefillTokens;
+      this.stats.checkpointHits += event.checkpointHits;
+      this.stats.checkpointMisses += event.checkpointMisses;
+      this.stats.restoredCheckpointBytes += event.restoredBytes;
       return;
     }
 
@@ -242,6 +318,9 @@ export class Engine {
     const values = tokens instanceof Uint32Array ? tokens : Uint32Array.from(tokens);
     const operation = this.allocateOperation();
     const block = this.allocateResource();
+    this.stats.blocksPut++;
+    this.stats.contextTokens += values.length;
+    this.stats.commands++;
     await this.request(
       { kind: "PutBlock", operation, block, tokenCount: values.length },
       encodeU32Payload(values),
@@ -251,6 +330,8 @@ export class Engine {
 
   async dropBlock(block: BlockId): Promise<void> {
     const operation = this.allocateOperation();
+    this.stats.blocksDropped++;
+    this.stats.commands++;
     await this.request({ kind: "DropBlock", operation, block });
   }
 
@@ -258,6 +339,8 @@ export class Engine {
     const operation = this.allocateOperation();
     const checkpoint = this.allocateResource();
     const encoded = encodeContext(context);
+    this.stats.checkpointsCreated++;
+    this.stats.commands++;
     await this.request(
       { kind: "CreateCheckpoint", operation, checkpoint, context: encoded.ref },
       encoded.payload,
@@ -267,6 +350,8 @@ export class Engine {
 
   async dropCheckpoint(checkpoint: CheckpointId): Promise<void> {
     const operation = this.allocateOperation();
+    this.stats.checkpointsDropped++;
+    this.stats.commands++;
     await this.request({ kind: "DropCheckpoint", operation, checkpoint });
   }
 
@@ -279,6 +364,8 @@ export class Engine {
     const operation = this.allocateOperation();
     const queue = new TokenQueue();
     const encoded = encodeContext(context);
+    this.stats.generations++;
+    this.stats.commands++;
     this.generations.set(operation, queue);
 
     const started: Promise<void> = Promise.resolve(
@@ -303,6 +390,8 @@ export class Engine {
       await started;
       if (!this.generations.has(operation)) return;
       const cancelOperation = this.allocateOperation();
+      this.stats.cancellations++;
+      this.stats.commands++;
       await this.request({ kind: "Cancel", operation: cancelOperation, target: operation });
       queue.finish();
       this.generations.delete(operation);
@@ -348,6 +437,7 @@ export class InProcessTransport implements EngineTransport {
       frame: TransportFrame<ABI.EngineCommand>,
       emit: (frame: TransportFrame<ABI.EngineEvent>) => void,
     ) => void | Promise<void>,
+    private readonly onClose?: () => void | Promise<void>,
   ) {}
 
   send(frame: TransportFrame<ABI.EngineCommand>): void | Promise<void> {
@@ -360,6 +450,11 @@ export class InProcessTransport implements EngineTransport {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
   }
+
+  close(): void | Promise<void> {
+    this.listeners.clear();
+    return this.onClose?.();
+  }
 }
 
 /** Helpers useful to in-process/native transport adapters. */
@@ -369,6 +464,27 @@ export function completed(operation: OperationId): TransportFrame<ABI.EngineEven
 
 export function tokenEmitted(operation: OperationId, token: TokenId): TransportFrame<ABI.EngineEvent> {
   return { message: { kind: "TokenEmitted", operation, token } };
+}
+
+export function executionStats(
+  operation: OperationId,
+  stats: {
+    readonly prefillTokens?: number;
+    readonly checkpointHits?: number;
+    readonly checkpointMisses?: number;
+    readonly restoredBytes?: number;
+  },
+): TransportFrame<ABI.EngineEvent> {
+  return {
+    message: {
+      kind: "ExecutionStats",
+      operation,
+      prefillTokens: stats.prefillTokens ?? 0,
+      checkpointHits: stats.checkpointHits ?? 0,
+      checkpointMisses: stats.checkpointMisses ?? 0,
+      restoredBytes: stats.restoredBytes ?? 0,
+    },
+  };
 }
 
 export function failed(

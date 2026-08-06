@@ -26,3 +26,18 @@ payload
 
 Run `bun run build` to regenerate standalone C++, TS types, and the
 analyzed plan under `generated/`.
+
+## Execution telemetry
+
+`ExecutionStats` is emitted by the backend for a `Generate` operation and is
+execution truth, not a client-side estimate. In particular:
+
+- `prefillTokens` counts tokens that actually traversed fresh prefill/continuation work,
+- `checkpointHits` means a materialized checkpoint state was actually restored,
+- `checkpointMisses` means a requested checkpoint could not be reused,
+- `restoredBytes` is the number of checkpoint bytes physically restored.
+
+`engine-ts` only aggregates these values; it must never infer them from the
+requested `ContextRef`.
+
+Wire version `2` adds `ExecutionStats` and changes the fixed `EngineEvent` body from 9 to 21 bytes; native peers must be regenerated/rebuilt together with this bridge.

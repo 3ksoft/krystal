@@ -100,6 +100,13 @@ export function encodeEventBody(event: ABI.EngineEvent): Uint8Array {
       view.setUint32(base, event.operation, true);
       view.setUint32(base + 4, event.token, true);
       break;
+    case "ExecutionStats":
+      view.setUint32(base, event.operation, true);
+      view.setUint32(base + 4, event.prefillTokens, true);
+      view.setUint32(base + 8, event.checkpointHits, true);
+      view.setUint32(base + 12, event.checkpointMisses, true);
+      view.setUint32(base + 16, event.restoredBytes, true);
+      break;
     case "Failed":
       view.setUint32(base, event.operation, true);
       view.setUint16(base + 4, event.messageBytes, true);
@@ -120,6 +127,14 @@ export function decodeEventBody(bytes: Uint8Array): ABI.EngineEvent {
   switch (kind) {
     case "Completed": return { kind, operation: view.getUint32(base, true) };
     case "TokenEmitted": return { kind, operation: view.getUint32(base, true), token: view.getUint32(base + 4, true) };
+    case "ExecutionStats": return {
+      kind,
+      operation: view.getUint32(base, true),
+      prefillTokens: view.getUint32(base + 4, true),
+      checkpointHits: view.getUint32(base + 8, true),
+      checkpointMisses: view.getUint32(base + 12, true),
+      restoredBytes: view.getUint32(base + 16, true),
+    };
     case "Failed": return {
       kind,
       operation: view.getUint32(base, true),

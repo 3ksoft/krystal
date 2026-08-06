@@ -48,6 +48,55 @@ export interface Lfm2BlockRunOptions {
   readonly positionBase?: number;
 }
 
+export interface Lfm2CheckpointState {
+  /** Number of context tokens materialized in this state. */
+  readonly position: number;
+  /** Bytes copied when this checkpoint is restored (KV + conv + last hidden). */
+  readonly byteLength: number;
+  readonly kv: GPUBuffer;
+  readonly conv: GPUBuffer;
+  readonly lastHidden: GPUBuffer;
+  destroy(): void;
+}
+
+export interface Lfm2ExecutionFacts {
+  /** Tokens that actually traversed the full prefill/continuation layer stack in this operation. */
+  readonly prefillTokens: number;
+  /** Bytes physically copied from a reusable checkpoint into live recurrent state. */
+  readonly restoredCheckpointBytes: number;
+}
+
+export interface Lfm2GenerationResult {
+  readonly tokens: number[];
+  readonly generatedCount: number;
+  readonly status: string;
+  readonly lastToken: number;
+  readonly execution: Lfm2ExecutionFacts;
+}
+
+class Lfm2CheckpointStateImpl implements Lfm2CheckpointState {
+  private destroyed = false;
+
+  constructor(
+    readonly position: number,
+    readonly kv: GPUBuffer,
+    readonly conv: GPUBuffer,
+    readonly lastHidden: GPUBuffer,
+  ) {}
+
+  get byteLength(): number {
+    return Number(this.kv.size) + Number(this.conv.size) + Number(this.lastHidden.size);
+  }
+
+  destroy(): void {
+    if (this.destroyed) return;
+    this.destroyed = true;
+    this.kv.destroy();
+    this.conv.destroy();
+    this.lastHidden.destroy();
+  }
+}
+
 /**
  * Target scheduler for the migrated Sandblaster runtime. The implementation is
  * intentionally expressed in semantic tensor names and Lfm2Executor passes;
@@ -143,6 +192,56 @@ export class Lfm2Forward {
   clearState(encoder: Lfm2CommandEncoder): void {
     encoder.gpu.clearBuffer(lfm2.resources.convCache.gpu);
     encoder.gpu.clearBuffer(lfm2.resources.kvCache.gpu);
+  }
+
+  private allocateCheckpoint(position: number): Lfm2CheckpointStateImpl {
+    const device = lfm2.engine.device;
+    const copyUsage = GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST;
+    const kv = device.createBuffer({
+      label: `lfm2.checkpoint.${position}.kv`,
+      size: lfm2.resources.kvCache.compiledInfo.byteSize,
+      usage: copyUsage,
+    });
+    const conv = device.createBuffer({
+      label: `lfm2.checkpoint.${position}.conv`,
+      size: lfm2.resources.convCache.compiledInfo.byteSize,
+      usage: copyUsage,
+    });
+    const lastHidden = device.createBuffer({
+      label: `lfm2.checkpoint.${position}.hidden`,
+      size: this.model.config.hiddenSize * 4,
+      usage: copyUsage,
+    });
+    return new Lfm2CheckpointStateImpl(position, kv, conv, lastHidden);
+  }
+
+  private restoreCheckpoint(encoder: Lfm2CommandEncoder, state: Lfm2CheckpointState): void {
+    encoder.gpu.copyBufferToBuffer(
+      state.kv, 0, lfm2.resources.kvCache.gpu, 0, lfm2.resources.kvCache.compiledInfo.byteSize,
+    );
+    encoder.gpu.copyBufferToBuffer(
+      state.conv, 0, lfm2.resources.convCache.gpu, 0, lfm2.resources.convCache.compiledInfo.byteSize,
+    );
+  }
+
+  private captureCheckpoint(
+    encoder: Lfm2CommandEncoder,
+    state: Lfm2CheckpointState,
+    hiddenElementOffset: number,
+  ): void {
+    encoder.gpu.copyBufferToBuffer(
+      lfm2.resources.kvCache.gpu, 0, state.kv, 0, lfm2.resources.kvCache.compiledInfo.byteSize,
+    );
+    encoder.gpu.copyBufferToBuffer(
+      lfm2.resources.convCache.gpu, 0, state.conv, 0, lfm2.resources.convCache.compiledInfo.byteSize,
+    );
+    encoder.gpu.copyBufferToBuffer(
+      lfm2.resources.arena.gpu,
+      hiddenElementOffset * 4,
+      state.lastHidden,
+      0,
+      this.model.config.hiddenSize * 4,
+    );
   }
 
   private requireTensor(name: string): Lfm2GpuTensor {
@@ -532,6 +631,147 @@ export class Lfm2Forward {
   }
 
   /**
+   * Materialize an exact reusable context state. With base set, only tailTokens
+   * are computed; the previous KV/conv snapshot is restored first and the tail
+   * runs in continuation mode at absolute position base.position.
+   */
+  async createCheckpoint(
+    tailTokens: Uint32Array | readonly number[],
+    base?: Lfm2CheckpointState,
+  ): Promise<Lfm2CheckpointState> {
+    const tail = tailTokens instanceof Uint32Array ? tailTokens : Uint32Array.from(tailTokens);
+    const basePosition = base?.position ?? 0;
+    const position = basePosition + tail.length;
+    if (position < 1) throw new Error("Checkpoint context must contain at least one token");
+    if (position > lfm2.capacities.context) {
+      throw new Error(`Checkpoint position ${position} exceeds context ${lfm2.capacities.context}`);
+    }
+
+    await this.prepareAll();
+    const checkpoint = this.allocateCheckpoint(position);
+    this.writeRuntime(position, 1);
+    if (tail.length) this.writeTokens(tail, 0);
+
+    try {
+      this.executor.submit((encoder) => {
+        if (base) this.restoreCheckpoint(encoder, base);
+        else this.clearState(encoder);
+
+        if (tail.length) {
+          encoder.compute((pass) => {
+            // New context blocks are ordinary token IDs, while only layer state
+            // resumes from the checkpoint. Embedding therefore stays in prefill
+            // mode; recurrent/attention layers use continuation positions.
+            this.embed(pass, tail.length, "prefill", LFM2_ARENA, 0);
+            this.layers(pass, 0, this.model.config.blockCount, tail.length, {
+              mode: base ? "continuation" : "prefill",
+              work: LFM2_ARENA,
+              positionBase: basePosition,
+            });
+          }, { label: base ? "lfm2.checkpoint.extend" : "lfm2.checkpoint.prefill" });
+
+          this.captureCheckpoint(
+            encoder,
+            checkpoint,
+            LFM2_ARENA.hiddenA + (tail.length - 1) * this.model.config.hiddenSize,
+          );
+        } else {
+          // Creating a new handle for exactly the same context stays independent
+          // and immutable: clone the source snapshot without touching live state.
+          encoder.gpu.copyBufferToBuffer(base!.kv, 0, checkpoint.kv, 0, base!.kv.size);
+          encoder.gpu.copyBufferToBuffer(base!.conv, 0, checkpoint.conv, 0, base!.conv.size);
+          encoder.gpu.copyBufferToBuffer(
+            base!.lastHidden, 0, checkpoint.lastHidden, 0, base!.lastHidden.size,
+          );
+        }
+      });
+      await lfm2.engine.device.queue.onSubmittedWorkDone();
+      return checkpoint;
+    } catch (error) {
+      checkpoint.destroy();
+      throw error;
+    }
+  }
+
+  /** Generate from an immutable physical checkpoint, computing only tailTokens fresh. */
+  async generateGreedyFromCheckpoint(
+    checkpoint: Lfm2CheckpointState,
+    tailTokens: Uint32Array | readonly number[],
+    options: { readonly maxNewTokens?: number } = {},
+  ): Promise<Lfm2GenerationResult> {
+    const tail = tailTokens instanceof Uint32Array ? tailTokens : Uint32Array.from(tailTokens);
+    const maxNewTokens = options.maxNewTokens ?? lfm2.capacities.maxNewTokens;
+    const promptTokenCount = checkpoint.position + tail.length;
+    if (promptTokenCount + maxNewTokens - 1 > lfm2.capacities.context) {
+      throw new Error(
+        `Checkpoint + tail + decode positions (${promptTokenCount + maxNewTokens - 1}) exceed context ${lfm2.capacities.context}`,
+      );
+    }
+
+    await this.prepareAll();
+    this.writeRuntime(promptTokenCount, maxNewTokens);
+    if (tail.length) this.writeTokens(tail, 0);
+
+    this.executor.submit((encoder) => {
+      this.restoreCheckpoint(encoder, checkpoint);
+      if (!tail.length) {
+        encoder.gpu.copyBufferToBuffer(
+          checkpoint.lastHidden, 0, lfm2.resources.arena.gpu, LFM2_ARENA.hiddenA * 4,
+          this.model.config.hiddenSize * 4,
+        );
+      }
+
+      encoder.compute((pass) => {
+        if (tail.length) {
+          this.embed(pass, tail.length, "prefill", LFM2_ARENA, 0);
+          this.layers(pass, 0, this.model.config.blockCount, tail.length, {
+            mode: "continuation",
+            work: LFM2_ARENA,
+            positionBase: checkpoint.position,
+          });
+          // Sampling this last context token is logically the same as ordinary
+          // prefill: do not advance runtime.position until the first decode step.
+          this.projectLogits(pass, tail.length, "prefill", LFM2_ARENA);
+        } else {
+          this.projectLogits(pass, 1, "prefill", LFM2_ARENA);
+        }
+        this.commitArgmax(pass, "prefill");
+        for (let step = 1; step < maxNewTokens; step++) {
+          this.forwardAndSample(pass, 1, "decode", LFM2_ARENA, 0);
+        }
+      }, { label: "lfm2.generate.checkpoint" });
+    });
+
+    return await this.readGenerationResult({
+      prefillTokens: tail.length,
+      restoredCheckpointBytes: checkpoint.byteLength,
+    });
+  }
+
+  private async readGenerationResult(execution: Lfm2ExecutionFacts): Promise<Lfm2GenerationResult> {
+    await lfm2.engine.device.queue.onSubmittedWorkDone();
+    const [runtimeReadback, tokenReadback] = await Promise.all([
+      lfm2.resources.runtime.readback({ dropIfBusy: false }),
+      lfm2.resources.tokens.readback({ dropIfBusy: false }),
+    ]);
+    const runtime = runtimeReadback as any;
+    const allTokens = tokenReadback as any;
+    if (!runtime || Array.isArray(runtime)) throw new Error("Invalid LFM2 runtime readback");
+    if (!Array.isArray(allTokens) || (allTokens.length > 0 && Array.isArray(allTokens[0]))) {
+      throw new Error("Invalid LFM2 token readback");
+    }
+    const generatedCount = Number(runtime.generatedCount ?? 0);
+    const start = lfm2.capacities.context;
+    return {
+      tokens: allTokens.slice(start, start + generatedCount).map(Number),
+      generatedCount,
+      status: String(runtime.status),
+      lastToken: Number(runtime.lastToken ?? 0),
+      execution,
+    };
+  }
+
+  /**
    * Full greedy inference in one GPU submission: prompt prefill followed by up
    * to maxNewTokens-1 decode iterations. Runtime.status gates token commits
    * after EOS/done exactly like the legacy monolithic scheduler.
@@ -539,12 +779,7 @@ export class Lfm2Forward {
   async generateGreedy(
     promptTokens: Uint32Array | readonly number[],
     options: { readonly maxNewTokens?: number; readonly resetState?: boolean } = {},
-  ): Promise<{
-    readonly tokens: number[];
-    readonly generatedCount: number;
-    readonly status: string;
-    readonly lastToken: number;
-  }> {
+  ): Promise<Lfm2GenerationResult> {
     const prompt = promptTokens instanceof Uint32Array ? promptTokens : Uint32Array.from(promptTokens);
     const maxNewTokens = options.maxNewTokens ?? lfm2.capacities.maxNewTokens;
     if (prompt.length < 1) throw new Error("generateGreedy requires at least one prompt token");
@@ -570,25 +805,10 @@ export class Lfm2Forward {
       }, { label: "lfm2.generate.greedy" });
     });
 
-    await lfm2.engine.device.queue.onSubmittedWorkDone();
-    const [runtimeReadback, tokenReadback] = await Promise.all([
-      lfm2.resources.runtime.readback({ dropIfBusy: false }),
-      lfm2.resources.tokens.readback({ dropIfBusy: false }),
-    ]);
-    const runtime = runtimeReadback as any;
-    const allTokens = tokenReadback as any;
-    if (!runtime || Array.isArray(runtime)) throw new Error("Invalid LFM2 runtime readback");
-    if (!Array.isArray(allTokens) || (allTokens.length > 0 && Array.isArray(allTokens[0]))) {
-      throw new Error("Invalid LFM2 token readback");
-    }
-    const generatedCount = Number(runtime.generatedCount ?? 0);
-    const start = lfm2.capacities.context;
-    return {
-      tokens: allTokens.slice(start, start + generatedCount).map(Number),
-      generatedCount,
-      status: String(runtime.status),
-      lastToken: Number(runtime.lastToken ?? 0),
-    };
+    return await this.readGenerationResult({
+      prefillTokens: prompt.length,
+      restoredCheckpointBytes: 0,
+    });
   }
 
 }

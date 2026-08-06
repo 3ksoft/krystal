@@ -7,8 +7,9 @@
 namespace v1_0_0 {
 	using EngineEventTag = uint8_t;
 	constexpr EngineEventTag EngineEventTag_Completed = 0;
-	constexpr EngineEventTag EngineEventTag_Failed = 1;
-	constexpr EngineEventTag EngineEventTag_TokenEmitted = 2;
+	constexpr EngineEventTag EngineEventTag_ExecutionStats = 1;
+	constexpr EngineEventTag EngineEventTag_Failed = 2;
+	constexpr EngineEventTag EngineEventTag_TokenEmitted = 3;
 
 	using EngineCommandTag = uint8_t;
 	constexpr EngineCommandTag EngineCommandTag_Cancel = 0;
@@ -89,6 +90,14 @@ namespace v1_0_0 {
 		uint32_t token;
 	};
 
+	struct alignas(1) ExecutionStats {
+		uint32_t operation;
+		uint32_t prefillTokens;
+		uint32_t checkpointHits;
+		uint32_t checkpointMisses;
+		uint32_t restoredBytes;
+	};
+
 	struct alignas(1) Failed {
 		uint32_t operation;
 		uint16_t messageBytes;
@@ -96,6 +105,6 @@ namespace v1_0_0 {
 		uint8_t reserved;
 	};
 
-	struct alignas(1) EngineEvent { uint8_t _bytes[9]; };
+	struct alignas(1) EngineEvent { uint8_t _bytes[21]; };
 
 	}
