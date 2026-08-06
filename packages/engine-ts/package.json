@@ -3,7 +3,15 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@schema-pop/schema": "link:@schema-pop/schema"
+    "@schema-pop/schema": "link:@schema-pop/schema",
+    "@chomato/bridge": "workspace:*"
   },
-  "exports": "./src/index.ts"
+  "exports": {
+    ".": "./src/index.ts",
+    "./transport": "./src/transport.ts",
+    "./binary-transport": "./src/binary-transport.ts"
+  },
+  "scripts": {
+    "test": "bun test test"
+  }
 }

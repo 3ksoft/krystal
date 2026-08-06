@@ -1,0 +1,17 @@
+export const SIZEOF_EngineEventTag = 1;
+export const SIZEOF_EngineCommandTag = 1;
+export const SIZEOF_FrameDirection = 1;
+export const SIZEOF_FrameHeader = 16;
+export const SIZEOF_ContextRef = 8;
+export const SIZEOF_PutBlock = 12;
+export const SIZEOF_DropBlock = 8;
+export const SIZEOF_CreateCheckpoint = 16;
+export const SIZEOF_DropCheckpoint = 8;
+export const SIZEOF_Generate = 16;
+export const SIZEOF_Cancel = 8;
+export const SIZEOF_EngineCommand = 17;
+export const SIZEOF_ErrorCode = 1;
+export const SIZEOF_Completed = 4;
+export const SIZEOF_TokenEmitted = 8;
+export const SIZEOF_Failed = 8;
+export const SIZEOF_EngineEvent = 9;

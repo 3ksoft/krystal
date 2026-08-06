@@ -3,6 +3,13 @@
   "private": true,
   "type": "module",
   "exports": "./src/index.ts",
+  "scripts": {
+    "artifact:build": "bun run ./scripts/build-lfm2-artifact.ts",
+    "build:shaders": "deno run --allow-read --sloppy-imports scripts/validate-lfm2-shaders.ts",
+    "build:shaders:full": "deno run --allow-read --sloppy-imports scripts/validate-lfm2-shaders.ts --full",
+    "dev": "bun run artifact:build && vite --config vite.config.ts",
+    "build:browser": "bun run artifact:build && vite build --config vite.config.ts"
+  },
   "devDependencies": {
     "@types/deno": "^2.7.0",
     "@types/node": "^26.1.2",
@@ -10,11 +17,8 @@
     "vite": "^8.2.0",
     "@sandblaster/core-next": "link:@sandblaster/core-next"
   },
-  "scripts": {
-   "artifact:build": "bun run ./scripts/build-lfm2-artifact.ts",
-   "build:shaders": "deno run --allow-read --sloppy-imports scripts/validate-lfm2-shaders.ts",
-   "build:shaders:full": "deno run --allow-read --sloppy-imports scripts/validate-lfm2-shaders.ts --full",
-   "dev": "bun run artifact:build && vite --config vite.config.ts",
-   "build:browser": "bun run artifact:build && vite build --config vite.config.ts"
+  "dependencies": {
+    "@chomato/engine-ts": "workspace:*",
+    "@chomato/bridge": "workspace:*"
   }
 }

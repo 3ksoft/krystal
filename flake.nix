@@ -42,6 +42,8 @@
 
           # C/C++ & GPU Tools
           gcc
+          clang          # wymagany przez scriptc (kompilacja TS -> LLVM -> native)
+          lld            # linkowanie generowanego kodu przez scriptc
           vulkan-loader
           vulkan-tools
           cudaPackages.cuda_nvcc
