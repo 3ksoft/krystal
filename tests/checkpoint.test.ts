@@ -345,4 +345,55 @@ describe("context checkpoints", () => {
 			await model.dispose();
 		}
 	});
+
+	test("checkpoint stores only populated KV prefix", async () => {
+		const model = await loadModel(
+			"./models/LFM2.5-1.2B-Instruct-WQ4.wq4",
+		); 
+		const engine = model.engine;
+
+		try {
+			const short = await engine.putBlock(
+				new Uint32Array([BOS, 10, 11, 12]),
+			);
+
+			const long = await engine.putBlock(
+				new Uint32Array([
+					BOS,
+					...Array.from({ length: 63 }, (_, i) => 100 + i),
+				]),
+			);
+
+			engine.debug.resetStats();
+
+			const shortCp = await engine.checkpoint({
+				blocks: [short],
+			});
+
+			const shortStats = engine.debug.stats();
+
+			engine.debug.resetStats();
+
+			const longCp = await engine.checkpoint({
+				blocks: [long],
+			});
+
+			const longStats = engine.debug.stats();
+
+			expect(shortStats.checkpointBytes).toBeGreaterThan(0);
+			expect(longStats.checkpointBytes).toBeGreaterThan(
+				shortStats.checkpointBytes,
+			);
+
+			// Najważniejsze:
+			// nie możemy snapshotować całego contextCapacity niezależnie od position.
+			expect(longStats.kvBytes).toBeGreaterThan(shortStats.kvBytes);
+
+			await engine.dropCheckpoint(shortCp);
+			await engine.dropCheckpoint(longCp);
+		} finally {
+			await model.dispose();
+		}
+	});
+
 });

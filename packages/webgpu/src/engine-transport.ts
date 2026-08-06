@@ -12,6 +12,12 @@ import type { v1_0_0 as ABI } from "@chomato/bridge/types";
 export interface Lfm2RuntimeCheckpoint {
   readonly position: number;
   readonly byteLength: number;
+  readonly kvBytes: number;
+  readonly kvCapacityBytes: number;
+  readonly convBytes: number;
+  readonly hiddenBytes: number;
+  readonly createUs: number;
+  readonly creationRestoredBytes: number;
   destroy(): void;
 }
 
@@ -20,6 +26,7 @@ export interface Lfm2RuntimeGenerationResult {
   readonly execution: {
     readonly prefillTokens: number;
     readonly restoredCheckpointBytes: number;
+    readonly checkpointRestoreUs: number;
   };
 }
 
@@ -131,6 +138,19 @@ export class Lfm2WebGpuEngineBackend {
           tokens: context.full.slice(),
           state,
         });
+        emit(executionStats(command.operation, {
+          prefillTokens: context.appended.length,
+          checkpointHits: context.checkpoint ? 1 : 0,
+          checkpointMisses: 0,
+          restoredBytes: state.creationRestoredBytes,
+          checkpointBytes: state.byteLength,
+          kvBytes: state.kvBytes,
+          kvCapacityBytes: state.kvCapacityBytes,
+          convBytes: state.convBytes,
+          hiddenBytes: state.hiddenBytes,
+          checkpointCreateUs: state.createUs,
+          checkpointRestoreUs: 0,
+        }));
         emit(completed(command.operation));
         return;
       }
@@ -171,6 +191,7 @@ export class Lfm2WebGpuEngineBackend {
           checkpointHits: context.checkpoint ? 1 : 0,
           checkpointMisses: 0,
           restoredBytes: result.execution.restoredCheckpointBytes,
+          checkpointRestoreUs: result.execution.checkpointRestoreUs,
         }));
         for (const token of result.tokens) emit(tokenEmitted(command.operation, token));
         emit(completed(command.operation));

@@ -71,7 +71,14 @@ test("execution stats come from the backend, not from requested context", async 
         prefillTokens: 7,
         checkpointHits: 0,
         checkpointMisses: 1,
-        restoredBytes: 0,
+        restoredBytes: 1234,
+        checkpointBytes: 5678,
+        kvBytes: 4000,
+        kvCapacityBytes: 8000,
+        convBytes: 1500,
+        hiddenBytes: 178,
+        checkpointCreateUs: 321,
+        checkpointRestoreUs: 45,
       }));
       emit(completed(command.operation));
       return;
@@ -91,7 +98,14 @@ test("execution stats come from the backend, not from requested context", async 
     prefillTokens: 7,
     checkpointHits: 0,
     checkpointMisses: 1,
-    restoredCheckpointBytes: 0,
+    restoredCheckpointBytes: 1234,
+    checkpointBytes: 5678,
+    kvBytes: 4000,
+    kvCapacityBytes: 8000,
+    convBytes: 1500,
+    hiddenBytes: 178,
+    checkpointCreateUs: 321,
+    checkpointRestoreUs: 45,
   });
   await engine.close();
 });

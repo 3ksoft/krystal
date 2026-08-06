@@ -4,7 +4,16 @@ import { createLfm2WebGpuTransport, type Lfm2GenerationRuntime, type Lfm2Runtime
 
 class FakeCheckpoint implements Lfm2RuntimeCheckpoint {
   destroyed = false;
-  constructor(readonly position: number, readonly byteLength = 1234) {}
+  readonly kvBytes = 900;
+  readonly kvCapacityBytes = 1800;
+  readonly convBytes = 300;
+  readonly hiddenBytes = 34;
+  readonly createUs = 250;
+  readonly creationRestoredBytes: number;
+
+  constructor(readonly position: number, readonly byteLength = 1234, creationRestoredBytes = 0) {
+    this.creationRestoredBytes = creationRestoredBytes;
+  }
   destroy(): void { this.destroyed = true; }
 }
 
@@ -18,7 +27,7 @@ class FakeRuntime implements Lfm2GenerationRuntime {
     this.freshPrompts.push(prompt);
     return {
       tokens: [700],
-      execution: { prefillTokens: prompt.length, restoredCheckpointBytes: 0 },
+      execution: { prefillTokens: prompt.length, restoredCheckpointBytes: 0, checkpointRestoreUs: 0 },
     };
   }
 
@@ -28,7 +37,11 @@ class FakeRuntime implements Lfm2GenerationRuntime {
   ): Promise<Lfm2RuntimeCheckpoint> {
     const tail = Array.from(tailTokens);
     this.created.push({ tail, base });
-    return new FakeCheckpoint((base?.position ?? 0) + tail.length);
+    return new FakeCheckpoint(
+      (base?.position ?? 0) + tail.length,
+      1234,
+      base ? base.kvBytes + base.convBytes : 0,
+    );
   }
 
   async generateGreedyFromCheckpoint(
@@ -40,7 +53,7 @@ class FakeRuntime implements Lfm2GenerationRuntime {
     expect(checkpoint.position).toBe(3);
     return {
       tokens: [701],
-      execution: { prefillTokens: tail.length, restoredCheckpointBytes: checkpoint.byteLength },
+      execution: { prefillTokens: tail.length, restoredCheckpointBytes: checkpoint.kvBytes + checkpoint.convBytes, checkpointRestoreUs: 17 },
     };
   }
 }
@@ -50,6 +63,31 @@ async function collect(values: AsyncIterable<number>): Promise<number[]> {
   for await (const value of values) result.push(value);
   return result;
 }
+
+
+test("checkpoint materialization reports physical size breakdown and backend timing", async () => {
+  const runtime = new FakeRuntime();
+  const engine = new Engine(createLfm2WebGpuTransport(runtime));
+  const prefix = await engine.putBlock(Uint32Array.of(1, 2, 3));
+
+  engine.debug.resetStats();
+  const checkpoint = await engine.checkpoint({ blocks: [prefix] });
+  const stats = engine.debug.stats();
+
+  expect(stats).toMatchObject({
+    prefillTokens: 3,
+    checkpointBytes: 1234,
+    kvBytes: 900,
+    kvCapacityBytes: 1800,
+    convBytes: 300,
+    hiddenBytes: 34,
+    checkpointCreateUs: 250,
+    checkpointRestoreUs: 0,
+  });
+
+  await engine.dropCheckpoint(checkpoint);
+  await engine.close();
+});
 
 test("checkpoint generation computes only the appended blocks and reports backend truth", async () => {
   const runtime = new FakeRuntime();
@@ -69,7 +107,8 @@ test("checkpoint generation computes only the appended blocks and reports backen
     prefillTokens: 2,
     checkpointHits: 1,
     checkpointMisses: 0,
-    restoredCheckpointBytes: 1234,
+    restoredCheckpointBytes: 1200,
+    checkpointRestoreUs: 17,
   });
 
   await engine.close();
@@ -106,7 +145,7 @@ test("WebGPU transport reports runtime execution facts rather than inferring the
       this.checkpointTails.push(Array.from(tailTokens));
       return {
         tokens: [702],
-        execution: { prefillTokens: 9, restoredCheckpointBytes: 4321 },
+        execution: { prefillTokens: 9, restoredCheckpointBytes: 4321, checkpointRestoreUs: 99 },
       };
     }
   }
@@ -127,6 +166,7 @@ test("WebGPU transport reports runtime execution facts rather than inferring the
     checkpointHits: 1,
     checkpointMisses: 0,
     restoredCheckpointBytes: 4321,
+    checkpointRestoreUs: 99,
   });
   await engine.close();
 });

@@ -98,6 +98,13 @@ export namespace v1_0_0 {
 		checkpointHits: number;
 		checkpointMisses: number;
 		restoredBytes: number;
+		checkpointBytes: number;
+		kvBytes: number;
+		kvCapacityBytes: number;
+		convBytes: number;
+		hiddenBytes: number;
+		checkpointCreateUs: number;
+		checkpointRestoreUs: number;
 	}
 
 	export interface Failed {

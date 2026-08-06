@@ -40,8 +40,22 @@ export interface EngineStats {
   checkpointHits: number;
   /** Generations that requested a checkpoint but could not restore one. */
   checkpointMisses: number;
-  /** Bytes of physical checkpoint state restored by backends. */
+  /** Bytes of physical checkpoint state restored/copied from reusable state. */
   restoredCheckpointBytes: number;
+  /** Total physical bytes materialized into checkpoints since resetStats(). */
+  checkpointBytes: number;
+  /** Snapshot KV bytes materialized since resetStats(). */
+  kvBytes: number;
+  /** Corresponding live KV capacity represented by created checkpoints. */
+  kvCapacityBytes: number;
+  /** Snapshot recurrent convolution bytes materialized since resetStats(). */
+  convBytes: number;
+  /** Snapshot last-hidden bytes materialized since resetStats(). */
+  hiddenBytes: number;
+  /** Backend-reported checkpoint materialization wall time, in microseconds. */
+  checkpointCreateUs: number;
+  /** Backend-reported physical restore time, in microseconds; 0 means unavailable. */
+  checkpointRestoreUs: number;
 }
 
 export function emptyEngineStats(): EngineStats {
@@ -59,6 +73,13 @@ export function emptyEngineStats(): EngineStats {
     checkpointHits: 0,
     checkpointMisses: 0,
     restoredCheckpointBytes: 0,
+    checkpointBytes: 0,
+    kvBytes: 0,
+    kvCapacityBytes: 0,
+    convBytes: 0,
+    hiddenBytes: 0,
+    checkpointCreateUs: 0,
+    checkpointRestoreUs: 0,
   };
 }
 
@@ -282,6 +303,13 @@ export class Engine {
       this.stats.checkpointHits += event.checkpointHits;
       this.stats.checkpointMisses += event.checkpointMisses;
       this.stats.restoredCheckpointBytes += event.restoredBytes;
+      this.stats.checkpointBytes += event.checkpointBytes;
+      this.stats.kvBytes += event.kvBytes;
+      this.stats.kvCapacityBytes += event.kvCapacityBytes;
+      this.stats.convBytes += event.convBytes;
+      this.stats.hiddenBytes += event.hiddenBytes;
+      this.stats.checkpointCreateUs += event.checkpointCreateUs;
+      this.stats.checkpointRestoreUs += event.checkpointRestoreUs;
       return;
     }
 
@@ -473,6 +501,13 @@ export function executionStats(
     readonly checkpointHits?: number;
     readonly checkpointMisses?: number;
     readonly restoredBytes?: number;
+    readonly checkpointBytes?: number;
+    readonly kvBytes?: number;
+    readonly kvCapacityBytes?: number;
+    readonly convBytes?: number;
+    readonly hiddenBytes?: number;
+    readonly checkpointCreateUs?: number;
+    readonly checkpointRestoreUs?: number;
   },
 ): TransportFrame<ABI.EngineEvent> {
   return {
@@ -483,6 +518,13 @@ export function executionStats(
       checkpointHits: stats.checkpointHits ?? 0,
       checkpointMisses: stats.checkpointMisses ?? 0,
       restoredBytes: stats.restoredBytes ?? 0,
+      checkpointBytes: stats.checkpointBytes ?? 0,
+      kvBytes: stats.kvBytes ?? 0,
+      kvCapacityBytes: stats.kvCapacityBytes ?? 0,
+      convBytes: stats.convBytes ?? 0,
+      hiddenBytes: stats.hiddenBytes ?? 0,
+      checkpointCreateUs: stats.checkpointCreateUs ?? 0,
+      checkpointRestoreUs: stats.checkpointRestoreUs ?? 0,
     },
   };
 }

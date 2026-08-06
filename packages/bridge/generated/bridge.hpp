@@ -96,6 +96,13 @@ namespace v1_0_0 {
 		uint32_t checkpointHits;
 		uint32_t checkpointMisses;
 		uint32_t restoredBytes;
+		uint32_t checkpointBytes;
+		uint32_t kvBytes;
+		uint32_t kvCapacityBytes;
+		uint32_t convBytes;
+		uint32_t hiddenBytes;
+		uint32_t checkpointCreateUs;
+		uint32_t checkpointRestoreUs;
 	};
 
 	struct alignas(1) Failed {
@@ -105,6 +112,6 @@ namespace v1_0_0 {
 		uint8_t reserved;
 	};
 
-	struct alignas(1) EngineEvent { uint8_t _bytes[21]; };
+	struct alignas(1) EngineEvent { uint8_t _bytes[49]; };
 
 	}

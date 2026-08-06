@@ -106,6 +106,13 @@ export function encodeEventBody(event: ABI.EngineEvent): Uint8Array {
       view.setUint32(base + 8, event.checkpointHits, true);
       view.setUint32(base + 12, event.checkpointMisses, true);
       view.setUint32(base + 16, event.restoredBytes, true);
+      view.setUint32(base + 20, event.checkpointBytes, true);
+      view.setUint32(base + 24, event.kvBytes, true);
+      view.setUint32(base + 28, event.kvCapacityBytes, true);
+      view.setUint32(base + 32, event.convBytes, true);
+      view.setUint32(base + 36, event.hiddenBytes, true);
+      view.setUint32(base + 40, event.checkpointCreateUs, true);
+      view.setUint32(base + 44, event.checkpointRestoreUs, true);
       break;
     case "Failed":
       view.setUint32(base, event.operation, true);
@@ -134,6 +141,13 @@ export function decodeEventBody(bytes: Uint8Array): ABI.EngineEvent {
       checkpointHits: view.getUint32(base + 8, true),
       checkpointMisses: view.getUint32(base + 12, true),
       restoredBytes: view.getUint32(base + 16, true),
+      checkpointBytes: view.getUint32(base + 20, true),
+      kvBytes: view.getUint32(base + 24, true),
+      kvCapacityBytes: view.getUint32(base + 28, true),
+      convBytes: view.getUint32(base + 32, true),
+      hiddenBytes: view.getUint32(base + 36, true),
+      checkpointCreateUs: view.getUint32(base + 40, true),
+      checkpointRestoreUs: view.getUint32(base + 44, true),
     };
     case "Failed": return {
       kind,

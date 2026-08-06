@@ -94,7 +94,15 @@ export const $ = scope({
     token: "u32",
   },
 
-  /** Backend-reported execution facts for one Generate operation. */
+  /**
+   * Backend-reported execution facts. May be emitted for Generate and
+   * CreateCheckpoint operations. All byte/time counters are physical facts,
+   * never inferred by engine-ts from the request shape.
+   *
+   * `checkpointRestoreUs === 0` means the backend did not measure restore
+   * duration separately (the WebGPU backend intentionally avoids an extra
+   * submit/wait solely for instrumentation).
+   */
   ExecutionStats: {
     kind: "'ExecutionStats'",
     operation: "u32",
@@ -102,6 +110,13 @@ export const $ = scope({
     checkpointHits: "u32",
     checkpointMisses: "u32",
     restoredBytes: "u32",
+    checkpointBytes: "u32",
+    kvBytes: "u32",
+    kvCapacityBytes: "u32",
+    convBytes: "u32",
+    hiddenBytes: "u32",
+    checkpointCreateUs: "u32",
+    checkpointRestoreUs: "u32",
   },
 
   Failed: {

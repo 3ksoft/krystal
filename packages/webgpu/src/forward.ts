@@ -51,8 +51,18 @@ export interface Lfm2BlockRunOptions {
 export interface Lfm2CheckpointState {
   /** Number of context tokens materialized in this state. */
   readonly position: number;
-  /** Bytes copied when this checkpoint is restored (KV + conv + last hidden). */
+  /** Physical bytes owned by this checkpoint snapshot. */
   readonly byteLength: number;
+  /** Compact snapshot KV bytes for positions [0, position). */
+  readonly kvBytes: number;
+  /** Live KV capacity represented by the snapshot. */
+  readonly kvCapacityBytes: number;
+  readonly convBytes: number;
+  readonly hiddenBytes: number;
+  /** Whole CreateCheckpoint wall time (materialize + capture + GPU completion). */
+  readonly createUs: number;
+  /** Bytes copied from a base checkpoint while creating this checkpoint. */
+  readonly creationRestoredBytes: number;
   readonly kv: GPUBuffer;
   readonly conv: GPUBuffer;
   readonly lastHidden: GPUBuffer;
@@ -64,6 +74,8 @@ export interface Lfm2ExecutionFacts {
   readonly prefillTokens: number;
   /** Bytes physically copied from a reusable checkpoint into live recurrent state. */
   readonly restoredCheckpointBytes: number;
+  /** Restore-only time when the backend can measure it without perturbing execution; 0 otherwise. */
+  readonly checkpointRestoreUs: number;
 }
 
 export interface Lfm2GenerationResult {
@@ -76,16 +88,27 @@ export interface Lfm2GenerationResult {
 
 class Lfm2CheckpointStateImpl implements Lfm2CheckpointState {
   private destroyed = false;
+  private _createUs = 0;
+  private _creationRestoredBytes = 0;
 
   constructor(
     readonly position: number,
     readonly kv: GPUBuffer,
     readonly conv: GPUBuffer,
     readonly lastHidden: GPUBuffer,
+    readonly kvCapacityBytes: number,
   ) {}
 
-  get byteLength(): number {
-    return Number(this.kv.size) + Number(this.conv.size) + Number(this.lastHidden.size);
+  get kvBytes(): number { return Number(this.kv.size); }
+  get convBytes(): number { return Number(this.conv.size); }
+  get hiddenBytes(): number { return Number(this.lastHidden.size); }
+  get byteLength(): number { return this.kvBytes + this.convBytes + this.hiddenBytes; }
+  get createUs(): number { return this._createUs; }
+  get creationRestoredBytes(): number { return this._creationRestoredBytes; }
+
+  markCreated(createUs: number, creationRestoredBytes: number): void {
+    this._createUs = Math.max(0, Math.round(createUs));
+    this._creationRestoredBytes = Math.max(0, Math.round(creationRestoredBytes));
   }
 
   destroy(): void {
@@ -194,12 +217,64 @@ export class Lfm2Forward {
     encoder.gpu.clearBuffer(lfm2.resources.kvCache.gpu);
   }
 
+  /** Number of physical attention-cache slots in the specialized runtime. */
+  private get attentionSlotCount(): number {
+    let count = 0;
+    for (const slot of this.model.config.attentionLayerSlots) {
+      if (slot >= count) count = slot + 1;
+    }
+    return count;
+  }
+
+  /**
+   * Layout of one K (or V) segment in the live KV cache. The shader stores
+   * every attention slot as [K: contextCapacity * KV_DIM][V: ...].
+   * Checkpoints pack only [0, position) from each segment, back-to-back.
+   */
+  private kvCheckpointLayout(position: number): {
+    readonly slots: number;
+    readonly capacitySegmentBytes: number;
+    readonly usedSegmentBytes: number;
+    readonly compactBytes: number;
+    readonly capacityBytes: number;
+  } {
+    const slots = this.attentionSlotCount;
+    const capacityBytes = lfm2.resources.kvCache.compiledInfo.byteSize;
+    if (slots < 1) {
+      if (capacityBytes !== 0) {
+        throw new Error(`KV cache has ${capacityBytes} bytes but model has no attention slots`);
+      }
+      return { slots: 0, capacitySegmentBytes: 0, usedSegmentBytes: 0, compactBytes: 0, capacityBytes };
+    }
+
+    const segmentCount = slots * 2; // K + V per attention slot
+    if (capacityBytes % segmentCount !== 0) {
+      throw new Error(`KV cache byte size ${capacityBytes} is not divisible by ${segmentCount} K/V segments`);
+    }
+    const capacitySegmentBytes = capacityBytes / segmentCount;
+    if (capacitySegmentBytes % lfm2.capacities.context !== 0) {
+      throw new Error(
+        `KV segment ${capacitySegmentBytes} is not divisible by context capacity ${lfm2.capacities.context}`,
+      );
+    }
+    const bytesPerPosition = capacitySegmentBytes / lfm2.capacities.context;
+    const usedSegmentBytes = position * bytesPerPosition;
+    return {
+      slots,
+      capacitySegmentBytes,
+      usedSegmentBytes,
+      compactBytes: segmentCount * usedSegmentBytes,
+      capacityBytes,
+    };
+  }
+
   private allocateCheckpoint(position: number): Lfm2CheckpointStateImpl {
     const device = lfm2.engine.device;
     const copyUsage = GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST;
+    const kvLayout = this.kvCheckpointLayout(position);
     const kv = device.createBuffer({
       label: `lfm2.checkpoint.${position}.kv`,
-      size: lfm2.resources.kvCache.compiledInfo.byteSize,
+      size: kvLayout.compactBytes,
       usage: copyUsage,
     });
     const conv = device.createBuffer({
@@ -212,13 +287,53 @@ export class Lfm2Forward {
       size: this.model.config.hiddenSize * 4,
       usage: copyUsage,
     });
-    return new Lfm2CheckpointStateImpl(position, kv, conv, lastHidden);
+    return new Lfm2CheckpointStateImpl(
+      position, kv, conv, lastHidden, kvLayout.capacityBytes,
+    );
+  }
+
+  private copyCheckpointKvToLive(
+    encoder: Lfm2CommandEncoder,
+    state: Lfm2CheckpointState,
+  ): void {
+    const layout = this.kvCheckpointLayout(state.position);
+    if (state.kvBytes !== layout.compactBytes) {
+      throw new Error(
+        `Checkpoint KV size ${state.kvBytes} does not match position ${state.position} (${layout.compactBytes})`,
+      );
+    }
+    for (let slot = 0; slot < layout.slots; slot++) {
+      const liveK = (slot * 2) * layout.capacitySegmentBytes;
+      const liveV = liveK + layout.capacitySegmentBytes;
+      const compactK = (slot * 2) * layout.usedSegmentBytes;
+      const compactV = compactK + layout.usedSegmentBytes;
+      encoder.gpu.copyBufferToBuffer(state.kv, compactK, lfm2.resources.kvCache.gpu, liveK, layout.usedSegmentBytes);
+      encoder.gpu.copyBufferToBuffer(state.kv, compactV, lfm2.resources.kvCache.gpu, liveV, layout.usedSegmentBytes);
+    }
+  }
+
+  private copyLiveKvToCheckpoint(
+    encoder: Lfm2CommandEncoder,
+    state: Lfm2CheckpointState,
+  ): void {
+    const layout = this.kvCheckpointLayout(state.position);
+    if (state.kvBytes !== layout.compactBytes) {
+      throw new Error(
+        `Checkpoint KV size ${state.kvBytes} does not match position ${state.position} (${layout.compactBytes})`,
+      );
+    }
+    for (let slot = 0; slot < layout.slots; slot++) {
+      const liveK = (slot * 2) * layout.capacitySegmentBytes;
+      const liveV = liveK + layout.capacitySegmentBytes;
+      const compactK = (slot * 2) * layout.usedSegmentBytes;
+      const compactV = compactK + layout.usedSegmentBytes;
+      encoder.gpu.copyBufferToBuffer(lfm2.resources.kvCache.gpu, liveK, state.kv, compactK, layout.usedSegmentBytes);
+      encoder.gpu.copyBufferToBuffer(lfm2.resources.kvCache.gpu, liveV, state.kv, compactV, layout.usedSegmentBytes);
+    }
   }
 
   private restoreCheckpoint(encoder: Lfm2CommandEncoder, state: Lfm2CheckpointState): void {
-    encoder.gpu.copyBufferToBuffer(
-      state.kv, 0, lfm2.resources.kvCache.gpu, 0, lfm2.resources.kvCache.compiledInfo.byteSize,
-    );
+    this.copyCheckpointKvToLive(encoder, state);
     encoder.gpu.copyBufferToBuffer(
       state.conv, 0, lfm2.resources.convCache.gpu, 0, lfm2.resources.convCache.compiledInfo.byteSize,
     );
@@ -229,9 +344,7 @@ export class Lfm2Forward {
     state: Lfm2CheckpointState,
     hiddenElementOffset: number,
   ): void {
-    encoder.gpu.copyBufferToBuffer(
-      lfm2.resources.kvCache.gpu, 0, state.kv, 0, lfm2.resources.kvCache.compiledInfo.byteSize,
-    );
+    this.copyLiveKvToCheckpoint(encoder, state);
     encoder.gpu.copyBufferToBuffer(
       lfm2.resources.convCache.gpu, 0, state.conv, 0, lfm2.resources.convCache.compiledInfo.byteSize,
     );
@@ -648,11 +761,15 @@ export class Lfm2Forward {
     }
 
     await this.prepareAll();
+    const createStarted = performance.now();
     const checkpoint = this.allocateCheckpoint(position);
     this.writeRuntime(position, 1);
     if (tail.length) this.writeTokens(tail, 0);
 
     try {
+      const creationRestoredBytes = base
+        ? base.kvBytes + base.convBytes + (tail.length === 0 ? base.hiddenBytes : 0)
+        : 0;
       this.executor.submit((encoder) => {
         if (base) this.restoreCheckpoint(encoder, base);
         else this.clearState(encoder);
@@ -686,6 +803,7 @@ export class Lfm2Forward {
         }
       });
       await lfm2.engine.device.queue.onSubmittedWorkDone();
+      checkpoint.markCreated((performance.now() - createStarted) * 1000, creationRestoredBytes);
       return checkpoint;
     } catch (error) {
       checkpoint.destroy();
@@ -711,6 +829,9 @@ export class Lfm2Forward {
     await this.prepareAll();
     this.writeRuntime(promptTokenCount, maxNewTokens);
     if (tail.length) this.writeTokens(tail, 0);
+
+    const restoredCheckpointBytes =
+      checkpoint.kvBytes + checkpoint.convBytes + (tail.length === 0 ? checkpoint.hiddenBytes : 0);
 
     this.executor.submit((encoder) => {
       this.restoreCheckpoint(encoder, checkpoint);
@@ -744,7 +865,11 @@ export class Lfm2Forward {
 
     return await this.readGenerationResult({
       prefillTokens: tail.length,
-      restoredCheckpointBytes: checkpoint.byteLength,
+      restoredCheckpointBytes,
+      // Measuring restore alone would require an extra submit/wait and would
+      // perturb the path we are trying to optimize. Keep 0 until GPU/native
+      // timestamp instrumentation can provide this without synchronization.
+      checkpointRestoreUs: 0,
     });
   }
 
@@ -808,6 +933,7 @@ export class Lfm2Forward {
     return await this.readGenerationResult({
       prefillTokens: prompt.length,
       restoredCheckpointBytes: 0,
+      checkpointRestoreUs: 0,
     });
   }
 
