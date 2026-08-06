@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chomato LFM2 full forward</title>
+    <style>
+      :root { color-scheme: dark; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      body { margin: 0; padding: 32px; background: #111; color: #ddd; }
+      h1 { margin: 0 0 20px; font: 600 20px system-ui, sans-serif; }
+      .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 16px; }
+      label { display: flex; gap: 8px; align-items: center; }
+      input[type="number"] { width: 100px; }
+      button, input { font: inherit; }
+      #status { margin-bottom: 16px; color: #aaa; }
+      #status.ok { color: #8fd694; }
+      #status.error { color: #ff8b8b; }
+      pre { white-space: pre-wrap; line-height: 1.5; }
+    </style>
+  </head>
+  <body>
+    <h1>@chomato/webgpu · full LFM2 forward + greedy decode</h1>
+    <div class="controls">
+      <label>WQ4 v3 <input id="model" type="file" accept=".wq4,application/octet-stream" /></label>
+      <label>probe token <input id="token" type="number" min="0" placeholder="42" /></label>
+      <label>max new <input id="max-new" type="number" min="2" max="128" value="2" /></label>
+      <button id="run" type="button">Run full model</button>
+    </div>
+    <div id="status">choose model</div>
+    <pre id="output"></pre>
+    <script type="module" src="./full-main.ts"></script>
+  </body>
+</html>

@@ -126,6 +126,7 @@ export class Lfm2ComputePass {
   constructor(
     private readonly pass: ComputePassRunner,
     private readonly params: Lfm2ParamWriter,
+    private readonly onRun?: (name: Lfm2ShaderName) => void,
   ) {}
 
   run(
@@ -133,6 +134,7 @@ export class Lfm2ComputePass {
     op: Readonly<Lfm2OpParams>,
     weightPage?: Lfm2WeightPage,
   ): void {
+    this.onRun?.(name);
     const request = lfm2Pass(name, op);
     if (request.weight !== "none" && !weightPage) {
       throw new Error(`${name} requires a ${request.weight} weight page`);
@@ -175,6 +177,7 @@ export interface Lfm2CommandEncoder {
  */
 export class Lfm2Executor {
   private readonly params: Lfm2ParamWriter;
+  private readonly usedShaders = new Set<Lfm2ShaderName>();
 
   constructor(readonly definition = lfm2) {
     const recordBytes = definition.resources.op.compiledInfo.physicalStride;
@@ -192,6 +195,14 @@ export class Lfm2Executor {
     );
   }
 
+  get shaderCoverage(): readonly Lfm2ShaderName[] {
+    return [...this.usedShaders];
+  }
+
+  clearShaderCoverage(): void {
+    this.usedShaders.clear();
+  }
+
   submit(callback: (encoder: Lfm2CommandEncoder) => void): void {
     this.params.reset();
     const { engine, resources } = this.definition;
@@ -201,7 +212,7 @@ export class Lfm2Executor {
         gpu: sandblasterEncoder.gpu,
         compute: (computeCallback, descriptor = {}) => {
           sandblasterEncoder.compute(descriptor, (pass) => {
-            computeCallback(new Lfm2ComputePass(pass, this.params));
+            computeCallback(new Lfm2ComputePass(pass, this.params, (name) => this.usedShaders.add(name)));
           });
         },
       };
