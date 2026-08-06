@@ -165,3 +165,5 @@ export const schema = scope({
   },
 });
 
+
+export const $ = schema;

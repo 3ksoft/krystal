@@ -8,7 +8,8 @@
   "scripts": {
     "dev:gui": "cd packages/gui && bunx vite",
     "build:schema": "cd packages/schema && bun run build",
-    "build:webgpu": "cd packages/schema && bun run build",
+    "build:webgpu": "bun run build:schema && cd packages/webgpu && bun run artifact:build",
+    "build": "bun run build:schema && bun run build:webgpu",
     "test": "deno test tests",
     "node:cleanup": "rm -rf $(fd --no-ignore tsconfig.tsbuildinfo) && rm -rf $(fd --no-ignore bun.lock) && rm -rf $(fd --no-ignore node_modules) && bun pm cache rm && bun i"
   },

@@ -7,11 +7,12 @@
     "@types/deno": "^2.7.0",
     "@types/node": "^26.1.2",
     "@webgpu/types": "^0.1.71",
-    "vite": "^8.2.0"
+    "vite": "^8.2.0",
+    "@sandblaster/core-next": "link:@sandblaster/core-next"
   },
   "scripts": {
-    "shaders:generate": "bun run ./scripts/generate-shader-sources.ts",
-    "dev": "bun run shaders:generate && vite --config vite.config.ts",
-    "build:browser": "bun run shaders:generate && vite build --config vite.config.ts"
+   "artifact:build": "bun run ./scripts/build-lfm2-artifact.ts",
+   "dev": "bun run artifact:build && vite --config vite.config.ts",
+   "build:browser": "bun run artifact:build && vite build --config vite.config.ts"
   }
 }

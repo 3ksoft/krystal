@@ -34,6 +34,9 @@
     },
     "packages/quant": {
       "name": "@chomato/quant",
+      "devDependencies": {
+        "@types/deno": "^2.7.0",
+      },
     },
     "packages/schema": {
       "name": "@sandblaster/schema",
@@ -55,6 +58,7 @@
     "packages/webgpu": {
       "name": "@chomato/webgpu",
       "devDependencies": {
+        "@sandblaster/core-next": "link:@sandblaster/core-next",
         "@types/deno": "^2.7.0",
         "@types/node": "^26.1.2",
         "@webgpu/types": "^0.1.71",
@@ -122,6 +126,8 @@
     "@rolldown/binding-win32-x64-msvc": ["@rolldown/binding-win32-x64-msvc@1.2.3", "", { "os": "win32", "cpu": "x64" }, "sha512-ekcqMMkI2PlhYnfzQnB/cEdYUVVJViWvoUyLrbzgDoi3Snfc1mVBwdnc306ufA5ejy8JSPjT2RlW1nQSjW7efg=="],
 
     "@rolldown/pluginutils": ["@rolldown/pluginutils@1.0.1", "", {}, "sha512-2j9bGt5Jh8hj+vPtgzPtl72j0yRxHAyumoo6TNfAjsLB04UtpSvPbPcDcBMxz7n+9CYB0c1GxQFxYRg2jimqGw=="],
+
+    "@sandblaster/core-next": ["@sandblaster/core-next@link:@sandblaster/core-next", {}],
 
     "@sandblaster/schema": ["@sandblaster/schema@workspace:packages/schema"],
 

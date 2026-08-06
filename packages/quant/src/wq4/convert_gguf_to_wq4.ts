@@ -6,9 +6,9 @@
 // that are intentionally kept in F32/F16. This file contains only matrices
 // consumed by Chomato's WQ4 embedding/matmul kernels.
 
-import { DenoFileSource } from "./src/gguf/source.ts";
-import { GgufReader } from "./src/gguf/reader.ts";
-import { GgmlType, type GgufTensorInfo } from "./src/gguf/types.ts";
+import { DenoFileSource } from "../gguf/source.ts";
+import { GgufReader } from "../gguf/reader.ts";
+import { GgmlType, type GgufTensorInfo } from "../gguf/types.ts";
 import {
   WQ4_BLOCK_SIZE,
   WQ4_BYTES_PER_BLOCK,
@@ -16,7 +16,7 @@ import {
   WQ4_MAGIC,
   WQ4_VERSION,
   type Wq4TensorInfo,
-} from "./src/wq4/reader.ts";
+} from "../wq4/reader.ts";
 
 const WORDS_PER_BLOCK = WQ4_BYTES_PER_BLOCK / 4; // 4 × packed u32 + 1 × i32 exponent
 const MIN_EXP = -24;
@@ -42,14 +42,43 @@ function quantizedValue(value: number, scale: number): number {
 }
 
 /**
+ * Pomocnicza funkcja do konwersji metadanych GGUF (Map, BigInt, TypedArrays)
+ * na format bezpieczny dla JSON.stringify.
+ */
+function makeJsonSerializable(value: unknown): unknown {
+  if (value === null || value === undefined) return value;
+  if (typeof value === "bigint") {
+    return value <= BigInt(Number.MAX_SAFE_INTEGER) && value >= BigInt(Number.MIN_SAFE_INTEGER)
+      ? Number(value)
+      : value.toString();
+  }
+  if (value instanceof Map) {
+    const obj: Record<string, unknown> = {};
+    for (const [k, v] of value.entries()) {
+      obj[String(k)] = makeJsonSerializable(v);
+    }
+    return obj;
+  }
+  if (ArrayBuffer.isView(value)) {
+    return Array.from(value as unknown as ArrayLike<unknown>).map(makeJsonSerializable);
+  }
+  if (Array.isArray(value)) {
+    return value.map(makeJsonSerializable);
+  }
+  if (typeof value === "object") {
+    const obj: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value)) {
+      obj[k] = makeJsonSerializable(v);
+    }
+    return obj;
+  }
+  return value;
+}
+
+/**
  * Quantize 32 weights as 5 × u32:
  *   [0..3] packed 4-bit signed values, encoded -8..+7 -> 0..15
  *   [4]    signed power-of-two exponent, scale = 2^exp
- *
- * The exponent is selected offline from the legacy scale plus the two nearest
- * power-of-two scales around the asymmetric no-clipping scale. We choose the
- * lowest-MSE candidate for this block, so quality can only improve relative to
- * the prototype while runtime cost stays identical.
  */
 function quantizeBlockWq4(
   f32Data: Float32Array,
@@ -77,7 +106,6 @@ function quantizeBlockWq4(
     return;
   }
 
-  // Positive q has +7 max while negative q has -8 min.
   const maxAbs = Math.max(maxPositive, -minNegative);
   const legacyExp = clampExp(Math.floor(Math.log2(maxAbs / 7)));
   const noClipScale = Math.max(maxPositive / 7, (-minNegative) / 8, 2 ** MIN_EXP);
@@ -128,8 +156,6 @@ function shouldQuantize(info: GgufTensorInfo): { ok: true } | { ok: false; reaso
   if (info.type !== GgmlType.F16 && info.type !== GgmlType.F32) {
     return { ok: false, reason: `source type ${GgmlType[info.type]}` };
   }
-  // This tensor is consumed directly by shortconv_* as scalar F32 weights,
-  // not through matrix()/embedding(). Keep it in the GGUF.
   if (info.name.endsWith(".shortconv.conv.weight")) {
     return { ok: false, reason: "direct shortconv kernel weight" };
   }
@@ -149,11 +175,37 @@ async function writeAll(file: Deno.FsFile, bytes: Uint8Array): Promise<void> {
   }
 }
 
+interface FullGgufTensorInfo {
+  name: string;
+  type: string;
+  dimensions: number[];
+  quantizedToWq4: boolean;
+  reasonIfNotQuantized?: string;
+}
+
 const inputPath = Deno.args[0] ?? "./models/LFM2.5-1.2B-Instruct-F16.gguf";
 const outputPath = Deno.args[1] ?? "./models/LFM2.5-1.2B-Instruct-WQ4.wq4";
 
 console.log(`[WQ4 v${WQ4_VERSION}] Otwieranie: ${inputPath}`);
 const source = await DenoFileSource.open(inputPath);
+
+// Skip tokens ?
+const SKIP_METADATA_KEYS = new Set([
+  "tokenizer.ggml.tokens",
+  "tokenizer.ggml.scores",
+  "tokenizer.ggml.token_type",
+  "tokenizer.ggml.merges",
+]);
+
+function filterGgufMetadata(metadata: Map<string, unknown>) {
+  const clean: Record<string, unknown> = {};
+  for (const [key, val] of metadata.entries()) {
+    if (SKIP_METADATA_KEYS.has(key)) continue; // Odrzucamy gigantyczne tablice
+    clean[key] = makeJsonSerializable(val);
+  }
+  return clean;
+}
+
 
 try {
   const reader = await GgufReader.open(source);
@@ -161,20 +213,37 @@ try {
 
   const outFile = await Deno.open(outputPath, { create: true, write: true, truncate: true });
   try {
-    // Header is patched after writing the data + JSON index.
     await writeAll(outFile, new Uint8Array(WQ4_HEADER_BYTES));
 
     let currentOffset = WQ4_HEADER_BYTES;
     let totalOriginal = 0;
     let totalQuantized = 0;
     const tensorInfos: Wq4TensorInfo[] = [];
+    const ggufTensorsMeta: FullGgufTensorInfo[] = [];
 
     for (const [name, tensor] of reader.info.tensors.entries()) {
       const decision = shouldQuantize(tensor);
+      
+      // Zachowujemy pełny rekord o każdym tensorze w GGUF
+      const tensorTypeName = GgmlType[tensor.type] ?? String(tensor.type);
       if ("reason" in decision) {
         console.log(`  [Keep] ${name.padEnd(42)} ${decision.reason}`);
+        ggufTensorsMeta.push({
+          name,
+          type: tensorTypeName,
+          dimensions: [...tensor.dimensions],
+          quantizedToWq4: false,
+          reasonIfNotQuantized: decision.reason,
+        });
         continue;
       }
+
+      ggufTensorsMeta.push({
+        name,
+        type: tensorTypeName,
+        dimensions: [...tensor.dimensions],
+        quantizedToWq4: true,
+      });
 
       const rawBytes = await reader.readTensor(tensor);
       const rawCopy = new Uint8Array(rawBytes);
@@ -185,8 +254,6 @@ try {
         f32Data = new Float32Array(u16.length);
         for (let i = 0; i < u16.length; i++) f32Data[i] = decodeF16(u16[i]!);
       } else {
-        // rawCopy owns an aligned ArrayBuffer, so this view is safe regardless of
-        // the GGUF tensor's original file alignment.
         f32Data = new Float32Array(rawCopy.buffer, rawCopy.byteOffset, rawCopy.byteLength / 4);
       }
 
@@ -219,8 +286,19 @@ try {
       );
     }
 
+    
+    // const serializedGgufMetadata = makeJsonSerializable(reader.info.metadata);
+    const serializedGgufMetadata = makeJsonSerializable(filterGgufMetadata(reader.info.metadata));
+
     const indexOffset = currentOffset;
-    const indexBytes = new TextEncoder().encode(JSON.stringify({ tensors: tensorInfos }));
+    const indexData = {
+      version: WQ4_VERSION,
+      metadata: serializedGgufMetadata,  // Pełne metadane (pary KV z GGUF)
+      tensors: tensorInfos,               // WQ4 tensor layout (offsety i rozmiary w pliku .wq4)
+      ggufTensors: ggufTensorsMeta,       // Lista wszystkich tensorów z pliku źródłowego GGUF
+    };
+
+    const indexBytes = new TextEncoder().encode(JSON.stringify(indexData));
     await writeAll(outFile, indexBytes);
 
     const header = new ArrayBuffer(WQ4_HEADER_BYTES);
@@ -235,11 +313,11 @@ try {
     await writeAll(outFile, new Uint8Array(header));
 
     console.log("=================================================");
-    console.log(`Gotowe. Skwantyzowano ${tensorInfos.length} tensorów.`);
+    console.log(`Gotowe. Skwantyzowano ${tensorInfos.length} z ${ggufTensorsMeta.length} tensorów.`);
     console.log(`Źródło objęte WQ4: ${(totalOriginal / 1e9).toFixed(2)} GB`);
     console.log(`WQ4:              ${(totalQuantized / 1e9).toFixed(2)} GB`);
     console.log(`Kompresja:         ${(totalOriginal / totalQuantized).toFixed(2)}x`);
-    console.log(`Index:              ${(indexBytes.byteLength / 1024).toFixed(1)} KiB`);
+    console.log(`Index + Meta JSON: ${(indexBytes.byteLength / 1024).toFixed(1)} KiB`);
     console.log("=================================================");
   } finally {
     outFile.close();

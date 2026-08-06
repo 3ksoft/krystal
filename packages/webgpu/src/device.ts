@@ -19,9 +19,11 @@ export interface WebGpuContext {
 export async function createWebGpuDevice(options: WebGpuDeviceOptions = {}): Promise<WebGpuContext> {
   if (!navigator.gpu) throw new Error("WebGPU is unavailable");
 
-  const adapter = await navigator.gpu.requestAdapter({
-    powerPreference: options.powerPreference,
-  });
+  const adapter = await navigator.gpu.requestAdapter(
+    options.powerPreference === undefined
+      ? {}
+      : { powerPreference: options.powerPreference },
+  );
   if (!adapter) throw new Error("Could not acquire a WebGPU adapter");
 
   const device = await adapter.requestDevice({
