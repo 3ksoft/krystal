@@ -1,4 +1,4 @@
-import { createWebGpuDevice } from "../packages/webgpu/src/index.ts";
+import { createWebGpuDevice } from "../packages/webgpu/src/engine.ts";
 
 const params = new URLSearchParams(location.search);
 const pageMiB = Number(params.get("page") ?? 64);

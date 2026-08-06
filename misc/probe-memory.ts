@@ -1,4 +1,4 @@
-import { createWebGpuDevice } from "../packages/webgpu/src/index.ts";
+import { createWebGpuDevice } from "../packages/webgpu/src/engine.ts";
 
 const MIB = 1024 * 1024;
 const GIB = 1024 * MIB;

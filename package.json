@@ -6,18 +6,19 @@
     "packages/*"
   ],
   "scripts": {
-    "dev:web": "vite --config apps/web/vite.config.ts",
+    "dev:gui": "cd packages/gui && bunx vite",
     "build:schema": "cd packages/schema && bun run build",
+    "build:webgpu": "cd packages/schema && bun run build",
     "test": "deno test tests",
     "node:cleanup": "rm -rf $(fd --no-ignore tsconfig.tsbuildinfo) && rm -rf $(fd --no-ignore bun.lock) && rm -rf $(fd --no-ignore node_modules) && bun pm cache rm && bun i"
   },
   "devDependencies": {
     "@types/bun": "^1.3.14",
-    "typescript": "^5",
+    "typescript": "^7.0.2",
     "vite": "^8.2.0"
   },
   "dependencies": {
     "@ark/json-schema": "^0.0.7",
-    "arktype": "^2.2.3"
+    "arktype": "2.2.3"
   }
 }

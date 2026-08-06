@@ -45,6 +45,7 @@ struct OpParams {
 @group(0) @binding(4) var<storage, read_write> kvCache: array<f32>;
 @group(0) @binding(5) var<storage, read_write> convCache: array<f32>;
 @group(0) @binding(6) var<storage, read> candidateTokens: array<u32>;
+@group(0) @binding(7) var<storage, read_write> decodeTelemetry: DecodeTelemetry;
 
 // Only one of the two weight bindings is used by a given kernel. Keeping both
 // bindings stable makes every weight tensor share one bind-group layout.
@@ -83,6 +84,19 @@ fn token_position(tokenIndex: u32) -> u32 {
 
 fn arena_index(base: u32, tokenIndex: u32, dim: u32, stride: u32) -> u32 {
   return base + tokenIndex * stride + dim;
+}
+
+fn emit_decode_telemetry(step: u32, token: u32) {
+  if (decodeTelemetry.enabled == 0u) { return; }
+  let idx = atomicAdd(&decodeTelemetry.cursor, 1u);
+  if (idx >= DECODE_TELEMETRY_ENTRIES_LEN) { return; }
+
+  var entry: DecodeTelemetryEntry;
+  entry.step = step;
+  entry.tokenId = token;
+  entry.position = runtime.position;
+  entry.status = runtime.status;
+  decodeTelemetry.entries[idx] = pack_decode_telemetry_entry(entry);
 }
 
 var<workgroup> reduceF32: array<f32, 256>;
@@ -577,7 +591,8 @@ fn argmax_candidates(
 
   if (lid.x == 0u && runtime.status == 1u) {
     if (op.mode != 0u) { runtime.position += 1u; }
-    let outIndex = runtime.contextCapacity + runtime.generatedCount;
+    let step = runtime.generatedCount;
+    let outIndex = runtime.contextCapacity + step;
     let token = reduceU32[0];
     tokens[outIndex] = token;
     runtime.currentToken = token;
@@ -590,6 +605,7 @@ fn argmax_candidates(
     } else if (runtime.generatedCount >= runtime.maxNewTokens) {
       runtime.status = 3u;
     }
+    emit_decode_telemetry(step, token);
   }
 }
 
@@ -636,7 +652,8 @@ fn argmax(
   if (lid.x == 0u) {
     if (runtime.status == 1u) {
       if (op.mode != 0u) { runtime.position += 1u; }
-      let outIndex = runtime.contextCapacity + runtime.generatedCount;
+      let step = runtime.generatedCount;
+      let outIndex = runtime.contextCapacity + step;
       let token = reduceU32[0];
       tokens[outIndex] = token;
       runtime.currentToken = token;
@@ -649,6 +666,7 @@ fn argmax(
       } else if (runtime.generatedCount >= runtime.maxNewTokens) {
         runtime.status = 3u;
       }
+      emit_decode_telemetry(step, token);
     }
   }
 }

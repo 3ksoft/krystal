@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "bun run src/build.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsgo --noEmit"
   },
   "dependencies": {
     "@ark/schema": "^0.56.0",
@@ -16,7 +16,8 @@
   },
   "devDependencies": {
     "@types/node": "^25.9.1",
-    "typescript": "~6.0.3"
+    "typescript": "~7.0.2",
+    "@webgpu/types": "^0.1.71"
   },
   "exports": {
     ".": "./src/index.ts",

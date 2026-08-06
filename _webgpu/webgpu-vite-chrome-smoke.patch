@@ -1,0 +1,303 @@
+diff --git a/package.json b/package.json
+index 646b7b5..1766bc0 100644
+--- a/package.json
++++ b/package.json
+@@ -6,6 +6,12 @@
+   "devDependencies": {
+     "@types/deno": "^2.7.0",
+     "@types/node": "^26.1.2",
+-    "@webgpu/types": "^0.1.71"
++    "@webgpu/types": "^0.1.71",
++    "vite": "^8.2.0"
++  },
++  "scripts": {
++    "shaders:generate": "bun run ./scripts/generate-shader-sources.ts",
++    "dev": "bun run shaders:generate && vite --config vite.config.ts",
++    "build:browser": "bun run shaders:generate && vite build --config vite.config.ts"
+   }
+ }
+diff --git a/scripts/generate-shader-sources.ts b/scripts/generate-shader-sources.ts
+new file mode 100644
+index 0000000..aaeb73c
+--- /dev/null
++++ b/scripts/generate-shader-sources.ts
+@@ -0,0 +1,50 @@
++import { readdir, readFile, writeFile } from "node:fs/promises";
++import { dirname, resolve } from "node:path";
++import { fileURLToPath } from "node:url";
++
++const here = dirname(fileURLToPath(import.meta.url));
++const root = resolve(here, "..");
++const shaderDir = resolve(root, "src/shaders");
++const includeDir = resolve(shaderDir, "includes");
++const output = resolve(root, "src/shaders.generated.ts");
++
++const shaderNames = [
++  "embedding",
++  "embedding_wq4",
++  "rms_norm",
++  "matmul_f16",
++  "matmul_f32",
++  "matmul_wq4",
++  "residual_add",
++  "silu_mul",
++  "shortconv_prefill",
++  "shortconv_continue",
++  "shortconv_decode",
++  "qk_norm_rope",
++  "kv_store",
++  "attention",
++  "arena_copy",
++  "argmax_candidates",
++  "argmax",
++] as const;
++
++async function readMap(dir: string, names: readonly string[], prefix = "") {
++  const entries = await Promise.all(names.map(async (name) => {
++    const source = await readFile(resolve(dir, `${name}.wgsl`), "utf8");
++    return [name, `${prefix}${source}`] as const;
++  }));
++  return Object.fromEntries(entries);
++}
++
++const includeNames = (await readdir(includeDir))
++  .filter((name) => name.endsWith(".wgsl"))
++  .map((name) => name.slice(0, -5))
++  .sort();
++
++const shaders = await readMap(shaderDir, shaderNames, "");
++const includes = await readMap(includeDir, includeNames);
++
++const generated = `// THIS FILE IS AUTO-GENERATED - DO NOT EDIT\n// Run: bun run shaders:generate\n\nexport const shaderSources = ${JSON.stringify(shaders, null, 2)} as const;\n\nexport const shaderIncludes = ${JSON.stringify(includes, null, 2)} as const;\n`;
++
++await writeFile(output, generated);
++console.log(`[webgpu] generated ${output}`);
+diff --git a/src/lfm2.ts b/src/lfm2.ts
+index 9910c27..624c78d 100644
+--- a/src/lfm2.ts
++++ b/src/lfm2.ts
+@@ -1,5 +1,3 @@
+-import fs from "fs";
+-
+ import {
+   Sandblaster,
+   type AnyComputeHandle,
+@@ -8,6 +6,7 @@ import {
+ } from "@sandblaster/core-next";
+ import { $ } from "../../schema/src/schema";
+ import { LFM2_CONFIG } from "./lfm2-init";
++import { shaderIncludes, shaderSources } from "./shaders.generated";
+ 
+ export const engine = Sandblaster.create($, {
+   codec: "jit",
+@@ -155,21 +154,13 @@ export const LFM2_SHADER_NAMES = [
+ 
+ export type Lfm2ShaderName = (typeof LFM2_SHADER_NAMES)[number];
+ 
+-/**
+- * Zwraca kod WGSL dla konkretnego shadera
+- */
++/** Browser/runtime-safe WGSL lookup. Sources are generated from src/shaders. */
+ export function getWgsl(shader: Lfm2ShaderName): string {
+-  return `// WGSL source for ${shader} \n\n` + fs.readFileSync(`./src/shaders/${shader}.wgsl`);
++  return shaderSources[shader];
+ }
+ 
+ export function getSources(): Record<Lfm2ShaderName, string> {
+-  const shaders = {} as Record<Lfm2ShaderName, string>;
+-
+-  for (const shader of LFM2_SHADER_NAMES) {
+-    shaders[shader] = getWgsl(shader);
+-  }
+-
+-  return shaders;
++  return { ...shaderSources };
+ }
+ 
+ export const sources = getSources();
+@@ -193,7 +184,7 @@ const widLid = engine.type({
+   lid: "local_invocation_id",
+ });
+ 
+-const include = (name: string) => String(fs.readFileSync(`./src/shaders/includes/${name}.wgsl`));
++const include = (name: keyof typeof shaderIncludes) => shaderIncludes[name];
+ 
+ const commonIncludes = [include("common")];
+ const weightIncludes = [...commonIncludes, include("weights")];
+diff --git a/src/shaders.generated.ts b/src/shaders.generated.ts
+new file mode 100644
+index 0000000..8794f65
+--- /dev/null
++++ b/src/shaders.generated.ts
+@@ -0,0 +1,36 @@
++// THIS FILE IS AUTO-GENERATED - DO NOT EDIT
++// Run: bun run shaders:generate
++
++export const shaderSources = {
++  "embedding": "// Body-only compute shader source.\n// Sandblaster owns @compute, @workgroup_size and the entry-point signature.\n// entryPoint: embedding\n// workgroupSize: [256, 1, 1]\n// builtins: global_invocation_id -> gid\n\n  let total = op.tokenCount * op.outputDim;\n  let linear = gid.x;\n  if (linear >= total) { return; }\n\n  let tokenIndex = linear / op.outputDim;\n  let dim = linear % op.outputDim;\n  let sourceToken = op.u0 + tokenIndex;\n  let tokenId = select(tokens[sourceToken], runtime.currentToken, op.mode != 0u);\n\n  if (tokenId < op.rowStart || tokenId >= op.rowStart + op.rowCount) { return; }\n  let localRow = tokenId - op.rowStart;\n  let value = load_f16(localRow * op.outputDim + dim);\n  arena[arena_index(op.outputOffset, tokenIndex, dim, op.outputDim)] = value;\n",
++  "embedding_wq4": "// Body-only compute shader source.\n// Sandblaster owns @compute, @workgroup_size and the entry-point signature.\n// entryPoint: embedding_wq4\n// workgroupSize: [256, 1, 1]\n// builtins: global_invocation_id -> gid\n\n  let total = op.tokenCount * op.outputDim;\n  let linear = gid.x;\n  if (linear >= total) { return; }\n\n  let tokenIndex = linear / op.outputDim;\n  let dim = linear % op.outputDim;\n  let sourceToken = op.u0 + tokenIndex;\n  let tokenId = select(tokens[sourceToken], runtime.currentToken, op.mode != 0u);\n\n  if (tokenId < op.rowStart || tokenId >= op.rowStart + op.rowCount) { return; }\n  let localRow = tokenId - op.rowStart;\n  let value = load_wq4(localRow * op.outputDim + dim);\n  arena[arena_index(op.outputOffset, tokenIndex, dim, op.outputDim)] = value;\n",
++  "rms_norm": "// Body-only compute shader source.\n// Sandblaster owns @compute, @workgroup_size and the entry-point signature.\n// entryPoint: rms_norm\n// workgroupSize: [64, 1, 1]\n// builtins: workgroup_id -> wid, local_invocation_id -> lid\n\n  let tokenIndex = wid.x;\n  if (tokenIndex >= op.tokenCount) { return; }\n\n  var sum = 0.0;\n  var d = lid.x;\n  loop {\n    if (d >= op.inputDim) { break; }\n    let x = arena[arena_index(op.inputOffset, tokenIndex, d, op.inputDim)];\n    sum += x * x;\n    d += WG;\n  }\n  reduceF32[lid.x] = sum;\n  workgroupBarrier();\n\n  var width = WG >> 1u;\n  loop {\n    if (width == 0u) { break; }\n    if (lid.x < width) { reduceF32[lid.x] += reduceF32[lid.x + width]; }\n    workgroupBarrier();\n    width >>= 1u;\n  }\n\n  let invRms = inverseSqrt(reduceF32[0] / f32(op.inputDim) + op.f0);\n  d = lid.x;\n  loop {\n    if (d >= op.inputDim) { break; }\n    let x = arena[arena_index(op.inputOffset, tokenIndex, d, op.inputDim)];\n    arena[arena_index(op.outputOffset, tokenIndex, d, op.inputDim)] = x * invRms * weight32[d];\n    d += WG;\n  }\n",
++  "matmul_f16": "// Body-only compute shader source.\n// Sandblaster owns @compute, @workgroup_size and the entry-point signature.\n// entryPoint: matmul_f16\n// workgroupSize: [64, 1, 1]\n// builtins: workgroup_id -> wid, local_invocation_id -> lid\n\n  let localRow = wid.x;\n  let tokenIndex = wid.y;\n  if (localRow >= op.rowCount || tokenIndex >= op.tokenCount) { return; }\n\n  var sum = 0.0;\n  var k = lid.x;\n  loop {\n    if (k >= op.inputDim) { break; }\n    let x = arena[arena_index(op.inputOffset, tokenIndex, k, op.inputDim)];\n    let w = load_f16(localRow * op.inputDim + k);\n    sum += x * w;\n    k += WG;\n  }\n  reduceF32[lid.x] = sum;\n  workgroupBarrier();\n\n  var width = WG >> 1u;\n  loop {\n    if (width == 0u) { break; }\n    if (lid.x < width) { reduceF32[lid.x] += reduceF32[lid.x + width]; }\n    workgroupBarrier();\n    width >>= 1u;\n  }\n\n  if (lid.x == 0u) {\n    let logicalRow = op.rowStart + localRow;\n    arena[op.outputOffset + tokenIndex * op.outputDim + logicalRow] = reduceF32[0];\n  }\n",
++  "matmul_f32": "// Body-only compute shader source.\n// Sandblaster owns @compute, @workgroup_size and the entry-point signature.\n// entryPoint: matmul_f32\n// workgroupSize: [64, 1, 1]\n// builtins: workgroup_id -> wid, local_invocation_id -> lid\n\n  let localRow = wid.x;\n  let tokenIndex = wid.y;\n  if (localRow >= op.rowCount || tokenIndex >= op.tokenCount) { return; }\n\n  var sum = 0.0;\n  var k = lid.x;\n  loop {\n    if (k >= op.inputDim) { break; }\n    let x = arena[arena_index(op.inputOffset, tokenIndex, k, op.inputDim)];\n    sum += x * weight32[localRow * op.inputDim + k];\n    k += WG;\n  }\n  reduceF32[lid.x] = sum;\n  workgroupBarrier();\n\n  var width = WG >> 1u;\n  loop {\n    if (width == 0u) { break; }\n    if (lid.x < width) { reduceF32[lid.x] += reduceF32[lid.x + width]; }\n    workgroupBarrier();\n    width >>= 1u;\n  }\n\n  if (lid.x == 0u) {\n    let logicalRow = op.rowStart + localRow;\n    arena[op.outputOffset + tokenIndex * op.outputDim + logicalRow] = reduceF32[0];\n  }\n",
++  "matmul_wq4": "// Body-only compute shader source.\n// Sandblaster owns @compute, @workgroup_size and the entry-point signature.\n// entryPoint: matmul_wq4\n// workgroupSize: [64, 1, 1]\n// builtins: workgroup_id -> wid, local_invocation_id -> lid\n\n  let localRow = wid.x;\n  let tokenIndex = wid.y;\n  if (localRow >= op.rowCount || tokenIndex >= op.tokenCount) { return; }\n\n  let inputBase = op.inputOffset + tokenIndex * op.inputDim;\n  let blocksPerRow = op.inputDim / 32u;\n  // Weight pages are row-local. rowStart is only the logical output-row offset.\n  let rowBlockStart = localRow * blocksPerRow;\n\n  var sum: f32 = 0.0;\n  var b = lid.x;\n  loop {\n    if (b >= blocksPerRow) { break; }\n\n    let blockIdx = rowBlockStart + b;\n    let baseU32 = blockIdx * 5u; // 4 packed words + i32 pow2 exponent = 20 B\n    let expVal = bitcast<i32>(weightRaw[baseU32 + 4u]);\n    let scale = exp2(f32(expVal));\n    let kStart = b * 32u;\n\n    for (var w = 0u; w < 4u; w++) {\n      let packed = weightRaw[baseU32 + w];\n      let kBase = kStart + w * 8u;\n\n      sum += (f32((packed >>  0u) & 0x0Fu) - 8.0) * scale * arena[inputBase + kBase + 0u];\n      sum += (f32((packed >>  4u) & 0x0Fu) - 8.0) * scale * arena[inputBase + kBase + 1u];\n      sum += (f32((packed >>  8u) & 0x0Fu) - 8.0) * scale * arena[inputBase + kBase + 2u];\n      sum += (f32((packed >> 12u) & 0x0Fu) - 8.0) * scale * arena[inputBase + kBase + 3u];\n      sum += (f32((packed >> 16u) & 0x0Fu) - 8.0) * scale * arena[inputBase + kBase + 4u];\n      sum += (f32((packed >> 20u) & 0x0Fu) - 8.0) * scale * arena[inputBase + kBase + 5u];\n      sum += (f32((packed >> 24u) & 0x0Fu) - 8.0) * scale * arena[inputBase + kBase + 6u];\n      sum += (f32((packed >> 28u) & 0x0Fu) - 8.0) * scale * arena[inputBase + kBase + 7u];\n    }\n\n    b += WG;\n  }\n\n  reduceF32[lid.x] = sum;\n  workgroupBarrier();\n\n  var width = WG >> 1u;\n  loop {\n    if (width == 0u) { break; }\n    if (lid.x < width) { reduceF32[lid.x] += reduceF32[lid.x + width]; }\n    workgroupBarrier();\n    width >>= 1u;\n  }\n\n  if (lid.x == 0u) {\n    let logicalRow = op.rowStart + localRow;\n    arena[op.outputOffset + tokenIndex * op.outputDim + logicalRow] = reduceF32[0];\n  }\n",
++  "residual_add": "// Body-only compute shader source.\n// Sandblaster owns @compute, @workgroup_size and the entry-point signature.\n// entryPoint: residual_add\n// workgroupSize: [256, 1, 1]\n// builtins: global_invocation_id -> gid\n\n  let total = op.tokenCount * op.inputDim;\n  let i = gid.x;\n  if (i >= total) { return; }\n  arena[op.outputOffset + i] = arena[op.inputOffset + i] + arena[op.auxOffset + i];\n",
++  "silu_mul": "// Body-only compute shader source.\n// Sandblaster owns @compute, @workgroup_size and the entry-point signature.\n// entryPoint: silu_mul\n// workgroupSize: [256, 1, 1]\n// builtins: global_invocation_id -> gid\n\n  let total = op.tokenCount * op.inputDim;\n  let i = gid.x;\n  if (i >= total) { return; }\n  let gate = arena[op.inputOffset + i];\n  let up = arena[op.auxOffset + i];\n  arena[op.outputOffset + i] = (gate / (1.0 + exp(-gate))) * up;\n",
++  "shortconv_prefill": "// Body-only compute shader source.\n// Sandblaster owns @compute, @workgroup_size and the entry-point signature.\n// entryPoint: shortconv_prefill\n// workgroupSize: [256, 1, 1]\n// builtins: global_invocation_id -> gid\n\n  let total = op.tokenCount * op.inputDim;\n  let linear = gid.x;\n  if (linear >= total) { return; }\n  let t = linear / op.inputDim;\n  let d = linear % op.inputDim;\n\n  // in_proj output layout is [B | C | x], each hidden-sized.\n  let base = op.inputOffset + t * (op.inputDim * 3u);\n  let B = arena[base + d];\n  let C = arena[base + op.inputDim + d];\n  let x = arena[base + op.inputDim * 2u + d];\n  let bx0 = B * x;\n\n  var y = bx0 * weight32[d * 3u + 2u];\n  if (t >= 1u) {\n    let p = op.inputOffset + (t - 1u) * (op.inputDim * 3u);\n    y += arena[p + d] * arena[p + op.inputDim * 2u + d] * weight32[d * 3u + 1u];\n  }\n  if (t >= 2u) {\n    let p = op.inputOffset + (t - 2u) * (op.inputDim * 3u);\n    y += arena[p + d] * arena[p + op.inputDim * 2u + d] * weight32[d * 3u];\n  }\n\n  arena[op.outputOffset + t * op.inputDim + d] = C * y;\n\n  // Persist only the tail needed by the first decode step.\n  let keepStart = select(0u, op.tokenCount - 3u, op.tokenCount > 3u);\n  if (t >= keepStart) {\n    let slot = select(3u - op.tokenCount + t, t - keepStart, op.tokenCount >= 3u);\n    let cacheBase = op.layerIndex * op.inputDim * 3u + d * 3u;\n    convCache[cacheBase + slot] = bx0;\n  }\n",
++  "shortconv_continue": "// Body-only compute shader source.\n// Sandblaster owns @compute, @workgroup_size and the entry-point signature.\n// entryPoint: shortconv_continue\n// workgroupSize: [1, 1, 1]\n// builtins: workgroup_id -> wid\n\n  let d = wid.x;\n  if (d >= op.inputDim || op.tokenCount == 0u) { return; }\n\n  let cacheBase = op.layerIndex * op.inputDim * 3u + d * 3u;\n  var c0 = convCache[cacheBase];\n  var c1 = convCache[cacheBase + 1u];\n  var c2 = convCache[cacheBase + 2u];\n\n  for (var t = 0u; t < op.tokenCount; t++) {\n    let base = op.inputOffset + t * (op.inputDim * 3u);\n    let B = arena[base + d];\n    let C = arena[base + op.inputDim + d];\n    let x = arena[base + op.inputDim * 2u + d];\n    let bx = B * x;\n\n    let y = c1 * weight32[d * 3u] +\n            c2 * weight32[d * 3u + 1u] +\n            bx * weight32[d * 3u + 2u];\n    arena[op.outputOffset + t * op.inputDim + d] = C * y;\n\n    c0 = c1;\n    c1 = c2;\n    c2 = bx;\n  }\n\n  convCache[cacheBase] = c0;\n  convCache[cacheBase + 1u] = c1;\n  convCache[cacheBase + 2u] = c2;\n",
++  "shortconv_decode": "// Body-only compute shader source.\n// Sandblaster owns @compute, @workgroup_size and the entry-point signature.\n// entryPoint: shortconv_decode\n// workgroupSize: [256, 1, 1]\n// builtins: global_invocation_id -> gid\n\n  let d = gid.x;\n  if (d >= op.inputDim) { return; }\n  let base = op.inputOffset;\n  let B = arena[base + d];\n  let C = arena[base + op.inputDim + d];\n  let x = arena[base + op.inputDim * 2u + d];\n  let bx = B * x;\n\n  let cacheBase = op.layerIndex * op.inputDim * 3u + d * 3u;\n  let a = convCache[cacheBase + 1u];\n  let b = convCache[cacheBase + 2u];\n  convCache[cacheBase] = a;\n  convCache[cacheBase + 1u] = b;\n  convCache[cacheBase + 2u] = bx;\n\n  let y = a * weight32[d * 3u] +\n          b * weight32[d * 3u + 1u] +\n          bx * weight32[d * 3u + 2u];\n  arena[op.outputOffset + d] = C * y;\n",
++  "qk_norm_rope": "// Body-only compute shader source.\n// Sandblaster owns @compute, @workgroup_size and the entry-point signature.\n// entryPoint: qk_norm_rope\n// workgroupSize: [64, 1, 1]\n// builtins: workgroup_id -> wid, local_invocation_id -> lid\n\n  let head = wid.x;\n  let tokenIndex = wid.y;\n  if (tokenIndex >= op.tokenCount) { return; }\n  let isK = op.u0 != 0u;\n  let headCount = select(QUERY_HEADS, KV_HEADS, isK);\n  if (head >= headCount) { return; }\n\n  let base = select(op.inputOffset, op.auxOffset, isK);\n  var x = rope_component(base, tokenIndex, head, lid.x, headCount);\n  reduceF32[lid.x] = x * x;\n  workgroupBarrier();\n\n  var width = WG >> 1u;\n  loop {\n    if (width == 0u) { break; }\n    if (lid.x < width) { reduceF32[lid.x] += reduceF32[lid.x + width]; }\n    workgroupBarrier();\n    width >>= 1u;\n  }\n\n  let norm = inverseSqrt(reduceF32[0] / 64.0 + op.f0);\n  x *= norm * weight32[lid.x];\n\n  // Liquid's RoPE uses rotate_half over the two 32-wide halves.\n  let half = HEAD_DIM / 2u;\n  let pairDim = select(lid.x + half, lid.x - half, lid.x >= half);\n  var pair = rope_component(base, tokenIndex, head, pairDim, headCount);\n  pair *= norm * weight32[pairDim];\n  pair = select(-pair, pair, lid.x >= half);\n  // Every lane must capture its unrotated partner before any lane overwrites Q/K.\n  workgroupBarrier();\n\n  let freqDim = lid.x % half;\n  let invFreq = pow(op.f1, -2.0 * f32(freqDim) / f32(HEAD_DIM));\n  let angle = f32(token_position(tokenIndex)) * invFreq;\n  let rotated = x * cos(angle) + pair * sin(angle);\n\n  let dim = headCount * HEAD_DIM;\n  arena[base + tokenIndex * dim + head * HEAD_DIM + lid.x] = rotated;\n",
++  "kv_store": "// Body-only compute shader source.\n// Sandblaster owns @compute, @workgroup_size and the entry-point signature.\n// entryPoint: kv_store\n// workgroupSize: [256, 1, 1]\n// builtins: global_invocation_id -> gid\n\n  let total = op.tokenCount * KV_DIM;\n  let linear = gid.x;\n  if (linear >= total) { return; }\n  let t = linear / KV_DIM;\n  let d = linear % KV_DIM;\n  let position = token_position(t);\n  if (position >= runtime.contextCapacity) { return; }\n\n  let layerStride = runtime.contextCapacity * KV_DIM;\n  let baseK = (op.attentionSlot * 2u) * layerStride;\n  let baseV = baseK + layerStride;\n  kvCache[baseK + position * KV_DIM + d] = arena[op.inputOffset + t * KV_DIM + d];\n  kvCache[baseV + position * KV_DIM + d] = arena[op.auxOffset + t * KV_DIM + d];\n",
++  "attention": "// Body-only compute shader source.\n// Sandblaster owns @compute, @workgroup_size and the entry-point signature.\n// entryPoint: attention\n// workgroupSize: [64, 1, 1]\n// builtins: workgroup_id -> wid, local_invocation_id -> lid\n\n  let head = wid.x;\n  let tokenIndex = wid.y;\n  if (head >= QUERY_HEADS || tokenIndex >= op.tokenCount) { return; }\n\n  let qBase = op.inputOffset + tokenIndex * (QUERY_HEADS * HEAD_DIM) + head * HEAD_DIM;\n  let kvHead = head / (QUERY_HEADS / KV_HEADS);\n  let position = token_position(tokenIndex);\n  // Clamp instead of early-returning: storage-buffer loads are non-uniform to\n  // WGSL's uniformity analysis, so a return here would put the workgroupBarrier()\n  // below in non-uniform control flow (rejected by Dawn). position < MAX_CONTEXT\n  // is guaranteed by the runtime (contextCapacity <= MAX_CONTEXT), so clamping\n  // is lossless.\n  let contextCount = min(position + 1u, MAX_CONTEXT);\n\n  let layerStride = runtime.contextCapacity * KV_DIM;\n  let cacheK = (op.attentionSlot * 2u) * layerStride;\n  let cacheV = cacheK + layerStride;\n\n  var p = lid.x;\n  loop {\n    if (p >= contextCount) { break; }\n    var dot = 0.0;\n    for (var d = 0u; d < HEAD_DIM; d++) {\n      let q = arena[qBase + d];\n      let k = kvCache[cacheK + p * KV_DIM + kvHead * HEAD_DIM + d];\n      dot += q * k;\n    }\n    attentionScores[p] = dot * 0.125; // 1 / sqrt(64)\n    p += WG;\n  }\n  workgroupBarrier();\n\n  if (lid.x == 0u) {\n    var maxScore = -3.402823466e+38;\n    for (var i = 0u; i < contextCount; i++) { maxScore = max(maxScore, attentionScores[i]); }\n    var sumExp = 0.0;\n    for (var i = 0u; i < contextCount; i++) {\n      let e = exp(attentionScores[i] - maxScore);\n      attentionScores[i] = e;\n      sumExp += e;\n    }\n    let inv = 1.0 / max(sumExp, 1e-20);\n    for (var i = 0u; i < contextCount; i++) { attentionScores[i] *= inv; }\n  }\n  workgroupBarrier();\n\n  let d = lid.x;\n  var value = 0.0;\n  for (var i = 0u; i < contextCount; i++) {\n    value += attentionScores[i] * kvCache[cacheV + i * KV_DIM + kvHead * HEAD_DIM + d];\n  }\n  let outIndex = tokenIndex * (QUERY_HEADS * HEAD_DIM) + head * HEAD_DIM + d;\n  arena[op.outputOffset + outIndex] = value;\n",
++  "arena_copy": "// Body-only compute shader source.\n// Sandblaster owns @compute, @workgroup_size and the entry-point signature.\n// entryPoint: arena_copy\n// workgroupSize: [256, 1, 1]\n// builtins: global_invocation_id -> gid\n\n  let total = op.tokenCount * op.inputDim;\n  let i = gid.x;\n  if (i >= total) { return; }\n  arena[op.outputOffset + i] = arena[op.inputOffset + i];\n",
++  "argmax_candidates": "// Body-only compute shader source.\n// Sandblaster owns @compute, @workgroup_size and the entry-point signature.\n// entryPoint: argmax_candidates\n// workgroupSize: [256, 1, 1]\n// builtins: local_invocation_id -> lid\n\n  var bestValue = -3.402823466e+38;\n  var bestToken = 0u;\n  var i = lid.x;\n  loop {\n    if (i >= op.inputDim) { break; }\n    let token = candidateTokens[i];\n    let v = arena[op.inputOffset + token];\n    if (v > bestValue || (v == bestValue && token < bestToken)) {\n      bestValue = v;\n      bestToken = token;\n    }\n    i += ARGMAX_WG;\n  }\n  reduceF32[lid.x] = bestValue;\n  reduceU32[lid.x] = bestToken;\n  workgroupBarrier();\n\n  var width = ARGMAX_WG >> 1u;\n  loop {\n    if (width == 0u) { break; }\n    if (lid.x < width) {\n      let rv = reduceF32[lid.x + width];\n      let rt = reduceU32[lid.x + width];\n      let lv = reduceF32[lid.x];\n      let lt = reduceU32[lid.x];\n      if (rv > lv || (rv == lv && rt < lt)) {\n        reduceF32[lid.x] = rv;\n        reduceU32[lid.x] = rt;\n      }\n    }\n    workgroupBarrier();\n    width >>= 1u;\n  }\n\n  if (lid.x == 0u && runtime.status == 1u) {\n    if (op.mode != 0u) { runtime.position += 1u; }\n    let step = runtime.generatedCount;\n    let outIndex = runtime.contextCapacity + step;\n    let token = reduceU32[0];\n    tokens[outIndex] = token;\n    runtime.currentToken = token;\n    runtime.lastToken = token;\n    runtime.generatedCount += 1u;\n    runtime.telemetryRevision += 1u;\n\n    if (token == runtime.eosToken) {\n      runtime.status = 2u;\n    } else if (runtime.generatedCount >= runtime.maxNewTokens) {\n      runtime.status = 3u;\n    }\n    emit_decode_telemetry(step, token);\n  }\n",
++  "argmax": "// Body-only compute shader source.\n// Sandblaster owns @compute, @workgroup_size and the entry-point signature.\n// entryPoint: argmax\n// workgroupSize: [256, 1, 1]\n// builtins: local_invocation_id -> lid\n\n  // No early return before the barriers below: runtime.status is a storage-buffer\n  // load (non-uniform to WGSL), which would put workgroupBarrier() in non-uniform\n  // control flow. The status gate is applied on the final lane-0 write instead.\n  var bestValue = -3.402823466e+38;\n  var bestToken = 0u;\n  var i = lid.x;\n  loop {\n    if (i >= op.inputDim) { break; }\n    let v = arena[op.inputOffset + i];\n    if (v > bestValue || (v == bestValue && i < bestToken)) {\n      bestValue = v;\n      bestToken = i;\n    }\n    i += ARGMAX_WG;\n  }\n  reduceF32[lid.x] = bestValue;\n  reduceU32[lid.x] = bestToken;\n  workgroupBarrier();\n\n  var width = ARGMAX_WG >> 1u;\n  loop {\n    if (width == 0u) { break; }\n    if (lid.x < width) {\n      let rv = reduceF32[lid.x + width];\n      let rt = reduceU32[lid.x + width];\n      let lv = reduceF32[lid.x];\n      let lt = reduceU32[lid.x];\n      if (rv > lv || (rv == lv && rt < lt)) {\n        reduceF32[lid.x] = rv;\n        reduceU32[lid.x] = rt;\n      }\n    }\n    workgroupBarrier();\n    width >>= 1u;\n  }\n\n  if (lid.x == 0u) {\n    if (runtime.status == 1u) {\n      if (op.mode != 0u) { runtime.position += 1u; }\n      let step = runtime.generatedCount;\n      let outIndex = runtime.contextCapacity + step;\n      let token = reduceU32[0];\n      tokens[outIndex] = token;\n      runtime.currentToken = token;\n      runtime.lastToken = token;\n      runtime.generatedCount += 1u;\n      runtime.telemetryRevision += 1u;\n\n      if (token == runtime.eosToken) {\n        runtime.status = 2u;\n      } else if (runtime.generatedCount >= runtime.maxNewTokens) {\n        runtime.status = 3u;\n      }\n      emit_decode_telemetry(step, token);\n    }\n  }\n"
++} as const;
++
++export const shaderIncludes = {
++  "arena": "fn rope_component(base: u32, tokenIndex: u32, head: u32, d: u32, headCount: u32) -> f32 {\n  let dim = headCount * HEAD_DIM;\n  return arena[base + tokenIndex * dim + head * HEAD_DIM + d];\n}\n",
++  "attention-scores": "var<workgroup> attentionScores: array<f32, 1024>;\n",
++  "codec": "// THIS FILE IS AUTO-GENERATED - DO NOT CHANGE\n\nfn unpack_words_to_op_params(raw: array<u32, 64>) -> OpParams {\n\tvar out: OpParams;\n\tout.inputOffset = bitcast<u32>(raw[0u]);\n\tout.outputOffset = bitcast<u32>(raw[1u]);\n\tout.auxOffset = bitcast<u32>(raw[2u]);\n\tout.aux2Offset = bitcast<u32>(raw[3u]);\n\tout.tokenCount = bitcast<u32>(raw[4u]);\n\tout.inputDim = bitcast<u32>(raw[5u]);\n\tout.outputDim = bitcast<u32>(raw[6u]);\n\tout.rowStart = bitcast<u32>(raw[7u]);\n\tout.rowCount = bitcast<u32>(raw[8u]);\n\tout.layerIndex = bitcast<u32>(raw[9u]);\n\tout.attentionSlot = bitcast<u32>(raw[10u]);\n\tout.mode = OpParamsMode(extractBits(raw[11u], 0u, 8u));\n\tout.f0 = bitcast<f32>(raw[12u]);\n\tout.f1 = bitcast<f32>(raw[13u]);\n\tout.u0 = bitcast<u32>(raw[14u]);\n\tout.u1 = bitcast<u32>(raw[15u]);\n\tfor (var i_0 = 0u; i_0 < 48u; i_0++) {\n\t\tout.reserved[i_0] = bitcast<u32>(raw[16u + (i_0 * 1u)]);\n\t}\n\treturn out;\n}\n\nfn unpack_op_params(raw: array<u32, 64>) -> OpParams {\n\treturn unpack_words_to_op_params(raw);\n}\n\nfn pack_op_params_to_words(unpacked: OpParams) -> array<u32, 64> {\n\tvar out: array<u32, 64>;\n\tout[0u] = bitcast<u32>(unpacked.inputOffset);\n\tout[1u] = bitcast<u32>(unpacked.outputOffset);\n\tout[2u] = bitcast<u32>(unpacked.auxOffset);\n\tout[3u] = bitcast<u32>(unpacked.aux2Offset);\n\tout[4u] = bitcast<u32>(unpacked.tokenCount);\n\tout[5u] = bitcast<u32>(unpacked.inputDim);\n\tout[6u] = bitcast<u32>(unpacked.outputDim);\n\tout[7u] = bitcast<u32>(unpacked.rowStart);\n\tout[8u] = bitcast<u32>(unpacked.rowCount);\n\tout[9u] = bitcast<u32>(unpacked.layerIndex);\n\tout[10u] = bitcast<u32>(unpacked.attentionSlot);\n\tout[11u] = 0u;\n\tout[11u] = insertBits(out[11u], u32(unpacked.mode), 0u, 8u);\n\tout[12u] = bitcast<u32>(unpacked.f0);\n\tout[13u] = bitcast<u32>(unpacked.f1);\n\tout[14u] = bitcast<u32>(unpacked.u0);\n\tout[15u] = bitcast<u32>(unpacked.u1);\n\tfor (var i_0 = 0u; i_0 < 48u; i_0++) {\n\t\t\tout[16u + (i_0 * 1u)] = bitcast<u32>(unpacked.reserved[i_0]);\n\t\t}\n\treturn out;\n}\n\nfn pack_op_params(unpacked: OpParams) -> array<u32, 64> {\n\treturn pack_op_params_to_words(unpacked);\n}\n\nfn unpack_words_to_weights(raw: array<u32, 2>) -> Weights {\n\tvar out: Weights;\n\tout.f32 = bitcast<f32>(raw[0u]);\n\tout.u32 = bitcast<u32>(raw[1u]);\n\treturn out;\n}\n\nfn unpack_weights(raw: array<u32, 2>) -> Weights {\n\treturn unpack_words_to_weights(raw);\n}\n\nfn pack_weights_to_words(unpacked: Weights) -> array<u32, 2> {\n\tvar out: array<u32, 2>;\n\tout[0u] = bitcast<u32>(unpacked.f32);\n\tout[1u] = bitcast<u32>(unpacked.u32);\n\treturn out;\n}\n\nfn pack_weights(unpacked: Weights) -> array<u32, 2> {\n\treturn pack_weights_to_words(unpacked);\n}\n\nfn unpack_words_to_llm_runtime(raw: array<u32, 12>) -> LlmRuntime {\n\tvar out: LlmRuntime;\n\tout.contextCapacity = bitcast<u32>(raw[0u]);\n\tout.maxNewTokens = bitcast<u32>(raw[1u]);\n\tout.eosToken = bitcast<u32>(raw[2u]);\n\tout.promptTokenCount = bitcast<u32>(raw[3u]);\n\tout.position = bitcast<u32>(raw[4u]);\n\tout.generatedCount = bitcast<u32>(raw[5u]);\n\tout.currentToken = bitcast<u32>(raw[6u]);\n\tout.status = LlmRuntimeStatus(extractBits(raw[7u], 0u, 8u));\n\tout.telemetryRevision = bitcast<u32>(raw[8u]);\n\tout.lastToken = bitcast<u32>(raw[9u]);\n\tout.errorCode = bitcast<u32>(raw[10u]);\n\tout.pad0 = bitcast<u32>(raw[11u]);\n\treturn out;\n}\n\nfn unpack_llm_runtime(raw: array<u32, 12>) -> LlmRuntime {\n\treturn unpack_words_to_llm_runtime(raw);\n}\n\nfn pack_llm_runtime_to_words(unpacked: LlmRuntime) -> array<u32, 12> {\n\tvar out: array<u32, 12>;\n\tout[0u] = bitcast<u32>(unpacked.contextCapacity);\n\tout[1u] = bitcast<u32>(unpacked.maxNewTokens);\n\tout[2u] = bitcast<u32>(unpacked.eosToken);\n\tout[3u] = bitcast<u32>(unpacked.promptTokenCount);\n\tout[4u] = bitcast<u32>(unpacked.position);\n\tout[5u] = bitcast<u32>(unpacked.generatedCount);\n\tout[6u] = bitcast<u32>(unpacked.currentToken);\n\tout[7u] = 0u;\n\tout[7u] = insertBits(out[7u], u32(unpacked.status), 0u, 8u);\n\tout[8u] = bitcast<u32>(unpacked.telemetryRevision);\n\tout[9u] = bitcast<u32>(unpacked.lastToken);\n\tout[10u] = bitcast<u32>(unpacked.errorCode);\n\tout[11u] = bitcast<u32>(unpacked.pad0);\n\treturn out;\n}\n\nfn pack_llm_runtime(unpacked: LlmRuntime) -> array<u32, 12> {\n\treturn pack_llm_runtime_to_words(unpacked);\n}\n\nfn unpack_words_to_decode_telemetry_entry(raw: u32) -> DecodeTelemetryEntry {\n\tvar out: DecodeTelemetryEntry;\n\tout.position = u32(extractBits(raw, 0u, 8u));\n\tout.status = u32(extractBits(raw, 8u, 4u));\n\tout.tokenId = u32(extractBits(raw, 16u, 16u));\n\treturn out;\n}\n\nfn unpack_decode_telemetry_entry(raw: u32) -> DecodeTelemetryEntry {\n\treturn unpack_words_to_decode_telemetry_entry(raw);\n}\n\nfn pack_decode_telemetry_entry_to_words(unpacked: DecodeTelemetryEntry) -> u32 {\n\tvar out: u32;\n\tout = 0u;\n\tout = insertBits(out, u32(unpacked.position), 0u, 8u);\n\tout = insertBits(out, u32(unpacked.status), 8u, 4u);\n\tout = insertBits(out, u32(unpacked.tokenId), 16u, 16u);\n\treturn out;\n}\n\nfn pack_decode_telemetry_entry(unpacked: DecodeTelemetryEntry) -> u32 {\n\treturn pack_decode_telemetry_entry_to_words(unpacked);\n}\n\n",
++  "common": "fn arena_index(base: u32, tokenIndex: u32, dim: u32, stride: u32) -> u32 {\n  return base + tokenIndex * stride + dim;\n}\n\nconst WG: u32 = 64u;\nconst ARGMAX_WG: u32 = 256u;\nconst MAX_CONTEXT: u32 = 1024u;\nconst HEAD_DIM: u32 = 64u;\nconst KV_HEADS: u32 = 8u;\nconst QUERY_HEADS: u32 = 32u;\nconst KV_DIM: u32 = KV_HEADS * HEAD_DIM;\n",
++  "includes": "// Deprecated: LFM2 helpers are dependency-scoped now. See common.wgsl,\n// runtime.wgsl, weights.wgsl, arena.wgsl and the workgroup scratch includes.\n",
++  "reduce-f32": "var<workgroup> reduceF32: array<f32, 256>;\n",
++  "reduce-u32": "var<workgroup> reduceU32: array<u32, 256>;\n",
++  "runtime": "fn token_position(tokenIndex: u32) -> u32 {\n  if (op.mode == 1u) { return runtime.position; }\n  if (op.mode == 2u) { return op.u1 + tokenIndex; }\n  return tokenIndex;\n}\n",
++  "schema": "// THIS FILE IS AUTO-GENERATED - DO NOT CHANGE\n\nalias OpParamsMode = u32;\nconst OpParamsMode_prefill: OpParamsMode = 0u;\nconst OpParamsMode_decode: OpParamsMode = 1u;\nconst OpParamsMode_continuation: OpParamsMode = 2u;\n\nstruct OpParams {\n\tinputOffset: u32,\n\toutputOffset: u32,\n\tauxOffset: u32,\n\taux2Offset: u32,\n\ttokenCount: u32,\n\tinputDim: u32,\n\toutputDim: u32,\n\trowStart: u32,\n\trowCount: u32,\n\tlayerIndex: u32,\n\tattentionSlot: u32,\n\tmode: OpParamsMode,\n\tf0: f32,\n\tf1: f32,\n\tu0: u32,\n\tu1: u32,\n\treserved: array<u32, 48>,\n};\n\nconst OP_PARAMS_RESERVED_LEN: u32 = 48u;\n\nstruct Weights {\n\tf32: f32,\n\tu32: u32,\n};\n\n\nalias LlmRuntimeStatus = u32;\nconst LlmRuntimeStatus_idle: LlmRuntimeStatus = 0u;\nconst LlmRuntimeStatus_running: LlmRuntimeStatus = 1u;\nconst LlmRuntimeStatus_eos: LlmRuntimeStatus = 2u;\nconst LlmRuntimeStatus_done: LlmRuntimeStatus = 3u;\nconst LlmRuntimeStatus_error: LlmRuntimeStatus = 4u;\n\nstruct LlmRuntime {\n\tcontextCapacity: u32,\n\tmaxNewTokens: u32,\n\teosToken: u32,\n\tpromptTokenCount: u32,\n\tposition: u32,\n\tgeneratedCount: u32,\n\tcurrentToken: u32,\n\tstatus: LlmRuntimeStatus,\n\ttelemetryRevision: u32,\n\tlastToken: u32,\n\terrorCode: u32,\n\tpad0: u32,\n};\n\n\nstruct DecodeTelemetryEntry {\n\tposition: u32,\n\tstatus: u32,\n\ttokenId: u32,\n};\n\n\n",
++  "telemetry": "fn emit_decode_telemetry(step: u32, token: u32) {\n  // Telemetry storage is intentionally disabled for now. Keep the helper so\n  // argmax kernels preserve the legacy call site without pulling extra bindings.\n}\n",
++  "weights": "fn load_f16(index: u32) -> f32 {\n  let packed = weightRaw[index >> 1u];\n  let pair = unpack2x16float(packed);\n  return select(pair.x, pair.y, (index & 1u) != 0u);\n}\n\nfn load_wq4(index: u32) -> f32 {\n  let block = index / 32u;\n  let lane = index % 32u;\n  let baseU32 = block * 5u;\n  let packed = weightRaw[baseU32 + lane / 8u];\n  let shift = (lane % 8u) * 4u;\n  let expVal = bitcast<i32>(weightRaw[baseU32 + 4u]);\n  return (f32((packed >> shift) & 0x0Fu) - 8.0) * exp2(f32(expVal));\n}\n"
++} as const;
+diff --git a/test/browser/index.html b/test/browser/index.html
+new file mode 100644
+index 0000000..f2a39e8
+--- /dev/null
++++ b/test/browser/index.html
+@@ -0,0 +1,23 @@
++<!doctype html>
++<html lang="en">
++  <head>
++    <meta charset="UTF-8" />
++    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
++    <title>Chomato WebGPU Smoke</title>
++    <style>
++      :root { color-scheme: dark; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
++      body { margin: 0; padding: 32px; background: #111; color: #ddd; }
++      h1 { margin: 0 0 20px; font: 600 20px system-ui, sans-serif; }
++      #status { margin-bottom: 16px; color: #aaa; }
++      #status.ok { color: #8fd694; }
++      #status.error { color: #ff8b8b; }
++      pre { white-space: pre-wrap; line-height: 1.5; }
++    </style>
++  </head>
++  <body>
++    <h1>@chomato/webgpu · Chrome smoke</h1>
++    <div id="status">booting…</div>
++    <pre id="output"></pre>
++    <script type="module" src="./main.ts"></script>
++  </body>
++</html>
+diff --git a/test/browser/main.ts b/test/browser/main.ts
+new file mode 100644
+index 0000000..36a3ad2
+--- /dev/null
++++ b/test/browser/main.ts
+@@ -0,0 +1,75 @@
++const status = document.querySelector<HTMLDivElement>("#status")!;
++const output = document.querySelector<HTMLPreElement>("#output")!;
++
++function log(message: string, value?: unknown) {
++  const suffix = value === undefined
++    ? ""
++    : ` ${typeof value === "string" ? value : JSON.stringify(value, null, 2)}`;
++  output.textContent += `${message}${suffix}\n`;
++  console.log(message, value ?? "");
++}
++
++function fail(error: unknown): never {
++  status.textContent = "FAILED";
++  status.className = "error";
++  const message = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
++  log("✗", message);
++  console.error(error);
++  throw error;
++}
++
++window.addEventListener("unhandledrejection", (event) => {
++  status.textContent = "FAILED";
++  status.className = "error";
++  log("✗ unhandled rejection", String(event.reason));
++});
++
++window.addEventListener("error", (event) => {
++  status.textContent = "FAILED";
++  status.className = "error";
++  log("✗ window error", event.message);
++});
++
++async function main() {
++  log("[smoke] importing LFM2 GPU definition…");
++
++  // Dynamic import lets the page report parser/linker failures instead of
++  // dying before the harness itself has initialized.
++  const { lfm2, LFM2_SHADER_NAMES } = await import("../../src/lfm2");
++  log(`✓ linked ${LFM2_SHADER_NAMES.length} shader programs`);
++
++  if (!navigator.gpu) throw new Error("navigator.gpu is unavailable; open this page in a WebGPU-enabled Chromium build");
++
++  const GIB = 1024 * 1024 * 1024;
++  const requiredLimits: Record<string, number> = {
++    maxBufferSize: GIB,
++    maxStorageBufferBindingSize: GIB,
++    maxComputeWorkgroupsPerDimension: 65535,
++  };
++
++  log("[smoke] compiling through Chromium/Dawn…");
++  const compiled = await lfm2.engine.compile({ requiredLimits } as any);
++  const device: GPUDevice = compiled.device;
++
++  device.addEventListener("uncapturederror", (event) => {
++    status.textContent = "FAILED";
++    status.className = "error";
++    log("✗ WebGPU uncaptured error", event.error.message);
++    console.error(event.error);
++  });
++
++  log("✓ WebGPU device", {
++    maxBufferSizeMiB: Math.round(Number(device.limits.maxBufferSize) / 1048576),
++    maxStorageBufferBindingSizeMiB: Math.round(Number(device.limits.maxStorageBufferBindingSize) / 1048576),
++    maxComputeWorkgroupsPerDimension: device.limits.maxComputeWorkgroupsPerDimension,
++    maxStorageBuffersPerShaderStage: device.limits.maxStorageBuffersPerShaderStage,
++  });
++
++  log("✓ LFM2 programs compiled by Dawn");
++  log("✓ pass definitions", Object.keys(lfm2.passes));
++
++  status.textContent = "PASS · parser + linker + Dawn compile";
++  status.className = "ok";
++}
++
++main().catch(fail);
+diff --git a/vite.config.ts b/vite.config.ts
+new file mode 100644
+index 0000000..d2ff49b
+--- /dev/null
++++ b/vite.config.ts
+@@ -0,0 +1,19 @@
++import { fileURLToPath } from "node:url";
++import { defineConfig } from "vite";
++
++const packageRoot = fileURLToPath(new URL("./", import.meta.url));
++const repoRoot = fileURLToPath(new URL("../../", import.meta.url));
++
++export default defineConfig({
++  root: fileURLToPath(new URL("./test/browser/", import.meta.url)),
++  server: {
++    fs: {
++      // lfm2 imports the sibling schema package in the monorepo.
++      allow: [packageRoot, repoRoot],
++    },
++  },
++  build: {
++    outDir: fileURLToPath(new URL("./dist/browser/", import.meta.url)),
++    emptyOutDir: true,
++  },
++});

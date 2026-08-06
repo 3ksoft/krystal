@@ -16,8 +16,6 @@ function ggufRangeServer(): Plugin {
         const url = new URL(req.url, "http://localhost");
         if (!url.pathname.startsWith("/models/")) return next();
 
-        // Initial harness intentionally serves only direct files from ./models.
-        // basename() prevents ../ traversal through an encoded URL.
         const file = path.join(modelsDir, path.basename(decodeURIComponent(url.pathname)));
         let stat: fs.Stats;
         try {
@@ -45,7 +43,7 @@ function ggufRangeServer(): Plugin {
         }
         if (req.method !== "GET") {
           res.statusCode = 405;
-          res.end();
+          res.end("method not allowed");
           return;
         }
 
@@ -86,14 +84,13 @@ function ggufRangeServer(): Plugin {
 
 export default defineConfig({
   root: here,
+  // gui2 intentionally uses runtime templates to keep the first harness free of SFC tooling.
+  resolve: { alias: { vue: "vue/dist/vue.esm-bundler.js" } },
   server: {
     host: "127.0.0.1",
-    port: 5173,
+    port: 5174,
     strictPort: true,
-    fs: {
-      // Workspace packages are imported directly by the browser harness.
-      allow: [repoRoot],
-    },
+    fs: { allow: [repoRoot] },
   },
   plugins: [ggufRangeServer()],
 });

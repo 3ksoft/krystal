@@ -1,5 +1,12 @@
 {
-  "name": "@chomato/web",
+  "name": "@chomato/gui2",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "vue": "^3.5.0"
+  }
 }

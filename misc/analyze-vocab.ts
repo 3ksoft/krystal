@@ -170,6 +170,55 @@ try {
   console.log(`   Możemy bezpiecznie odrzucić ~${totalTokens - strictCodeJsonVocab} tokenów!`);
   console.log("=================================================");
 
+
+
+  // =================================================================
+  // 4. GENERATOR MAPY RECYKLINGU TOKENÓW (1000 CUSTOM TOKENÓW)
+  // =================================================================
+  const RECYCLABLE_LIMIT = 1000;
+  const victimTokens: Array<{ id: number; raw: string; decoded: string; category: string }> = [];
+
+  for (let id = 0; id < totalTokens; id++) {
+    if (victimTokens.length >= RECYCLABLE_LIMIT) break;
+
+    const raw = tokenizer.idToToken[id] ?? "";
+    const decoded = unmapGpt2Byte(raw);
+
+    // Wybieramy tylko ewidentne nie-ASCII (np. CJK lub Cyrylicę), które na 100% nie wystąpią w JSON/Kodzie
+    if (RE_CJK.test(decoded)) {
+      victimTokens.push({ id, raw, decoded, category: "CJK" });
+    } else if (RE_CYRILLIC.test(decoded)) {
+      victimTokens.push({ id, raw, decoded, category: "Cyrillic" });
+    }
+  }
+
+  console.log("\n=================================================");
+  console.log(`🎯 ZNALEZIONO ${victimTokens.length} TOKENÓW-OFIAR DO RECYKLINGU:`);
+  console.log("=================================================");
+  console.log("Pierwsze 10 zrecyklingowanych slotów:");
+  
+  // Tworzymy mapę podmiany na customowe tokeny
+  const customTokenMap: Record<string, number> = {};
+  
+  victimTokens.slice(0, 10).forEach((item, index) => {
+    const customName = index === 0 
+      ? "[--gpu-tool-call--]" 
+      : index === 1 
+      ? "[---end-gpu-tool-call--]" 
+      : `[--identifier_${index - 1}--]`;
+      
+    customTokenMap[customName] = item.id;
+    console.log(`   • ID: ${item.id.toString().padStart(5)} | Stary token: "${item.decoded}" (${item.category})  --> NOWY: ${customName}`);
+  });
+
+  // Zapisujemy mapę do pliku JSON dla Twojego silnika chomato / schema-pop
+  const mapPath = "./custom-token-map.json";
+  await Deno.writeTextFile(mapPath, JSON.stringify(customTokenMap, null, 2));
+  console.log(`\nWygenerowano plik mapowania: ${mapPath}`);
+
+
 } finally {
   source.close();
 }
+
+

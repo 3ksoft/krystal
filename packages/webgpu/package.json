@@ -2,5 +2,16 @@
   "name": "@chomato/webgpu",
   "private": true,
   "type": "module",
-  "exports": "./src/index.ts"
+  "exports": "./src/index.ts",
+  "devDependencies": {
+    "@types/deno": "^2.7.0",
+    "@types/node": "^26.1.2",
+    "@webgpu/types": "^0.1.71",
+    "vite": "^8.2.0"
+  },
+  "scripts": {
+    "shaders:generate": "bun run ./scripts/generate-shader-sources.ts",
+    "dev": "bun run shaders:generate && vite --config vite.config.ts",
+    "build:browser": "bun run shaders:generate && vite build --config vite.config.ts"
+  }
 }

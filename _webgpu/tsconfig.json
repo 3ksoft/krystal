@@ -1,0 +1,26 @@
+{
+	"compilerOptions": {
+		"module": "es2022",
+		"target": "es2022",
+		"lib": ["ES2022", "DOM", "DOM.Iterable"],
+		"jsx": "react-jsx",
+
+		"types": ["@webgpu/types", "@types/deno", "@types/node"],
+
+		"incremental": true,
+		"skipLibCheck": true,
+		"moduleResolution": "bundler",
+		"verbatimModuleSyntax": true,
+		"moduleDetection": "auto",
+		"noUnusedLocals": false,
+		"noUnusedParameters": false,
+		"erasableSyntaxOnly": false,
+		"noFallthroughCasesInSwitch": true,
+		"strict": true,
+		"declaration": false,
+		"declarationMap": false,
+		"composite": false,
+		"sourceMap": false,
+		"noEmit": true
+	}
+}

@@ -1,119 +1,167 @@
-import { scope } from "arktype";
-import { sandblaster } from "@sandblaster/core";
+import { } from "./env"
+import { type, scope } from "arktype"
+import { wgsl } from "@schema-pop/schema";
 
 /**
- * CPU <-> GPU contract for one minimal inference request.
- *
- * Large tensors intentionally do NOT live in schema-pop. The codec owns the
- * small control/telemetry structure; activations, KV, conv state and weights
- * are raw GPU buffers.
+ * Host/native contracts. These live in schema for one source of truth, but are
+ * intentionally excluded from the schema-pop layout build: GPU objects and
+ * callbacks have no portable binary representation.
  */
-export const $ = scope({
-  ...sandblaster.import(),
+const GPUBufferType = type("object").as<GPUBuffer>();
+const GPUDeviceType = type("object").as<GPUDevice>();
+
+
+export const schema = scope({
+  ...wgsl.import(),
+
+  Lfm2Mode: "'prefill' | 'decode' | 'continuation'",
+
+  OpParams: {
+    inputOffset: "u32 = 0",
+    outputOffset: "u32 = 0",
+    auxOffset: "u32 = 0",
+    aux2Offset: "u32 = 0",
+
+    tokenCount: "u32 = 0",
+    inputDim: "u32 = 0",
+    outputDim: "u32 = 0",
+    rowStart: "u32 = 0",
+
+    rowCount: "u32 = 0",
+    layerIndex: "u32 = 0",
+    attentionSlot: "u32 = 0",
+    mode: "Lfm2Mode = 'prefill'",
+
+    f0: "f32 = 0",
+    f1: "f32 = 0",
+    u0: "u32 = 0",
+    u1: "u32 = 0",
+
+    // One uniform slot. The legacy runtime only consumes the first 64 B;
+    // Sandblaster can use the full 256 B layout directly.
+    reserved: ["u32[] == 48", "=", () => new Array(48).fill(0)],
+  },
+
+  LlmRuntimeStatus: "'idle' | 'running' | 'eos' | 'done' | 'error'",
 
   LlmRuntime: {
-    contextCapacity: "u32",
-    maxNewTokens: "u32",
-    eosToken: "u32",
-    promptTokenCount: "u32",
+    contextCapacity: "u32 = 0",
+    maxNewTokens: "u32 = 0",
+    eosToken: "u32 = 0",
+    promptTokenCount: "u32 = 0",
 
-    /** Position occupied by currentToken during the next decode step. */
-    position: "u32",
-    generatedCount: "u32",
-    currentToken: "u32",
-    status: "u32",
+    position: "u32 = 0",
+    generatedCount: "u32 = 0",
+    currentToken: "u32 = 0",
+    status: "LlmRuntimeStatus = 'idle'",
 
-    /** Increased by the GPU whenever a new output token is committed. */
-    telemetryRevision: "u32",
-    lastToken: "u32",
-    errorCode: "u32",
-    pad0: "u32",
+    telemetryRevision: "u32 = 0",
+    lastToken: "u32 = 0",
+    errorCode: "u32 = 0",
+    pad0: "u32 = 0",
+  },
+
+  DecodeTelemetryEntry: {
+    position: "u8 = 0",
+    status: "u4 = 0",
+    tokenId: "u16 = 0",
+  },
+
+  GenerateOptions: {
+    "maxNewTokens?": "number",
+    "profile?": "boolean",
+  },
+
+  GenerateTimings: {
+    prefillMs: "number",
+    decodeMs: "number",
+    readbackMs: "number",
+    totalMs: "number",
+    promptTokens: "number",
+    scheduledDecodeSteps: "number",
+
+    "cacheDepth?": "number",
+    "cachedBlocks?": "number",
+    "cachedTokens?": "number",
+    "liveQueryTokens?": "number",
+    "repairedTokens?": "number",
+  },
+
+  GenerateResult: {
+    tokenIds: "number[]",
+    state: "LlmRuntime",
+    "timings?": "GenerateTimings",
+  },
+
+  CacheBlockOptions: {
+    "depth?": "number",
+  },
+
+  GpuWeightFormat: "'f16' | 'f32' | 'wq4'",
+  Lfm2LayerKind: "'conv' | 'attention'",
+
+  Lfm2RuntimeConfig: {
+    contextLength: "number",
+    hiddenSize: "number",
+    feedForwardSize: "number",
+    attentionHeads: "number",
+    kvHeadsByLayer: "number[]",
+    headDim: "number",
+    ropeTheta: "number",
+    vocabSize: "number",
+    convCacheLength: "number",
+    normEpsilon: "number",
+    eosToken: "number",
+    blockCount: "number",
+    layers: "Lfm2LayerKind[]",
+    attentionLayerSlots: "number[]",
+  },
+
+  MatmulDispatchArgs: {
+    rowCount: "number",
+    tokenCount: "number",
+    inputDim: "number",
+    outputDim: "number",
+  },
+
+  GPUBuffer: GPUBufferType,
+  GPUDevice: GPUDeviceType,
+
+  GpuTensorPage: {
+    buffer: "GPUBuffer",
+    rowStart: "number",
+    rowCount: "number",
+    byteLength: "number",
+  },
+
+  GpuTensor: {
+    name: "string",
+    format: "GpuWeightFormat",
+    dimensions: "number[]",
+    pages: "GpuTensorPage[]",
+    "byteLength?": "number",
+  },
+
+  Lfm2RuntimeModel: {
+    device: "GPUDevice",
+    config: "Lfm2RuntimeConfig",
+    tensor: "Function",
+  },
+
+  MatmulKernelSpec: {
+    entryPoint: "string",
+    "wgsl?": "string",
+    "workgroups?": "Function",
+  },
+
+  Lfm2RuntimeOptions: {
+    "contextCapacity?": "number",
+    "maxNewTokens?": "number",
+    "matmulKernels?": {
+      "f16?": "MatmulKernelSpec",
+      "f32?": "MatmulKernelSpec",
+      "wq4?": "MatmulKernelSpec",
+    },
   },
 });
 
-export const LLM_STATUS = {
-  IDLE: 0,
-  RUNNING: 1,
-  EOS: 2,
-  DONE: 3,
-  ERROR: 4,
-} as const;
-
-export type LlmRuntimeState = {
-  contextCapacity: number;
-  maxNewTokens: number;
-  eosToken: number;
-  promptTokenCount: number;
-  position: number;
-  generatedCount: number;
-  currentToken: number;
-  status: number;
-  telemetryRevision: number;
-  lastToken: number;
-  errorCode: number;
-  pad0: number;
-};
-
-/**
- * Field order mirrors runtime.wgsl's LlmRuntime struct exactly (12 consecutive
- * u32, no padding). The WGSL declaration is explicit so the runtime does not
- * depend on Sandblaster exposing its LayoutPlan; this CPU codec is the only
- * place that must stay in lock-step with the struct.
- */
-const LLM_RUNTIME_FIELDS = [
-  "contextCapacity",
-  "maxNewTokens",
-  "eosToken",
-  "promptTokenCount",
-  "position",
-  "generatedCount",
-  "currentToken",
-  "status",
-  "telemetryRevision",
-  "lastToken",
-  "errorCode",
-  "pad0",
-] as const satisfies readonly (keyof LlmRuntimeState)[];
-
-/** Byte size of the LlmRuntime struct on the GPU (12 u32). */
-export const LLM_RUNTIME_BYTES = LLM_RUNTIME_FIELDS.length * 4;
-
-export function serializeLlmRuntime(view: DataView, state: LlmRuntimeState, offset = 0): void {
-  let p = offset;
-  for (const field of LLM_RUNTIME_FIELDS) {
-    view.setUint32(p, state[field] >>> 0, true);
-    p += 4;
-  }
-}
-
-export function deserializeLlmRuntime(view: DataView, offset = 0): LlmRuntimeState {
-  const state = {} as LlmRuntimeState;
-  let p = offset;
-  for (const field of LLM_RUNTIME_FIELDS) {
-    state[field] = view.getUint32(p, true);
-    p += 4;
-  }
-  return state;
-}
-
-export function createInitialRuntimeState(options: {
-  contextCapacity: number;
-  maxNewTokens: number;
-  eosToken: number;
-  promptTokenCount: number;
-}): LlmRuntimeState {
-  return {
-    contextCapacity: options.contextCapacity,
-    maxNewTokens: options.maxNewTokens,
-    eosToken: options.eosToken,
-    promptTokenCount: options.promptTokenCount,
-    position: options.promptTokenCount,
-    generatedCount: 0,
-    currentToken: 0,
-    status: LLM_STATUS.RUNNING,
-    telemetryRevision: 0,
-    lastToken: 0,
-    errorCode: 0,
-    pad0: 0,
-  };
-}

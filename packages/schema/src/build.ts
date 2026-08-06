@@ -1,10 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fromModule, SchemaAnalyzer } from "@schema-pop/core";
-import { exportPlan, tsCodec, tsExports, wgsl } from "@schema-pop/exporter";
-import { telemetry } from "./telemetry";
+import { exportPlan } from "@schema-pop/exporter";
+import { schema } from "./schema";
 
-const HEADER = `// THIS FILE IS AUTO-GENERATED - DO NOT CHANGE`;
+const HEADER = `// THIS FILE IS AUTO-GENERATED - DO NOT CHANGE\n\n`;
 
 const save = (destPath: string, content: any, noHeader: boolean = false) => {
   const dir = path.dirname(destPath);
@@ -30,31 +30,19 @@ const assertSchema = (schema: any) => {
     process.exit(1);
   }
 };
-const popSchema = fromModule(telemetry.export()).schema;
+
+const popSchema = fromModule(schema.export()).schema;
 const result = analyzer.analyze(popSchema, cfg);
 assertSchema(result);
 const schemaIR = result.plan;
 
 const paths = {
-  codec: "./dist/util/codec.ts",
-  buffers: "./dist/util/buffers.ts",
-  metadata: "./dist/util/metadata.ts",
-  wgslCodec: "./dist/shaders/includes/codec.wgsl",
-  wgslSchema: "./dist/shaders/includes/schema.wgsl",
-  wgslBindings: "./dist/shaders/includes/bindings.wgsl",
-  html: "schema.html",
+  types: "./../webgpu/src/types.ts",
 };
-const schemaContent =
-  
-  tsExports({}).generate(schemaIR);
 
+const ts_import = `import { $ } from "../../schema/src/schema";\n\n`;
+const exports = exportPlan(schemaIR, "ts:exports");
 
-save(
-  paths.codec,
-  schemaContent + tsCodec({ importPath: "./schema", generatePatches: true }).generate(schemaIR),
-);
-
-save(paths.wgslSchema, wgsl({ outputStyle: "types" }).generate(schemaIR));
-save(paths.wgslCodec, wgsl({ outputStyle: "helpers" }).generate(schemaIR));
+save(paths.types, ts_import + exports);
 
 console.log("🐏 Schema build complete.");
