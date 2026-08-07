@@ -115,3 +115,10 @@ The focused technical documents are:
 - [runtime/WebGPU execution](docs/runtime.md)
 - [context state/checkpoints](docs/checkpoints.md)
 - [structured generation](docs/structured-generation.md)
+
+
+## Contributors
+
+[kodown1k](https://github.com/kodown1k)
+
+---

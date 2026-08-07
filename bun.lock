@@ -43,11 +43,28 @@
     "packages/gui": {
       "name": "@chomato/gui2",
       "dependencies": {
+        "@chomato/engine-ts": "workspace:*",
+        "@chomato/lfm2": "workspace:*",
+        "@chomato/quant": "workspace:*",
+        "@chomato/webgpu": "workspace:*",
+        "arktype": "2.2.3",
         "vue": "^3.5.0",
+      },
+      "devDependencies": {
+        "@webgpu/types": "^0.1.71",
+        "vite": "^8.2.0",
       },
     },
     "packages/lfm2": {
       "name": "@chomato/lfm2",
+      "dependencies": {
+        "@chomato/quant": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/deno": "^2.7.0",
+        "@types/node": "^26.1.2",
+        "@webgpu/types": "^0.1.71",
+      },
     },
     "packages/quant": {
       "name": "@chomato/quant",

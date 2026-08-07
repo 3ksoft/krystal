@@ -1,28 +1,710 @@
+/*
+ * Chomato developer GUI — Atari ST / TOS "GEM" visual system.
+ *
+ * Monochrome by construction: every surface is --bg, every mark is --fg, and
+ * emphasis is expressed by inversion or by a 50% ordered dither, never by hue.
+ * Sizes follow the ST 8x16 character cell so the whole desktop stays on grid.
+ */
+
 :root {
-  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-  color: #e8e8e8;
-  background: #111;
+  --fg: #000;
+  --bg: #fff;
+  /*
+   * The single accent. It is not decoration: cyan marks state the operator
+   * chose or that is currently live (selection, toggles, the default action,
+   * progress). Plain black/white inversion stays reserved for transient hover
+   * and window chrome, so colour always means "this is active".
+   */
+  --accent: #00a0b4;
+  --accent-fg: #000;
+  --cell-x: 8px;
+  --cell-y: 16px;
+  --chrome: 19px;
+
+  color-scheme: light;
+  font-family: "Berkeley Mono", "SF Mono", ui-monospace, Menlo, Consolas, "DejaVu Sans Mono", monospace;
+  font-size: 13px;
+  line-height: var(--cell-y);
+  font-variant-ligatures: none;
+  -webkit-font-smoothing: none;
+  color: var(--fg);
 }
-* { box-sizing: border-box; }
-body { margin: 0; }
-button, input, textarea { font: inherit; }
-.shell { width: min(920px, calc(100% - 32px)); margin: 32px auto; display: grid; gap: 16px; }
-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-h1 { margin: 0; font-size: 28px; }
-p { margin: 4px 0 0; }
-.muted, .label { color: #888; }
-.status { padding: 6px 10px; border: 1px solid #333; border-radius: 999px; }
-.status[data-phase="ready"] { border-color: #466; }
-.status[data-phase="error"] { border-color: #844; }
-.card { padding: 16px; border: 1px solid #292929; border-radius: 10px; background: #171717; }
-.model, .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
-.model > div, .stats > div { display: grid; gap: 3px; }
-.stack { display: grid; gap: 8px; }
-textarea { width: 100%; resize: vertical; padding: 12px; color: inherit; background: #0d0d0d; border: 1px solid #333; border-radius: 8px; }
-.controls { margin-top: 12px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-input[type="number"] { width: 84px; padding: 6px; color: inherit; background: #0d0d0d; border: 1px solid #333; border-radius: 6px; }
-button { margin-left: auto; padding: 8px 14px; color: #111; background: #eee; border: 0; border-radius: 7px; cursor: pointer; }
-button:disabled { opacity: .45; cursor: default; }
-pre { margin: 8px 0 0; white-space: pre-wrap; word-break: break-word; }
-.output pre { min-height: 80px; }
-.error { border-color: #633; }
+
+/* TOS ran black-on-white; the inverted desktop is the one concession to 2026. */
+:root[data-invert="1"] {
+  --fg: #fff;
+  --bg: #000;
+  /* Lifted so it still separates from black; text on it stays black. */
+  --accent: #2ce0f0;
+  --accent-fg: #000;
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  border-radius: 0 !important;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  background: var(--bg);
+}
+
+body {
+  overflow: hidden;
+}
+
+/* ---------------------------------------------------------------- patterns */
+
+/*
+ * 50% ordered dither. Two offset 45deg gradients at a 2px tile produce a true
+ * checkerboard, which is what GEM used for the desktop and for disabled fills.
+ */
+.dither {
+  --dither-ink: var(--fg);
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(45deg, var(--dither-ink) 25%, transparent 25% 75%, var(--dither-ink) 75%),
+    linear-gradient(45deg, var(--dither-ink) 25%, transparent 25% 75%, var(--dither-ink) 75%);
+  background-size: 2px 2px;
+  background-position: 0 0, 1px 1px;
+}
+
+.dither--accent {
+  --dither-ink: var(--accent);
+}
+
+/* Active-window title fill: 1px horizontal rules on a 3px pitch. */
+.stripes {
+  background-color: var(--bg);
+  background-image: repeating-linear-gradient(to bottom, var(--fg) 0 1px, var(--bg) 1px 3px);
+}
+
+/* ------------------------------------------------------------------ desktop */
+
+.desktop {
+  display: grid;
+  grid-template-rows: var(--chrome) 1fr var(--cell-y);
+  height: 100vh;
+}
+
+.workspace {
+  overflow: auto;
+  padding: 6px;
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  grid-auto-rows: min-content;
+  gap: 6px;
+  align-content: start;
+}
+
+/* ----------------------------------------------------------------- menu bar */
+
+.menubar {
+  display: flex;
+  align-items: stretch;
+  background: var(--bg);
+  border-bottom: 1px solid var(--fg);
+  user-select: none;
+}
+
+.menubar__item {
+  display: flex;
+  align-items: center;
+  padding: 0 var(--cell-x);
+  background: none;
+  border: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.menubar__item:hover,
+.menubar__item[aria-expanded="true"] {
+  background: var(--fg);
+  color: var(--bg);
+}
+
+.menubar__spacer {
+  flex: 1;
+}
+
+/*
+ * The one piece of colour that is not state-driven. Everything else earns its
+ * cyan by being selected or live, which pre-boot means the desktop is almost
+ * entirely monochrome; the brand gives the palette a permanent anchor so that
+ * reads as intent rather than accident.
+ */
+.menubar__brand {
+  display: flex;
+  align-items: center;
+  padding: 0 var(--cell-x);
+  letter-spacing: 0.1em;
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+
+.menu {
+  position: absolute;
+  z-index: 40;
+  min-width: 210px;
+  padding: 1px;
+  background: var(--bg);
+  border: 1px solid var(--fg);
+  box-shadow: 2px 2px 0 var(--fg);
+}
+
+.menu__item {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--cell-x);
+  width: 100%;
+  padding: 0 var(--cell-x);
+  background: none;
+  border: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu__item:hover:not(:disabled) {
+  background: var(--fg);
+  color: var(--bg);
+}
+
+.menu__item:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.menu__sep {
+  height: 1px;
+  margin: 2px 0;
+  background: var(--fg);
+}
+
+/* ------------------------------------------------------------------ windows */
+
+.win {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--bg);
+  border: 1px solid var(--fg);
+}
+
+.win--span3 { grid-column: span 3; }
+.win--span4 { grid-column: span 4; }
+.win--span5 { grid-column: span 5; }
+.win--span6 { grid-column: span 6; }
+.win--span7 { grid-column: span 7; }
+.win--span8 { grid-column: span 8; }
+.win--span12 { grid-column: span 12; }
+
+.win__bar {
+  display: flex;
+  align-items: stretch;
+  height: var(--chrome);
+  border-bottom: 1px solid var(--fg);
+  user-select: none;
+}
+
+.win__gadget {
+  display: grid;
+  place-items: center;
+  width: var(--chrome);
+  flex: 0 0 var(--chrome);
+  background: var(--bg);
+  border: 0;
+  border-right: 1px solid var(--fg);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.win__gadget--right {
+  border-right: 0;
+  border-left: 1px solid var(--fg);
+}
+
+.win__gadget:hover {
+  background: var(--fg);
+  color: var(--bg);
+}
+
+/* The close gadget is GEM's filled square inside a square. */
+.win__gadget-mark {
+  width: 7px;
+  height: 7px;
+  border: 1px solid currentColor;
+}
+
+.win__gadget-mark--filled {
+  background: currentColor;
+}
+
+.win__title {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  padding: 0 4px;
+}
+
+.win__title > span {
+  padding: 0 var(--cell-x);
+  background: var(--bg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: 0.08em;
+}
+
+.win__body {
+  padding: var(--cell-x);
+  overflow: auto;
+}
+
+.win__body--flush {
+  padding: 0;
+}
+
+.win--collapsed .win__body {
+  display: none;
+}
+
+/* ------------------------------------------------------------------ widgets */
+
+.btn {
+  min-height: var(--cell-y);
+  padding: 0 var(--cell-x);
+  background: var(--bg);
+  border: 1px solid var(--fg);
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--fg);
+  color: var(--bg);
+}
+
+.btn:active:not(:disabled) {
+  background: var(--fg);
+  color: var(--bg);
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* GEM marked the default button with a second, offset outline. */
+.btn--default {
+  box-shadow: 0 0 0 1px var(--bg), 0 0 0 2px var(--accent);
+  margin: 2px;
+}
+
+/* Latched toggle, as opposed to :active which is momentary. */
+.btn--on {
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+
+.btn--on:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.row--tight {
+  gap: 2px;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field {
+  display: flex;
+  align-items: baseline;
+  gap: var(--cell-x);
+}
+
+.field > label {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+input[type="text"],
+input[type="number"],
+textarea,
+select {
+  min-width: 0;
+  padding: 0 4px;
+  background: var(--bg);
+  border: 1px solid var(--fg);
+  font: inherit;
+  line-height: var(--cell-y);
+  color: inherit;
+}
+
+textarea {
+  resize: vertical;
+  white-space: pre;
+  overflow-wrap: normal;
+  overflow-x: auto;
+}
+
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+.btn:focus-visible,
+.menubar__item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.grow {
+  flex: 1;
+  min-width: 0;
+}
+
+/* -------------------------------------------------------------------- lists */
+
+.list {
+  border: 1px solid var(--fg);
+  overflow: auto;
+}
+
+.list__row {
+  display: flex;
+  align-items: center;
+  gap: var(--cell-x);
+  padding: 0 4px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.list__row + .list__row {
+  border-top: 1px solid var(--fg);
+}
+
+.list__row:hover {
+  background: var(--fg);
+  color: var(--bg);
+}
+
+/* Persistent selection: part of the context you assembled. */
+.list__row--on {
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+
+.list__row--on .muted {
+  opacity: 0.75;
+}
+
+.list__empty {
+  padding: 0 4px;
+  opacity: 0.55;
+}
+
+/* --------------------------------------------------------------------- data */
+
+.kv {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  column-gap: var(--cell-x);
+}
+
+.kv > dt {
+  opacity: 0.6;
+  white-space: nowrap;
+}
+
+.kv > dd {
+  margin: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+.muted {
+  opacity: 0.55;
+}
+
+.pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Progress: dithered fill inside a hard 1px frame, like GEM's slider track. */
+.meter {
+  position: relative;
+  height: var(--cell-y);
+  border: 1px solid var(--fg);
+  overflow: hidden;
+}
+
+.meter__fill {
+  height: 100%;
+}
+
+/*
+ * A 50% accent dither stays light enough for plain --fg text to read straight
+ * through it, which a difference blend over cyan would not.
+ */
+.meter__label {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Layer map: one cell per block, C = short-conv, A = attention. */
+.layers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1px;
+}
+
+.layers__cell {
+  display: grid;
+  place-items: center;
+  width: var(--cell-y);
+  height: var(--cell-y);
+  border: 1px solid var(--fg);
+}
+
+.layers__cell--attn {
+  background: var(--fg);
+  color: var(--bg);
+}
+
+/* ------------------------------------------------------------------- alerts */
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+}
+
+/*
+ * The scrim is positioned, so without an explicit stacking order it paints
+ * over the statically-positioned alert and swallows every click on OK. Both
+ * layers are therefore pinned: scrim below, alert above.
+ */
+.modal__scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  opacity: 0.35;
+  cursor: pointer;
+}
+
+.alert {
+  position: relative;
+  z-index: 1;
+  min-width: 320px;
+  max-width: min(720px, 90vw);
+  /*
+   * The whole dialog scrolls rather than its body. A nested scroll container
+   * sized to its own content picks up sub-pixel rounding and shows a scrollbar
+   * for a 1px overflow on two lines of text.
+   */
+  max-height: 85vh;
+  overflow: auto;
+  padding: var(--cell-x);
+  background: var(--bg);
+  border: 1px solid var(--fg);
+  box-shadow: 3px 3px 0 var(--fg);
+}
+
+.alert__head {
+  display: flex;
+  gap: var(--cell-x);
+  align-items: flex-start;
+}
+
+.alert__icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  border: 1px solid var(--fg);
+  font-weight: 700;
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+
+.alert__body {
+  min-width: 0;
+}
+
+.alert__buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--cell-x);
+  margin-top: var(--cell-x);
+}
+
+.about {
+  min-width: 380px;
+}
+
+.about__mark {
+  flex: 0 0 48px;
+  color: var(--fg);
+}
+
+.about__name {
+  font-weight: 700;
+  letter-spacing: 0.2em;
+}
+
+.about__kv {
+  margin-top: var(--cell-y);
+}
+
+.about__kv > dd {
+  text-align: left;
+}
+
+a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+a:hover {
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+
+/* --------------------------------------------------------- context picker */
+
+.picker {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--fg);
+}
+
+.picker__blocks {
+  max-height: 160px;
+}
+
+.picker__blocks--compact {
+  max-height: 110px;
+}
+
+/* Over context capacity: the request will be rejected, so say so in colour. */
+.picker__over {
+  background: var(--accent);
+  color: var(--accent-fg);
+  padding: 0 4px;
+}
+
+/*
+ * These compositions still execute — the engine has no opinion about BOS — so
+ * the warning has to be loud enough to read as a defect, not a hint.
+ */
+.picker__issues {
+  padding: 2px 4px;
+  border: 1px solid var(--fg);
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+
+/* ------------------------------------------------------------------ content */
+
+.content {
+  max-height: 180px;
+  overflow: auto;
+  padding: 4px;
+  border: 1px solid var(--fg);
+}
+
+.content__part + .content__part {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px dashed var(--fg);
+}
+
+.content__origin {
+  opacity: 0.55;
+}
+
+/* Token pieces: one boxed cell per token, so segmentation is visible. */
+.pieces {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1px;
+  max-height: 140px;
+  overflow: auto;
+}
+
+.pieces__cell {
+  padding: 0 2px;
+  border: 1px solid var(--fg);
+  white-space: pre;
+}
+
+.pieces__cell--special {
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+
+/* --------------------------------------------------------------- status bar */
+
+.statusbar {
+  display: flex;
+  align-items: center;
+  gap: var(--cell-x);
+  padding: 0 4px;
+  border-top: 1px solid var(--fg);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.statusbar__sep {
+  opacity: 0.4;
+}
+
+/* Live phase: cyan while the engine is doing work, plain once it is idle. */
+.statusbar__phase {
+  padding: 0 4px;
+}
+
+.statusbar__phase--live {
+  background: var(--accent);
+  color: var(--accent-fg);
+}
