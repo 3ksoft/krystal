@@ -82,7 +82,7 @@ namespace v1_0_0 {
 		uint32_t errorCode;
 		uint32_t reserved0;
 		uint32_t reserved1;
-		uint8_t numberText[32];
+		uint8_t numberText[64];
 	};
 	
 	using Lfm2Mode = uint8_t;

@@ -15,7 +15,7 @@ export const GPU_CONSTRAINT_ABI = {
   maxSwitchEdges: 0xff,
   maxLiteralBytes: 0xffff,
   maxStringLength: 0xffff,
-  maxNumberChars: 32,
+  maxNumberChars: 64,
   maxTokenBytes: 0xff,
   maxVocabSize: 0x1_0000,
   headerWords: 12,
@@ -601,7 +601,7 @@ export function linkGpuConstraintTokenizer(
 // ---------------------------------------------------------------------------
 
 /**
- * Exact 64-byte decoder state mirrored by the planned WGSL implementation.
+ * Exact 96-byte decoder state mirrored by the WGSL implementation.
  *
  * words:
  *   0  current node
@@ -612,11 +612,11 @@ export function linkGpuConstraintTokenizer(
  *   5  errorCode
  *   6  reserved0
  *   7  reserved1
- *   8..15 numberText, packed little-endian (32 ASCII bytes)
+ *   8..23 numberText, packed little-endian (64 ASCII bytes)
  */
 export const GPU_CONSTRAINT_STATE = {
-  words: 16,
-  byteLength: 64,
+  words: 24,
+  byteLength: 96,
   node: 0,
   local0: 1,
   local1: 2,
@@ -626,7 +626,7 @@ export const GPU_CONSTRAINT_STATE = {
   reserved0: 6,
   reserved1: 7,
   numberWordOffset: 8,
-  numberWords: 8,
+  numberWords: 16,
 } as const;
 
 export type GpuConstraintDecoderState = Uint32Array;
@@ -926,6 +926,23 @@ export function feedGpuConstraintByte(
       const flags = gpuNodeWord(program, nodeId, 4);
       const maxChars = gpuNodeWord(program, nodeId, 5);
       const integer = (flags & GPU_CONSTRAINT_NUMBER_FLAGS.integer) !== 0;
+
+      // Bound-aware pruning: a lexeme that can never satisfy min/max is
+      // rejected up front instead of dead-ending at closure. A leading '-'
+      // (phase start only; exponent signs are fine) can never satisfy a
+      // non-negative min, and a non-negative start can never satisfy a
+      // negative max. The bound's first byte is '-' iff the bound is negative.
+      if (byte === 0x2d && phase === GPU_NUMBER_PHASE.start
+        && (flags & GPU_CONSTRAINT_NUMBER_FLAGS.hasMin) !== 0
+        && gpuProgramByte(program, gpuNodeWord(program, nodeId, 6)) !== 0x2d) {
+        return false;
+      }
+      if (phase === GPU_NUMBER_PHASE.start && byte >= 0x30 && byte <= 0x39
+        && (flags & GPU_CONSTRAINT_NUMBER_FLAGS.hasMax) !== 0
+        && gpuProgramByte(program, gpuNodeWord(program, nodeId, 8)) === 0x2d) {
+        return false;
+      }
+
       const nextPhase = length < maxChars ? gpuNumberNextPhase(phase, byte, integer) : undefined;
 
       if (nextPhase !== undefined) {
@@ -968,6 +985,23 @@ export function gpuConstraintComplete(
   return state[GPU_CONSTRAINT_STATE.node] === program.acceptNode;
 }
 
+/**
+ * True when the decoder sits at a value that may legally be followed by EOS.
+ * This is the accept node, or a *root* number whose lexeme is already complete:
+ * JSON numbers have no closing delimiter byte, so a number whose continuation
+ * is `accept` must terminate through the EOS control token instead of a byte.
+ */
+export function gpuConstraintAtTerminal(
+  program: GpuConstraintProgram,
+  state: GpuConstraintDecoderState,
+): boolean {
+  const nodeId = state[GPU_CONSTRAINT_STATE.node]!;
+  if (nodeId === program.acceptNode) return true;
+  if (gpuNodeWord(program, nodeId, 0) !== GPU_CONSTRAINT_NODE_KIND.number) return false;
+  if (gpuNodeWord(program, nodeId, 1) !== program.acceptNode) return false;
+  return gpuNumberComplete(program, state, nodeId);
+}
+
 
 /**
  * CPU reference for the exact packed mask produced by constraint_mask.wgsl.
@@ -989,7 +1023,7 @@ export function gpuConstraintMaskReference(
   const byteWordOffset = tokenizer.header[3]!;
   const byteLength = tokenizer.header[4]!;
   const mask = new Uint32Array(Math.ceil(vocabSize / 32));
-  const complete = gpuConstraintComplete(program, state);
+  const complete = gpuConstraintAtTerminal(program, state);
 
   const tokenizerByte = (offset: number): number => {
     if (offset >= byteLength) fail(`tokenizer byte offset ${offset} exceeds pool length ${byteLength}`);

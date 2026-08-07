@@ -394,7 +394,7 @@ export class Lfm2GpuRuntime {
     };
     const resolved = {
       contextCapacity: options.contextCapacity ?? 1024,
-      maxNewTokens: options.maxNewTokens ?? 128,
+      maxNewTokens: options.maxNewTokens ?? 1024,
       matmulKernels: {
         f16: options.matmulKernels?.f16 ?? defaults.f16,
         f32: options.matmulKernels?.f32 ?? defaults.f32,

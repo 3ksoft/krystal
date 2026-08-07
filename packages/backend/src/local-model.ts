@@ -35,6 +35,13 @@ import { pickExeCommand } from "./exe/pick-command.ts";
 
 export interface LocalModel {
   readonly engine: Engine;
+  /**
+   * Real WebGPU engine instance when available (undefined on the mock exe
+   * fallback). Exposed for benchmark/timing tests that need forward-level
+   * control: per-phase timing, kernel micro-benchmarks and structured
+   * generation (which the mock backend does not implement).
+   */
+  readonly forward?: Lfm2Forward;
   dispose(): Promise<void>;
 }
 
@@ -164,6 +171,7 @@ export async function loadModel(modelPath?: string): Promise<LocalModel> {
   const engine = new Engine(createLfm2WebGpuTransport(sharedReal.forward));
   return {
     engine,
+    forward: sharedReal.forward,
     dispose: async () => {
       await engine.close();
       // The shared device/model/forward intentionally outlive individual

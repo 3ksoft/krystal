@@ -15,7 +15,10 @@ import { resolve } from "node:path";
 import { pickExeCommand } from "./exe/pick-command.ts";
 
 const repoRoot = resolve(import.meta.dir, "..", "..", "..");
-const testFiles = ["tests/checkpoint.test.ts"];
+const testFiles = [
+  "tests/checkpoint.test.ts",
+  "tests/structured-benchmark.test.ts",
+];
 
 const exe = pickExeCommand();
 console.log("chomato local test runner · real engine (Dawn) / mock fallback");

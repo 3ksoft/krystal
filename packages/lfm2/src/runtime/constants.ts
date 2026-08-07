@@ -1,5 +1,7 @@
 export const PARAM_BYTES = 64;
-export const PARAM_BUFFER_BYTES = 8 * 1024 * 1024;
+// ~250 dispatches per decode step at 256 B stride; 128 MiB covers the full
+// 1024-step budget with headroom (same sizing as the main LFM2 runtime).
+export const PARAM_BUFFER_BYTES = 128 * 1024 * 1024;
 export const HEAD_DIM = 64;
 export const KV_HEADS = 8;
 export const QUERY_HEADS = 32;

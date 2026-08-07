@@ -23,7 +23,7 @@ export const STRUCTURED_LIMITS = {
   maxSwitchEdges: 0xff,
   maxLiteralBytes: 0xffff,
   maxStringLength: 0xffff,
-  maxNumberChars: 32,
+  maxNumberChars: 64,
   maxTokenBytes: 0xff,
   maxVocabSize: 0x1_0000,
 } as const;
@@ -149,11 +149,11 @@ export const schema = scope({
    *   literal -> local0 = literal cursor
    *   string  -> local0 = phase, local1 = logical length, local2 = \uXXXX left
    *   number  -> local0 = numeric text length, local1 = JSON-number lexer phase;
-   *              numberText stores <=32 ASCII bytes
+   *              numberText stores <=64 ASCII bytes
    *   switch/accept/jump -> locals unused
    *
    * Keeping the bounded number lexeme in-state avoids any per-candidate scan
-   * through the generated token stream. 64 B total is cheap enough to clone
+   * through the generated token stream. 96 B total is cheap enough to clone
    * into private WGSL state for one-token simulation.
    */
   ConstraintDecoderState: {
@@ -165,7 +165,7 @@ export const schema = scope({
     errorCode: "u32 = 0",
     reserved0: "u32 = 0",
     reserved1: "u32 = 0",
-    numberText: ["u32[] == 8", "=", () => new Array(8).fill(0)],
+    numberText: ["u32[] == 16", "=", () => new Array(16).fill(0)],
   },
 
   Lfm2Mode: "'prefill' | 'decode' | 'continuation'",
