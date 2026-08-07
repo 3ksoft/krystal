@@ -215,7 +215,17 @@ export function defineLfm2(bundle: Lfm2ShaderBundle = emptyLfm2ShaderBundle()) {
   const OpParams = engine.type("OpParams");
   const LlmRuntime = engine.type("LlmRuntime");
 
-  const op = engine.buffer(OpParams, { label: "lfm2.op", value: OpParams.assert({}),   count: 4});
+  // One OpParams record per dispatch, selected by dynamic uniform offset.
+  // Lfm2ParamWriter accumulates the whole submit's records and writes them in
+  // one queue.writeBuffer before the command buffer runs, so the GPU buffer
+  // must hold up to OP_PARAM_BUFFER_BYTES (not a small fixed ring). count
+  // stays 1: Sandblaster sizes the buffer with `size`, and a scalar value is
+  // only valid for count 1. Every record is overwritten before any pass reads
+  // it, so no initial value is required.
+  const op = engine.buffer(OpParams, {
+    label: "lfm2.op",
+    size: OP_PARAM_BUFFER_BYTES,
+  });
   const runtime = engine.buffer(LlmRuntime, { label: "lfm2.runtime", value: LlmRuntime.assert({}), readback: true });
   const tokens = engine.buffer(engine.type(`u32[] == ${TOKEN_CAPACITY}`), { label: "lfm2.tokens", readback: true });
   const arena = engine.buffer(engine.type(`f32[] == ${ARENA_ELEMENTS}`), { label: "lfm2.arena", readback: true });
@@ -236,8 +246,17 @@ export function defineLfm2(bundle: Lfm2ShaderBundle = emptyLfm2ShaderBundle()) {
     label: "lfm2.constraint-mask",
     readback: true,
   });
-  const weightRaw = engine.buffer(engine.type("u32[] == 2"), { label: "lfm2.probe-weight-raw" });
-  const weight32 = engine.buffer(engine.type("f32[] == 2"), { label: "lfm2.probe-weight32"});
+  // Placeholders overridden per dispatch with real tensor pages (pass.ts
+  // `resources.weightRaw/weight32`). They must be declared as count>1 SCALAR
+  // buffers so Sandblaster emits a runtime-sized `array<u32>`/`array<f32>` in
+  // WGSL: a fixed-length array type either caps reads (a `u32[] == 2` buffer
+  // lowers to vec2<u32>, so every read past word 1 is out of bounds) or forces
+  // every bound page to be at least the declared type size. With a runtime
+  // array, load_wq4/load_f16 can address pages of any size and the layout has
+  // no minBindingSize. count=2 also keeps this placeholder at 8 bytes; no
+  // initial value is required.
+  const weightRaw = engine.buffer(engine.type("u32"), { label: "lfm2.probe-weight-raw", count: 2 });
+  const weight32 = engine.buffer(engine.type("f32"), { label: "lfm2.probe-weight32", count: 2 });
 
 
   type Resource = BufferResource<any>;
