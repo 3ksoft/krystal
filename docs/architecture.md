@@ -1,416 +1,347 @@
 # Chomato Architecture Specification
 
-Status: Draft  
-Revision: 0.3  
-Date: 2026-08-03
+Status: Current implementation architecture  
+Revision: 0.4  
+Date: 2026-08-07
 
 ## 1. Purpose
 
-Chomato is a focused local LLM inference engine built around WebGPU, persistent model/runtime ownership, reusable Context State, and GPU-oriented structured decoding.
+Chomato is a focused local inference runtime for `LiquidAI/LFM2.5-1.2B-Instruct` built around WebGPU, exact reusable continuation state, and GPU-resident structured generation.
 
-The current reference implementation runs `LiquidAI/LFM2.5-1.2B-Instruct` and is used to discover the execution/runtime semantics before the final native host implementation is selected.
-
-The architecture intentionally optimizes for one real model and one real GPU execution path before attempting generic model-runtime abstractions.
+The project deliberately optimizes one real model/runtime path before introducing generic model abstractions. The current implementation is already end-to-end: model execution, checkpoints, typed structured generation, constraint masking, and constrained argmax run on the real WebGPU backend.
 
 ## 2. Primary goals
 
-- Keep model and reusable context resident across individual requests.
-- Expose the engine through a headless logical API usable by browser, CLI, LSP/editor integration, or another client.
-- Keep daemon ownership and session semantics simple enough to reason about.
-- Preserve an unconstrained GPU-resident decode path with no mandatory host decision between generated tokens.
-- Make exact reusable continuation checkpoints a first-class capability.
-- Treat composable context blocks as an acceleration layered on top of exact continuation semantics.
-- Support schema/grammar-constrained generation without making JSON parsing or CPU round-trips the center of the token loop.
-- Keep correctness classes explicit whenever optimization changes numeric execution or context semantics.
-- Delay the final host-language decision until the stable core boundary is visible.
+- Keep model weights and reusable model state resident across requests.
+- Expose a small headless API independent of browser/CLI/UI concerns.
+- Make exact continuation checkpoints a first-class semantic capability.
+- Keep token-critical model execution and token selection on the GPU.
+- Compile structured-output constraints before generation instead of validating after sampling.
+- Keep model-specific implementation details behind the engine boundary.
+- Preserve explicit correctness classes for checkpointing, quantization, and constrained decoding.
 
-## 3. Non-goals for the current phase
+## 3. Current non-goals
 
-- A shared multi-tenant or multi-client inference daemon.
-- Concurrent scheduling of independent client workloads inside one daemon.
-- A generic runtime for arbitrary transformer/SSM/hybrid architectures.
-- Freezing a public socket framing or final wire schema.
-- Freezing BlockStore eviction/paging before GPU-resident economics are measured.
-- Treating approximate deep cached context as exact continuation state.
-- Freezing the current WQ4 file/layout as the production model format.
-- Choosing Rust, TypeScript, C++, or another language as the final native core before the runtime boundary stabilizes.
+- Generic support for arbitrary transformer/SSM/hybrid model families.
+- Internal multi-client scheduling or a shared multi-tenant daemon.
+- Paged attention or a generic KV memory manager.
+- Sparse constrained LM-head execution before measurements justify it.
+- Full JSON Schema coverage.
+- Freezing a final native host language or transport protocol.
+- Treating historical composable-block experiments as required runtime semantics.
 
-## 4. System model
+## 4. Public runtime model
 
-### 4.1. Daemon ownership
+The fundamental typed operation is:
 
-The baseline native architecture is deliberately single-owner and single-session:
-
-```text
-Application A / LSP
-        │
-        ▼
-  chomato daemon A
-  ├── model A
-  ├── runtime A
-  └── BlockStore A
-
-Application B / Web UI
-        │
-        ▼
-  chomato daemon B
-  ├── model B
-  ├── runtime B
-  └── BlockStore B
+```ts
+const result = await engine.generate(schema, {
+  checkpoint,
+  blocks,
+});
 ```
 
-A daemon owns its model, GPU resources, Context State storage, checkpoints, and BlockStore.
+Conceptually:
 
-It accepts at most one live client session at a time in the baseline protocol. Session work is serialized; the engine is not designed as an internal multi-client scheduler.
-
-This is an architectural simplification, not a transport limitation.
-
-### 4.2. Session lifetime
-
-Baseline behavior:
-
-```text
-connect
-  ↓
-open live session
-  ↓
-serial commands / request streams
-  ↓
-disconnect
-  ├── cancel current request
-  ├── drop session-scoped state
-  └── retain daemon-owned model + BlockStore
+```ts
+generate<T>(
+  schema: Type<T>,
+  context: {
+    checkpoint?: ContextCheckpoint;
+    blocks?: ContextBlock[];
+  },
+): Promise<T>
 ```
 
-Future keep-alive/reattachable sessions may extend this model if a real use case requires them.
+`schema` defines the value to generate. The runtime does not require an object root; strings, numbers, booleans, arrays and objects are all ordinary root values.
 
-### 4.3. Browser host
+Examples:
 
-The browser remains a first-class execution environment:
-
-```text
-Web UI
-  ↓
-ChomatoClient
-  ↓
-in-process/session adapter
-  ↓
-Chomato Runtime
-  ↓
-WebGPU
+```ts
+await engine.generate(type("string < 512"), { blocks });
+await engine.generate(type("0 <= number <= 10"), { checkpoint });
+await engine.generate(type({ id: "number" }), { checkpoint, blocks });
 ```
 
-The Web UI does not own inference semantics and should use the same logical operations as an out-of-process client.
+Chomato does not perform an additional ArkType assertion after generation. A caller that wants runtime validation can do so explicitly:
 
-## 5. Reference model and Context State
-
-`LFM2.5-1.2B-Instruct` is the reference optimization target.
-
-For the current backend, continuation state contains at least:
-
-```text
-Context State
-├── bounded short-convolution history/cache
-└── attention KV state for GQA layers
+```ts
+const t = type({ id: "number" });
+const result = await engine.generate(t, context);
+const validated = t.assert(result);
 ```
 
-These state classes have different scaling behavior:
+A future `prompt(text)` helper is sugar over typed generation of a bounded string; it does not introduce chat-template semantics into the core engine.
 
-- short-convolution history is bounded/fixed-size per active sequence,
-- attention KV grows with processed sequence length and exists only for the model's attention layers.
+## 5. Reference model
 
-The public architecture therefore uses **Context State**, not `KV cache`, as the generic concept.
+The current reference model is `LFM2.5-1.2B-Instruct`:
 
-## 6. Reusable context hierarchy
+- 16 model layers,
+- hybrid short-convolution + grouped-query attention architecture,
+- 6 attention layers/slots,
+- hidden size 2,048,
+- vocabulary size 65,536 (`2^16`),
+- convolution cache length 3 in the current model,
+- model-advertised context larger than the current Chomato runtime allocation.
 
-### 6.1. ContextBlock
+The **current Chomato runtime context capacity is 1,024 tokens**. This is an implementation capacity, not a statement about the model's trained context window.
 
-A `ContextBlock` is an immutable sequence of token IDs with stable logical identity.
+The current decode budget allocation is also 1,024 tokens, subject to:
 
-Correctness is defined over the exact token sequence consumed by the model, including any relevant special/template tokens. Raw source text is not sufficient identity.
+```text
+prompt/checkpoint position + maxNewTokens - 1 <= contextCapacity
+```
 
-### 6.2. ContextCheckpoint
+Therefore the usable response budget shrinks as the occupied prefix grows.
 
-A `ContextCheckpoint` is the exact model continuation state after a specific ordered token prefix has been fully applied.
+## 6. Execution stack
+
+The current execution stack is:
+
+```text
+public Engine API
+    ↓
+engine-ts transport/protocol
+    ↓
+LFM2 runtime / forward orchestration
+    ↓
+Sandblaster program/resource graph
+    ↓
+serialized AOT artifact
+    ↓
+WebGPU / WGSL
+```
+
+Sandblaster is the build/link/dispatch layer for model programs. Runtime shader source generation is not part of the production path.
+
+Build time:
+
+```text
+WGSL shader bodies + includes
+        ↓
+defineLfm2({ sources, includes })
+        ↓
+engine.link()
+        ↓
+engine.serialize(...)
+        ↓
+lfm2.artifact.generated.ts
+```
+
+Runtime:
+
+```text
+defineLfm2()
+    ↓
+engine.deserialize(lfm2Artifact)
+    ↓
+engine.compile({ device })
+    ↓
+pass.run(...)
+```
+
+See [runtime.md](runtime.md) for the current buffer/pipeline contracts.
+
+## 7. Context model
+
+A request context is the ordered combination of:
+
+```text
+optional exact checkpoint
++
+zero or more appended ContextBlocks
+```
+
+A `ContextBlock` represents immutable token content/provenance. It is not itself an exact continuation state.
+
+A `ContextCheckpoint` is the materialized model state after processing an exact prefix. It can be reused, branched, chained into a new checkpoint, and used after its source blocks have been dropped.
+
+For LFM2.5 the checkpoint contains:
+
+```text
+attention KV state up to the populated prefix
++
+fixed-size rolling short-convolution state
++
+position/runtime metadata needed for continuation
+```
+
+Checkpoint continuation does **not** prefill the checkpoint prefix again.
+
+See [checkpoints.md](checkpoints.md).
+
+## 8. Attention layout
+
+`attentionLayerSlots` is a compact fixed mapping from model layer index to KV-cache slot. It is **not paged attention**.
 
 Conceptually:
 
 ```text
-prefix token IDs
-      ↓
-normal model execution
-      ↓
-exact Context State
-      ↓
-ContextCheckpoint
+model layer 0   conv       -> no attention slot
+model layer 1   attention  -> slot 0
+model layer 2   conv       -> no attention slot
+...
+model layer N   attention  -> slot K
 ```
 
-Checkpointing is a fundamental capability independent from composable block caching.
+The current KV allocation is fixed for the configured `contextCapacity`. Checkpoint materialization copies only the populated prefix rather than the entire configured capacity.
 
-The same exact checkpoint may seed many independent future generations.
+`CacheBlockOptions.depth` belongs to composable cached-representation experiments; it is not a KV page size or page hierarchy.
 
-### 6.3. GenerationContinuation
+## 9. Structured generation
 
-A reusable model checkpoint is intentionally narrower than an in-progress generation.
+Structured generation is an implemented GPU decode path.
+
+The external schema is compiled on the host to a deterministic byte-level constraint program. The model still emits ordinary tokenizer token IDs; the constraint VM evaluates each token's raw byte representation against the current decoder state.
+
+The production path is:
 
 ```text
-GenerationContinuation
-├── ContextCheckpoint
-├── sampler state
-├── validator / structured-decoder state
-└── request-specific generation state
+Type<T>
+  ↓
+JSON Schema representation
+  ↓
+constraint compiler
+  ↓
+GPU constraint program
+  ↓
+model forward -> logits
+  ↓
+constraint_mask
+  ↓
+constraint_argmax + decoder-state commit
+  ↓
+next token
 ```
 
-Validator or sampler state does not contaminate reusable `ContextCheckpoint` identity unless the runtime explicitly persists a full generation continuation.
-
-### 6.4. CachedRepresentation
-
-A `CachedRepresentation` is a model/depth-specific acceleration derived from a `ContextBlock`.
-
-It may be:
-
-- exact under documented composition rules,
-- prefix-dependent,
-- approximate,
-- reconstructable from tokens.
-
-The current depth-2 LFM2.5 experiment is an example of a candidate independently composable representation before the first attention layer.
-
-### 6.5. Live computation frontier
-
-When cached/approximate state is materialized, the runtime tracks where normal causal computation resumes and the exactness class of the resulting frontier.
-
-Approximation is monotonic: once an approximate representation contributes to a frontier, downstream continuation is not reported as exact.
-
-## 7. Host/device architecture
-
-The stable boundary is conceptual rather than language-specific.
-
-### Host / CPU responsibilities
-
-Expected host-side work:
+For the 65,536-entry vocabulary:
 
 ```text
-API + session lifecycle
-model/container loading
-CPU tokenizer and token-block provenance
-resource allocation / pipeline setup
-BlockStore policy and residency decisions
-checkpoint metadata / ownership
-schema → OutputPlan compilation
-tokenizer token-byte metadata / automata construction
-telemetry consumption and presentation
+1 bit/token mask = 65,536 bits
+                 = 8,192 bytes
+                 = 2,048 × u32
 ```
 
-### GPU responsibilities
+`constraint_mask` uses 2,048 invocations; each invocation evaluates 32 vocabulary tokens and writes one `u32` mask word. No atomic OR is required.
 
-Expected device-side work:
+`constraint_argmax` selects the best allowed token and commits the corresponding decoder transition. Constraint state mutation happens only for the selected token; mask evaluation uses transactional local copies.
+
+The current implementation scans the full vocabulary. Sparse LM-head row evaluation is not implemented.
+
+The measured constraint mask cost is small relative to model forward (roughly 0.08–0.48 ms for the mask versus ~31 ms/token forward in the current benchmark setup, with structured overhead around 1%). This does not justify a sparse execution path yet.
+
+See [structured-generation.md](structured-generation.md).
+
+## 10. Strict JSON wire value
+
+Structured generation uses **strict canonical JSON as the internal emitted wire value** for the typed API.
+
+This is deliberately simple:
 
 ```text
-model forward / prefill / decode
-Context State transforms
-LM head
-constraint application during structured generation
-structured decoder state where needed per token
-sampling
-checkpoint/state copy or materialization primitives
+type("string")     -> model emits JSON string bytes -> JSON.parse -> string
+type("number")     -> model emits JSON number       -> JSON.parse -> number
+object schema       -> model emits JSON object       -> JSON.parse -> object
+array schema        -> model emits JSON array        -> JSON.parse -> array
 ```
 
-Exact placement of every structured-decoder data structure remains provisional, but the target is to avoid a mandatory host dependency between tokens.
+Once the root value is complete, only EOS is allowed. The v0 path does not intentionally generate trailing whitespace after the completed root.
 
-### Legal synchronization points
+This is different from the earlier v0.3 proposal in which JSON could have been rendered after a typed internal result. The implemented v0.4 path uses canonical JSON directly because it provides a compact, deterministic bridge from constrained token generation to JavaScript values.
 
-Normal host interaction may occur at:
+## 11. Correctness boundaries
+
+### Checkpoints
+
+Exact checkpoints are physical model continuation snapshots. Tests cover:
+
+- checkpoint vs uninterrupted continuation equivalence,
+- branching without checkpoint mutation,
+- checkpoint chaining,
+- survival after source-block deletion,
+- every tested prefix split,
+- no checkpoint-prefix re-prefill,
+- checkpoint bytes scaling with populated KV prefix.
+
+### Structured generation
+
+The constraint stack has a CPU reference implementation and a Dawn/WebGPU implementation. Tests compare packed masks and decoder transitions bit-for-bit on the same uploaded program/tokenizer blobs.
+
+Public E2E tests run through:
 
 ```text
-model/load initialization
-request start
-explicit resource/checkpoint operations
-asynchronous token/telemetry observation
-request completion
+loadModel()
+→ model.engine
+→ engine.generate(schema, context)
 ```
 
-The unconstrained decode baseline does not require a host decision between tokens.
+rather than bypassing the runtime with test-only WebGPU pipelines.
 
-Cancellation is not instantaneous once work has already been submitted to the GPU. The amount of future decode work submitted at once therefore trades throughput/overhead against cancellation latency and remains a measurable runtime parameter.
+### Numerical model execution
 
-## 8. Structured generation architecture
+WQ4 remains a numerical approximation axis independent of checkpoint exactness and structured-decoding correctness.
 
-Structured output is treated as a decode execution problem, not primarily as post-hoc JSON validation.
+## 12. Current structured-schema envelope
 
-Target pipeline:
+The v0 compiler covers the structures currently required by the dataset/E2E suite, including:
 
-```text
-schema / semantic constraint
-        ↓
-host compilation
-        ↓
-Flat OutputPlan + tokenizer automata/metadata
-        ↓
-GPU structured decoder state
-        ↓
-exact allowed-token set
-        ↓
-LM-head execution mode
-        ↓
-GPU sampling
-        ↓
-typed output state / token stream
-        ↓
-optional renderer (JSON or another format)
-```
+- root scalar values,
+- objects,
+- required and optional object fields,
+- nested objects,
+- enums,
+- booleans,
+- bounded strings,
+- bounded numbers/integers,
+- bounded arrays with `minItems`/`maxItems`,
+- fixed arrays where applicable.
 
-For the current vocabulary:
+The compiler requires a finite output budget. Unbounded arrays/strings are therefore not a useful public v0 contract without an explicit bound.
 
-```text
-65,536 tokens = 2^16
-full token mask = 65,536 bits
-                = 8,192 bytes
-                = 2,048 × u32
-```
+Not currently part of the v0 feature envelope:
 
-The execution layer may choose among:
+- unbounded arrays,
+- tuple / `prefixItems` semantics,
+- general recursive schemas,
+- general unions beyond the implemented lowering cases,
+- `multipleOf`/step semantics,
+- full JSON Schema keyword coverage.
 
-### DENSE
+## 13. Quantized model execution
 
-Normal unconstrained LM head + sampler.
+WQ4 is the current practical quantized model path. Runtime correctness requires raw weight bindings to remain runtime-sized storage arrays; fixed-size placeholder lowering must not silently turn weight buffers into small WGSL vectors/arrays.
 
-### MASKED_DENSE
+This is guarded as an implementation contract because an earlier fixed `u32[] == 2` placeholder was lowered to `vec2`, making weight reads past word 1 out-of-bounds and producing invalid model output while superficially allowing some greedy tests to continue.
 
-Compute the normal vocabulary logits, apply the exact allowed-token set, then sample on GPU.
+The model execution path and structured-decoding correctness are tested separately so failures in model numerics are not misdiagnosed as constraint failures.
 
-A dense 1-bit mask is small enough to be a practical representation; it does not need to be copied into workgroup memory every token.
+## 14. Stability map
 
-### SPARSE
+| Area | Status |
+|---|---|
+| LFM2.5-1.2B reference model | ACCEPTED |
+| WebGPU + WGSL execution | ACCEPTED |
+| Sandblaster AOT program artifact | ACCEPTED |
+| Exact ContextCheckpoint semantics | ACCEPTED |
+| Exact physical checkpoint implementation | ACCEPTED |
+| Checkpoint branching/chaining | ACCEPTED |
+| Composable cached representations | EXPERIMENTAL |
+| Typed `generate(schema, context)` | ACCEPTED v0 |
+| GPU constraint mask | ACCEPTED v0 |
+| Constraint argmax + state commit | ACCEPTED v0 |
+| Full-vocabulary masked execution | ACCEPTED baseline |
+| Sparse constrained LM-head execution | DEFERRED / EXPERIMENTAL |
+| Full JSON Schema coverage | NON-GOAL for v0 |
+| Current WQ4 runtime | ACCEPTED implementation / numerical approximation |
+| Final native host language | DEFERRED |
 
-When the exact allowed-token set is sufficiently small, evaluate only the LM-head rows corresponding to allowed token IDs and sample over that exact set.
+## 15. Guiding principles
 
-`SPARSE` is valid only when the allowed set is known before logits are discarded. It is not top-K-before-validation.
-
-The threshold between `MASKED_DENSE` and `SPARSE` is a performance experiment, not a semantic choice.
-
-## 9. Logical API classes
-
-The physical protocol remains unfrozen.
-
-### Session/control operations
-
-Likely operations include:
-
-```text
-LoadModel
-ConfigureRuntime
-Generate
-CancelCurrent
-IndexBlock
-UnloadBlock
-CreateCheckpoint
-RestoreCheckpoint
-GarbageCollect
-ConfigureTelemetry
-```
-
-The baseline session executes commands serially and allows at most one active long-running operation.
-
-`Generate` and `IndexBlock` may both be long-running GPU operations and may expose progress/result events.
-
-### Reliable request output
-
-Examples:
-
-```text
-TokenEmitted
-RequestFinished
-CheckpointCreated
-BlockIndexed
-Error
-```
-
-Reliable request output is not droppable telemetry.
-
-### Telemetry
-
-Examples:
-
-```text
-InferenceStats
-EngineStats
-CacheStats
-SamplingTrace
-```
-
-Telemetry is observational and may be throttled, batched, sampled, or dropped. It must not become a correctness dependency.
-
-JSON remains acceptable for low-frequency semantic control. Binary schemas remain attractive for high-rate events/telemetry. The exact split and framing remain transport details.
-
-## 10. WQ4/model-memory position
-
-The custom WQ4 work proves useful quantized execution paths can be built for WebGPU, but the current whole-model resident footprint is not yet explained by the raw quantization ratio alone.
-
-Therefore v0.3 does not treat the present WQ4 storage/repacking arrangement as a stable model-memory design.
-
-The project separates:
-
-```text
-quantization math
-matmul kernel
-runtime weight layout/repacking
-whole-model resident memory
-on-disk container
-```
-
-Each may evolve independently until measurements justify freezing them.
-
-## 11. Stability map
-
-| Area | Status | Confidence |
-|---|---|---:|
-| Single-owner daemon | ACCEPTED | High |
-| One live client session per daemon | ACCEPTED | High |
-| Disconnect → cancel current + drop session state | ACCEPTED baseline | High |
-| LFM2.5-1.2B reference model | ACCEPTED | High |
-| WebGPU execution abstraction | ACCEPTED | High |
-| Unconstrained GPU-resident decode baseline | ACCEPTED | High |
-| Host/device responsibility boundary | ACCEPTED direction | Medium-High |
-| Context State terminology | ACCEPTED | High |
-| Exact ContextCheckpoint semantics | ACCEPTED | High |
-| Exact checkpoint implementation/economics | PROVISIONAL | Medium |
-| Immutable ContextBlock token identity | ACCEPTED | High |
-| Depth-2 composable representation | PROVISIONAL | Medium-High |
-| Attention-crossing/deep cached representations | EXPERIMENTAL | Medium-Low |
-| Host spill/paging | OPEN | Low-Medium |
-| Structured output requirement | ACCEPTED | High |
-| OutputPlan + tokenizer-automata direction | PROVISIONAL | Medium-High |
-| GPU structured-decoder execution | PROVISIONAL | Medium |
-| DENSE / MASKED_DENSE / SPARSE policy | EXPERIMENTAL | Medium |
-| Final WQ4 runtime/model layout | EXPERIMENTAL | Medium |
-| Final native host language | DEFERRED | Medium |
-| Rust + wgpu + WASM shared core | CANDIDATE | Medium-High |
-
-## 12. Decision index
-
-- [ADA-0001 — Single-Owner Headless Runtime and Live Session](decisions/0001-single-owner-runtime-session.md)
-- [ADA-0002 — Reference Model: LFM2.5-1.2B-Instruct](decisions/0002-reference-model-lfm2.5.md)
-- [ADA-0003 — WebGPU Execution and Host/Device Boundary](decisions/0003-webgpu-host-device-boundary.md)
-- [ADA-0004 — Context State and Exact Checkpoints](decisions/0004-context-state-exact-checkpoints.md)
-- [ADA-0005 — Composable Context Representations](decisions/0005-composable-context-representations.md)
-- [ADA-0006 — Structured GPU Decoding](decisions/0006-structured-gpu-decoding.md)
-- [ADA-0007 — Host Runtime Language](decisions/0007-host-runtime-language.md)
-- [ADA-0008 — Correctness Classes and Optimization Boundaries](decisions/0008-correctness-classes.md)
-
-## 13. Experiment index
-
-- [Exact checkpoints](experiments/exact-checkpoints.md)
-- [Composable context blocks](experiments/composable-blocks.md)
-- [Structured decoding](experiments/structured-decoding.md)
-- [WQ4 model memory/layout](experiments/wq4-model-layout.md)
-- [WQ4 matmul](experiments/wq4-matmul.md)
-
-## 14. Guiding principles
-
-1. **One daemon owns one coherent runtime universe.** Scale isolation by running another daemon before designing an internal scheduler.
-2. **Exact checkpoints are the semantic foundation of reuse.** Composable blocks are an acceleration.
-3. **Optimization state must not silently become semantic state.** Exact and approximate execution are explicit.
-4. **Keep the token loop on the GPU unless evidence justifies a synchronization boundary.**
-5. **Compile structure before generation; do not parse correctness back into the output after the fact.**
-6. **Freeze only boundaries that survive the current experiments.**
+1. **Generate values, not chat transcripts.** The core operation is `generate(Type<T>, Context) -> T`.
+2. **Exact checkpoints are the semantic foundation of context reuse.** Composable block representations are optional acceleration experiments.
+3. **Keep token-critical decisions on the GPU.** Host compilation and terminal readback are expected; per-token CPU grammar decisions are not.
+4. **Use the same program/data path in tests and production.** Public E2E tests go through `loadModel()` and `engine.generate()`.
+5. **Keep logical types separate from physical buffer capacity/alignment.** A 64-byte ABI record does not become a 256-byte type because dynamic offsets are 256-byte aligned.
+6. **Bound output through the schema.** The typed API does not need a separate user-facing `maxTokens` for ordinary structured generation.
+7. **Treat historical experiments as evidence, not as the current contract.**

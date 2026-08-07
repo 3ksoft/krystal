@@ -49,11 +49,11 @@
     "packages/lfm2": {
       "name": "@chomato/lfm2",
     },
-    "packages/old_gui": {
-      "name": "@chomato/web",
-    },
     "packages/quant": {
       "name": "@chomato/quant",
+      "dependencies": {
+        "@types/node": "^26.1.2",
+      },
       "devDependencies": {
         "@types/deno": "^2.7.0",
       },
@@ -116,8 +116,6 @@
     "@chomato/lfm2": ["@chomato/lfm2@workspace:packages/lfm2"],
 
     "@chomato/quant": ["@chomato/quant@workspace:packages/quant"],
-
-    "@chomato/web": ["@chomato/web@workspace:packages/old_gui"],
 
     "@chomato/webgpu": ["@chomato/webgpu@workspace:packages/webgpu"],
 

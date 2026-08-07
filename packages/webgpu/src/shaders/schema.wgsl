@@ -100,10 +100,10 @@ struct ConstraintDecoderState {
 	errorCode: u32,
 	reserved0: u32,
 	reserved1: u32,
-	numberText: array<u32, 8>,
+	numberText: array<u32, 16>,
 };
 
-const CONSTRAINT_DECODER_STATE_NUMBERTEXT_LEN: u32 = 8u;
+const CONSTRAINT_DECODER_STATE_NUMBERTEXT_LEN: u32 = 16u;
 
 alias Lfm2Mode = u32;
 const Lfm2Mode_prefill: Lfm2Mode = SMB_prefill;
@@ -421,7 +421,7 @@ fn pack_constraint_token_byte_entry(unpacked: ConstraintTokenByteEntry) -> array
 	return pack_constraint_token_byte_entry_to_words(unpacked);
 }
 
-fn unpack_words_to_constraint_decoder_state(raw: array<u32, 16>) -> ConstraintDecoderState {
+fn unpack_words_to_constraint_decoder_state(raw: array<u32, 24>) -> ConstraintDecoderState {
 	var out: ConstraintDecoderState;
 	out.node = bitcast<u32>(raw[0u]);
 	out.local0 = bitcast<u32>(raw[1u]);
@@ -431,19 +431,19 @@ fn unpack_words_to_constraint_decoder_state(raw: array<u32, 16>) -> ConstraintDe
 	out.errorCode = bitcast<u32>(raw[5u]);
 	out.reserved0 = bitcast<u32>(raw[6u]);
 	out.reserved1 = bitcast<u32>(raw[7u]);
-	for (var i_0 = 0u; i_0 < 8u; i_0++) {
+	for (var i_0 = 0u; i_0 < 16u; i_0++) {
 		out.numberText[i_0] = bitcast<u32>(raw[8u + (i_0 * 1u)]);
 	}
 	return out;
 }
 
-fn unpack_constraint_decoder_state(raw: array<u32, 16>) -> ConstraintDecoderState {
+fn unpack_constraint_decoder_state(raw: array<u32, 24>) -> ConstraintDecoderState {
 	return unpack_words_to_constraint_decoder_state(raw);
 }
 
-fn pack_constraint_decoder_state_to_words(unpacked: ConstraintDecoderState) -> array<u32, 16> {
-	var out: array<u32, 16>;
-	for (var w = 0u; w < 16u; w++) { out[w] = 0u; }
+fn pack_constraint_decoder_state_to_words(unpacked: ConstraintDecoderState) -> array<u32, 24> {
+	var out: array<u32, 24>;
+	for (var w = 0u; w < 24u; w++) { out[w] = 0u; }
 	out[0u] = bitcast<u32>(unpacked.node);
 	out[1u] = bitcast<u32>(unpacked.local0);
 	out[2u] = bitcast<u32>(unpacked.local1);
@@ -452,13 +452,13 @@ fn pack_constraint_decoder_state_to_words(unpacked: ConstraintDecoderState) -> a
 	out[5u] = bitcast<u32>(unpacked.errorCode);
 	out[6u] = bitcast<u32>(unpacked.reserved0);
 	out[7u] = bitcast<u32>(unpacked.reserved1);
-	for (var i_0 = 0u; i_0 < 8u; i_0++) {
+	for (var i_0 = 0u; i_0 < 16u; i_0++) {
 			out[8u + (i_0 * 1u)] = bitcast<u32>(unpacked.numberText[i_0]);
 		}
 	return out;
 }
 
-fn pack_constraint_decoder_state(unpacked: ConstraintDecoderState) -> array<u32, 16> {
+fn pack_constraint_decoder_state(unpacked: ConstraintDecoderState) -> array<u32, 24> {
 	return pack_constraint_decoder_state_to_words(unpacked);
 }
 

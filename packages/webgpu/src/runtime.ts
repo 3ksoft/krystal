@@ -45,7 +45,9 @@ function createInitialRuntimeState(options: {
 }
 
 const PARAM_BYTES = 64;
-const PARAM_BUFFER_BYTES = 8 * 1024 * 1024;
+// ~250 dispatches per decode step at 256 B stride; 128 MiB covers the full
+// 1024-step budget with headroom (same sizing as the main LFM2 runtime).
+const PARAM_BUFFER_BYTES = 128 * 1024 * 1024;
 const HEAD_DIM = 64;
 const KV_HEADS = 8;
 const QUERY_HEADS = 32;
@@ -428,7 +430,7 @@ export class Lfm2Runtime {
     };
     const resolved = {
       contextCapacity: options.contextCapacity ?? 1024,
-      maxNewTokens: options.maxNewTokens ?? 128,
+      maxNewTokens: options.maxNewTokens ?? 1024,
       matmulKernels: {
         f16: options.matmulKernels?.f16 ?? defaults.f16,
         f32: options.matmulKernels?.f32 ?? defaults.f32,

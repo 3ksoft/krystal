@@ -1,7 +1,8 @@
 # ADA-0002 — Reference Model: LFM2.5-1.2B-Instruct
 
 Status: **ACCEPTED**  
-Date: 2026-08-03
+Date: 2026-08-03  
+Updated: 2026-08-07
 
 ## Context
 
@@ -79,6 +80,15 @@ Current kernels/runtime may contain model-specific assumptions such as:
 - current KV layouts derived from model metadata.
 
 These are implementation assumptions, not public architectural requirements.
+
+The model advertises a larger trained context window, but the current Chomato runtime allocation is intentionally smaller:
+
+```text
+contextCapacity = 1024
+maxNewTokens allocation = 1024
+```
+
+The effective response budget must fit the remaining context capacity.
 
 ## Vocabulary consequence
 

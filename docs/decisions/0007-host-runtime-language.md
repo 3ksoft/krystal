@@ -1,7 +1,8 @@
 # ADA-0007 — Host Runtime Language
 
 Status: **DEFERRED**  
-Date: 2026-08-03
+Date: 2026-08-03  
+Updated: 2026-08-07
 
 ## Context
 
@@ -70,12 +71,12 @@ WASM memory/threading integration
 
 ## Why the decision remains deferred
 
-v0.3 now defines more of the stable runtime shape, but several implementation-sensitive boundaries still need evidence:
+Since v0.3, two major implementation-sensitive boundaries have stabilized:
 
-- physical exact checkpoint implementation,
-- composable block economics,
-- structured-decoder GPU IR/layout,
-- final model-memory/WQ4 layout.
+- exact physical checkpoint implementation is validated,
+- structured decoding has a validated real-GPU execution path and public typed API.
+
+The decision remains deferred because composable-block economics are still experimental, model/runtime cleanup is still active, and there is not yet a concrete native-daemon deliverable that justifies paying the porting cost.
 
 A port should encode stable semantics, not help discover them by making every experiment harder.
 
@@ -92,7 +93,7 @@ ContextBlock
 ContextCheckpoint
 CachedRepresentation
 GenerationContinuation
-OutputPlan
+constraint program
 structured decoder state
 correctness/exactness class
 ```
@@ -102,9 +103,9 @@ correctness/exactness class
 Revisit this ADA when:
 
 1. browser/UI interaction is fully behind the logical runtime API,
-2. exact checkpoint semantics have a validated implementation,
+2. exact checkpoint semantics have a validated implementation, **DONE**,
 3. composable representation boundaries are understood well enough not to churn core types weekly,
-4. structured decoding has one validated GPU execution path,
+4. structured decoding has one validated GPU execution path, **DONE**,
 5. native daemon work becomes a concrete near-term deliverable.
 
 At that point compare:

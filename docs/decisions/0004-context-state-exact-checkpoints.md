@@ -1,170 +1,124 @@
 # ADA-0004 — Context State and Exact Checkpoints
 
-Status: **ACCEPTED semantics / PROVISIONAL implementation**  
-Date: 2026-08-03
+Status: **ACCEPTED**  
+Date: 2026-08-03  
+Updated: 2026-08-07
 
 ## Context
 
-The most robust reusable-context capability is not an independently composable BlockStore representation. It is the ability to capture the **exact continuation state after an expensive prefix** and continue from that state later.
+Exact checkpointing is now implemented and validated on the real LFM2.5 WebGPU runtime.
 
-This remains valuable even if every deeper block-composition experiment fails.
-
-For example:
-
-```text
-large stable prefix
-      ↓
-full normal prefill
-      ↓
-exact checkpoint
-      ├── query A
-      ├── query B
-      └── query C
-```
-
-The architecture therefore promotes exact checkpoint semantics above optional cached-block acceleration.
+The capability is intentionally independent of deeper composable-context experiments: even if no independently composable cached representation survives, an exact physical continuation checkpoint remains useful for repeated continuation and branching.
 
 ## Decision
 
-A `ContextCheckpoint` is the exact model continuation state produced after a specific ordered token prefix has been processed normally.
+A `ContextCheckpoint` is the exact model continuation state after a specific ordered token prefix has been processed normally.
 
-For LFM2.5 it contains the model-dependent Context State required to continue:
+For LFM2.5 it materializes:
 
 ```text
-bounded convolution history
+populated attention KV prefix
 +
-attention KV state
+fixed-size rolling short-convolution state
++
+position/layout metadata required for continuation
 ```
 
-The checkpoint is prefix- and position-dependent by definition.
+A checkpoint is prefix- and position-dependent.
 
-## Checkpoint identity
+## Attention state
 
-Checkpoint compatibility includes at least:
+`attentionLayerSlots` is a fixed compact mapping from attention model layers to KV storage slots. It is not paged attention.
+
+The runtime KV allocation is sized to `contextCapacity`, but checkpoint materialization copies only the populated prefix. Checkpoint KV bytes therefore grow with prefix length rather than with the configured maximum capacity.
+
+## Rolling convolution state
+
+The current LFM2 short-convolution path retains a fixed-size rolling cache (`convCacheLength = 3`).
+
+Checkpointing copies this rolling state in full. There is no additional sequence-length-dependent convolution history buffer.
+
+Its storage cost is therefore approximately:
 
 ```text
-model identity / compatible weights
-model execution semantics affecting Context State
-tokenizer identity
-exact ordered token prefix (or collision-resistant identity of it)
-position implied by that prefix
+O(convLayers × hiddenSize × convCacheLength)
 ```
 
-Source text alone is insufficient.
+rather than `O(sequenceLength)`.
 
-A checkpoint is not interchangeable with a standalone cached representation of one block.
+## No replay invariant
 
-## Model checkpoint vs generation continuation
+Restoring a checkpoint does not re-prefill its source prefix.
 
-A reusable model checkpoint intentionally excludes request-specific generation machinery.
+Given:
 
 ```text
-ContextCheckpoint
-    = reusable model continuation state
-
-GenerationContinuation
-    = ContextCheckpoint
-    + sampler/RNG state
-    + structured-decoder/validator state
-    + request-specific generation state
+checkpoint(P) + blocks(T)
 ```
 
-This allows the same model checkpoint to seed:
-
-- unconstrained generation,
-- several different structured-output schemas,
-- different sampling configurations,
-- multiple branches.
-
-If the runtime later persists/resumes an exact in-progress generation, it persists a `GenerationContinuation`, not merely a `ContextCheckpoint`.
-
-## Fundamental invariant
-
-Restoring an exact checkpoint and feeding the same subsequent token sequence must be equivalent to uninterrupted execution from the original prefix.
-
-Greedy output equality is not sufficient evidence.
-
-## Exactness acceptance
-
-The validation hierarchy is:
-
-### Pure state-copy restore
-
-If checkpoint creation/restoration only copies the exact stored model state, prefer bitwise equality of restored state and subsequent logits where the WebGPU path is deterministic.
-
-### Reconstructed materialization
-
-If restoration necessarily recomputes part of the state, define a numerical equivalence tolerance against ordinary execution and verify it at logits/state level.
-
-In both cases, matching top-1 tokens is secondary evidence only.
+only `T` is processed as appended prefill before decode. The state for `P` comes from the checkpoint.
 
 ## Branching
 
-An exact checkpoint may be used as a branch point:
+A durable checkpoint can seed multiple branches and branch execution must not mutate it:
 
 ```text
 checkpoint P
 ├── continuation A
 ├── continuation B
-└── continuation C
+└── continuation A again
 ```
 
-Branch execution must not mutate the durable checkpoint in a way that changes later branches.
+All branches start from the same exact state.
 
-The physical implementation may use copies, copy-on-write, replay, or another mechanism; the semantic result is the same.
+## Chaining
 
-## Ownership and lifetime
-
-The daemon owns persistent checkpoints.
-
-Session-scoped temporary state may be discarded on disconnect. A checkpoint becomes durable only through an explicit runtime operation/policy.
-
-With the single-session baseline, cross-client reference-counting is not required.
-
-## Residency
-
-Checkpoint identity is separate from where its state is stored.
-
-Possible future residency forms:
+A checkpoint can be extended into another checkpoint:
 
 ```text
-GPU-resident exact state
-host-resident exact state
-recomputable prefix metadata/tokens
+checkpoint AB + block C -> checkpoint ABC
 ```
 
-If an exact representation is unavailable, ordinary prefill/recompute remains the semantic ground truth unless a caller explicitly requests cache-only behavior and accepts a `CacheMiss`-style failure.
+The base checkpoint prefix is not replayed.
 
-The runtime must never substitute approximate context silently for an exact checkpoint request.
+## Source-block lifetime
 
-## Why checkpoint-first
+A materialized checkpoint remains usable after the `ContextBlock`s that created it are dropped.
 
-Even without independently composable blocks, exact checkpoints provide:
+Blocks identify reusable token content. Checkpoints own physical continuation state.
 
-- repeated continuation from large stable prompts,
-- cheap branching,
-- reusable tool/system/project state when the prefix is stable,
-- a correctness anchor for BlockStore experiments,
-- a natural future unit for persistence/spill economics.
+## Model checkpoint vs generation continuation
 
-Composable context blocks remain an optimization described separately in ADA-0005.
+The conceptual distinction remains:
 
-## Open implementation questions
+```text
+ContextCheckpoint
+    exact reusable model continuation state
 
-- Physical checkpoint representation and copy cost.
-- Best checkpoint granularity/frequency.
-- GPU memory cost for many branch points.
-- Copy-on-write vs explicit copies vs replay.
-- Host spill/restore vs recompute economics.
-- Context-length/position-limit behavior.
-- Whether some exact checkpoints can share immutable state physically.
+GenerationContinuation
+    ContextCheckpoint
+    + sampler/request state
+    + structured-decoder state
+```
 
-## Decision gate for implementation
+The same `ContextCheckpoint` can seed different structured schemas or ordinary generation.
 
-Treat checkpoint implementation as production-ready only after:
+## Exactness evidence
 
-1. state/logit differential tests demonstrate exact continuation semantics,
-2. branching from one checkpoint is verified,
-3. restoring after unrelated runtime work does not corrupt the checkpoint,
-4. memory/time costs are characterized,
-5. fallback/recompute remains simple and testable.
+The current real-engine suite verifies:
+
+- checkpoint continuation equals uninterrupted continuation,
+- branching does not mutate the checkpoint,
+- checkpoint chaining is equivalent to direct context,
+- source blocks may be dropped after materialization,
+- checkpointing works across tested prefix split positions,
+- restored prefixes are not re-prefilled,
+- checkpoint/KV byte counts scale with the populated prefix.
+
+These tests are the implementation acceptance gate for the current exact checkpoint path.
+
+## Relationship to composable cached representations
+
+`CacheBlockOptions.depth` and independently composable intermediate representations are governed by ADA-0005.
+
+They are not part of the exact checkpoint representation and must not be confused with attention paging or checkpoint hierarchy.

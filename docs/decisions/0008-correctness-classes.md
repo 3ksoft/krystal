@@ -1,7 +1,8 @@
 # ADA-0008 — Correctness Classes and Optimization Boundaries
 
 Status: **ACCEPTED**  
-Date: 2026-08-03
+Date: 2026-08-03  
+Updated: 2026-08-07
 
 ## Context
 
@@ -73,7 +74,7 @@ These axes must be measured/reported separately.
 
 Optimized constrained-decoding paths must be compared against a correctness-first oracle.
 
-`MASKED_DENSE` and `SPARSE` are acceptable alternatives only when they represent the same exact allowed-token semantics for the same decoder state.
+`MASKED_DENSE` is the current implemented baseline. Any future `SPARSE` path is acceptable only when it represents the same exact allowed-token semantics for the same decoder state.
 
 A performance optimization may not discard candidate probability mass before applying the constraint unless the public sampling semantics explicitly define that different behavior.
 

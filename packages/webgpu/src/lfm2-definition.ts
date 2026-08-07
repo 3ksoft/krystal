@@ -7,7 +7,10 @@ import {
 import { $ } from "../../schema/src/schema";
 import { LFM2_CONFIG } from "./lfm2-init";
 export const CONTEXT_CAPACITY = 1024;
-export const MAX_NEW_TOKENS = 128;
+// Capacity guard for the schema-derived decode budget. The parameter itself is
+// scheduled to disappear once buffer sizes are derived from the schema; for now
+// 1024 is the maximum the current arena/token layout can support.
+export const MAX_NEW_TOKENS = 1024;
 
 // block boundary history 4 + repair 4
 export const REPAIR_CAPACITY = 8;
@@ -74,13 +77,17 @@ export const TOKEN_CAPACITY =
   CONTEXT_CAPACITY + MAX_NEW_TOKENS;
 
 export const TELEMETRY_CAPACITY = 256;
-export const OP_PARAM_BUFFER_BYTES = 8 * 1024 * 1024;
+// One 256-byte (aligned) OpParams record per dispatch. A full decode step of
+// the 16-block model spends ~250 dispatches, so the buffer must fit the whole
+// schema-derived budget: MAX_NEW_TOKENS(1024) * ~250 * 256 B ~= 64 MiB. 128 MiB
+// leaves headroom for paged matmuls and the prefill of a long prompt.
+export const OP_PARAM_BUFFER_BYTES = 128 * 1024 * 1024;
 
 // Structured-generation VM. These are fixed AOT binding capacities, not
 // semantic schema limits. Actual program/tokenizer blobs carry their lengths.
 export const CONSTRAINT_PROGRAM_WORD_CAPACITY = 1 << 18;   // 1 MiB
 export const CONSTRAINT_TOKENIZER_WORD_CAPACITY = 1 << 20; // 4 MiB
-export const CONSTRAINT_STATE_WORDS = 16;                   // 64 B
+export const CONSTRAINT_STATE_WORDS = 24;                   // 96 B
 export const CONSTRAINT_MASK_WORDS = Math.ceil(VOCAB / 32);
 export const CONSTRAINT_MASK_WORKGROUP_SIZE = 64;
 export const CONSTRAINT_MASK_WORKGROUPS = Math.ceil(

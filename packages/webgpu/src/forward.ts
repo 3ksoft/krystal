@@ -958,6 +958,15 @@ export class Lfm2Forward {
     return this.structuredTokenizer;
   }
 
+  /**
+   * Model-global byte-level BPE tokenizer (shared with structured decoding).
+   * Exposed for test/benchmark harnesses that need text prompts; structured
+   * inference itself reaches it through the private accessor above.
+   */
+  get tokenizer(): Lfm2Tokenizer {
+    return this.getStructuredTokenizer();
+  }
+
   private getStructuredConstraintTokenizer(): GpuConstraintTokenizer {
     if (this.structuredConstraintTokenizer) return this.structuredConstraintTokenizer;
     const tokenizer = this.getStructuredTokenizer();

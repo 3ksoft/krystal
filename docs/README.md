@@ -1,12 +1,17 @@
-# Chomato Architecture Pack v0.3
+# Chomato Architecture Pack v0.4
 
-Status: Draft / architecture candidate  
-Revision: 0.3  
-Date: 2026-08-03
+Status: Current technical architecture  
+Revision: 0.4  
+Date: 2026-08-07
 
-This revision tightens the runtime model and separates stable capabilities from experimental accelerations.
+Revision 0.4 records the implementation that is now running end to end on the real LFM2.5 WebGPU backend: exact physical checkpoints, Sandblaster AOT shader/program artifacts, typed structured generation, and GPU-resident constraint masking/sampling.
 
-Start with [architecture.md](architecture.md). The main changes from v0.2 are summarized in [changes-v0.3.md](changes-v0.3.md).
+Start with [architecture.md](architecture.md). The implementation details are split into focused technical documents:
+
+- [Runtime and WebGPU execution](runtime.md)
+- [Context state and exact checkpoints](checkpoints.md)
+- [Structured generation](structured-generation.md)
+- [Changes in v0.4](changes-v0.4.md)
 
 ## Decisions
 
@@ -19,7 +24,9 @@ Start with [architecture.md](architecture.md). The main changes from v0.2 are su
 7. [ADA-0007 — Host Runtime Language](decisions/0007-host-runtime-language.md)
 8. [ADA-0008 — Correctness Classes and Optimization Boundaries](decisions/0008-correctness-classes.md)
 
-## Experiments
+## Historical experiments
+
+The files under `docs/experiments/` are retained as experimental records. They are not the current implementation specification and are intentionally not expanded in v0.4. Future measured results should move toward benchmark reports rather than growing the historical experiment notes.
 
 - [Exact checkpoints](experiments/exact-checkpoints.md)
 - [Composable context blocks](experiments/composable-blocks.md)
@@ -29,42 +36,54 @@ Start with [architecture.md](architecture.md). The main changes from v0.2 are su
 
 ## Status vocabulary
 
-- **ACCEPTED** — architectural direction is stable enough to build against.
-- **PROVISIONAL** — selected direction, but implementation/behavior still needs material validation.
+- **ACCEPTED** — implemented/validated direction that current code may build against.
+- **PROVISIONAL** — selected direction whose behavior or economics still need material validation.
 - **EXPERIMENTAL** — implementation exists to discover behavior, not to define a stable contract.
 - **OPEN** — requirements are known, solution not selected.
 - **DEFERRED** — decision is intentionally postponed until named dependencies stabilize.
 - **REJECTED** — investigated and intentionally not used.
 - **SUPERSEDED** — replaced by a later decision.
 
-## Core v0.3 framing
+## v0.4 in one page
 
 ```text
-single daemon process
-    owns one model + one runtime + one BlockStore
-    accepts one live client session at a time
+Engine.generate(Type<T>, Context) -> Promise<T>
 
-ContextCheckpoint
-    = exact reusable continuation state
-    = fundamental capability
+Context
+├── checkpoint?       exact model continuation state
+└── blocks?           ordered token blocks appended after it
 
-CachedRepresentation
-    = optional acceleration for reusable context blocks
-    = may be exact, prefix-dependent, or approximate
+LFM2 forward
+├── Sandblaster AOT programs
+├── WQ4/F16 model execution
+├── attention KV state
+└── rolling short-conv state
 
-Structured GPU Decoding
-    = schema/plan compiled before generation
-    = per-token constraint execution designed to stay on GPU
-    = DENSE / MASKED_DENSE / SPARSE are execution modes, not semantic modes
+Exact checkpoint
+├── populated attention KV prefix only
+└── fixed-size rolling conv state
+
+Structured generation
+Type / JSON Schema
+    ↓ host compile
+constraint byte program + tokenizer byte metadata
+    ↓ GPU
+constraint_mask (65,536 vocab -> 2,048 × u32 mask)
+    ↓
+constraint_argmax + decoder-state commit
+    ↓
+strict canonical JSON value
+    ↓ host terminal readback
+JSON.parse
+    ↓
+T
 ```
 
-## Source basis
+Current implementation limits are intentionally explicit:
 
-Revision 0.3 builds on:
-
-- the v0.2 architecture pack,
-- the current Chomato WebGPU/LFM2.5 implementation and BlockStore experiments,
-- the current WQ4/matmul candidate work,
-- the supplied v0.2 architecture reviews,
-- the project discussion on GPU logit masking, tokenizer automata, and schema-driven structured decoding,
-- the earlier Szczupak protocol pattern used as design precedent.
+- reference model: LFM2.5-1.2B-Instruct,
+- vocabulary: 65,536,
+- current runtime context capacity: 1,024 tokens,
+- current maximum decode budget allocation: 1,024 tokens,
+- structured generation requires a finite schema-derived output bound,
+- sparse LM-head execution is not implemented; current constrained execution uses the full vocabulary mask.

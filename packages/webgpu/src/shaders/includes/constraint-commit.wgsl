@@ -12,8 +12,8 @@ fn commit_constraint_token(token: u32) -> bool {
   if (token >= vocab) { return false; }
 
   let eos = tokenizer_eos_token();
-  let currentState = constraintState;
-  if (currentState.node == program_accept_node()) {
+  var currentState = constraintState;
+  if (state_is_terminal(&currentState)) {
     return token == eos;
   }
   if (token == eos) { return false; }

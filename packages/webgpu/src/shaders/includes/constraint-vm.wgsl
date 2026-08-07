@@ -49,8 +49,9 @@ const NUMBER_EXPONENT: u32 = 6u;
 const NUMBER_EXPONENT_SIGN: u32 = 7u;
 const NUMBER_EXPONENT_DIGITS: u32 = 8u;
 
-// Exact binary64 overflow midpoint: 2^1024 - 2^970. The first 32
-// significant decimal digits are enough for every <=32-byte candidate lexeme.
+// Exact binary64 overflow midpoint: 2^1024 - 2^970. Digits beyond the 32 in
+// F64_OVERFLOW_DIGITS are compared against zero, which is exact for every
+// candidate lexeme up to the 64-byte state buffer.
 const F64_OVERFLOW_MAGNITUDE: i32 = 309i;
 const F64_OVERFLOW_DIGITS: array<u32, 8> = array<u32, 8>(
   0x37393731u, 0x31333936u, 0x36383433u, 0x35313332u,
@@ -408,6 +409,18 @@ fn number_complete(state: ptr<function, ConstraintDecoderState>, node: u32) -> b
   return true;
 }
 
+// A value that may legally be followed by EOS: the accept node, or a *root*
+// number whose lexeme is already complete. JSON numbers have no closing
+// delimiter byte, so a root number must terminate through the EOS control
+// token instead of a byte. Nested numbers still close on ',' '}' ']'.
+fn state_is_terminal(state: ptr<function, ConstraintDecoderState>) -> bool {
+  let node = (*state).node;
+  if (node == program_accept_node()) { return true; }
+  if (node_word(node, 0u) != NODE_NUMBER) { return false; }
+  if (node_word(node, 1u) != program_accept_node()) { return false; }
+  return number_complete(state, node);
+}
+
 fn feed_byte(state: ptr<function, ConstraintDecoderState>, byte: u32) -> bool {
   // Number completion can consume zero bytes and retry the same delimiter on
   // its continuation. 64 is intentionally the same hard cap as the CPU VM.
@@ -508,6 +521,19 @@ fn feed_byte(state: ptr<function, ConstraintDecoderState>, byte: u32) -> bool {
       let flags = node_word(node, 4u);
       let maxChars = node_word(node, 5u);
       let integerOnly = (flags & NUMBER_INTEGER) != 0u;
+
+      // Bound-aware pruning: a lexeme that can never satisfy min/max is
+      // rejected up front instead of dead-ending at closure. A leading '-'
+      // (phase start only; exponent signs are fine) can never satisfy a
+      // non-negative min, and a non-negative start can never satisfy a
+      // negative max. The bound's first byte is '-' iff the bound is negative.
+      if (byte == 0x2du && phase == NUMBER_START
+        && (flags & NUMBER_HAS_MIN) != 0u
+        && program_byte(node_word(node, 6u)) != 0x2du) { return false; }
+      if (phase == NUMBER_START && byte >= 0x30u && byte <= 0x39u
+        && (flags & NUMBER_HAS_MAX) != 0u
+        && program_byte(node_word(node, 8u)) == 0x2du) { return false; }
+
       var nextPhase = INVALID_NODE;
       if (length < maxChars) { nextPhase = number_next_phase(phase, byte, integerOnly); }
 
@@ -533,8 +559,8 @@ fn token_survives(token: u32) -> bool {
   if (token >= vocab) { return false; }
 
   let eos = tokenizer_eos_token();
-  let currentState = constraintState;
-  if (currentState.node == program_accept_node()) { return token == eos; }
+  var currentState = constraintState;
+  if (state_is_terminal(&currentState)) { return token == eos; }
   if (token == eos) { return false; }
 
   let byteOffset = tokenizer_entry(token, 0u);

@@ -1,81 +1,117 @@
 # Chomato
 
-Experimental local LFM2.5 inference runtime built directly on WebGPU.
+Experimental local LFM2.5 inference runtime built on WebGPU with exact reusable checkpoints and GPU-resident typed structured generation.
 
 ```ts
-
-chomato.generate<T>(
-  schema: Type<T>,
-  context: Context,
-): Promise<T>
-
+const result = await engine.generate(
+  type({ id: "number", name: "string < 64" }),
+  { checkpoint, blocks },
+);
 ```
 
-The repository is intentionally split by current implementation boundaries rather than by speculative future subsystems.
+The core API generates a value of the requested type from an ordered context. It is not centered on chat templates or text-only completion; a plain text result is simply a bounded string schema.
+
+## Repository shape
+
+The repository is split by implementation ownership:
 
 ```text
-apps/
-  web/          browser harness
-
 packages/
-  schema/       interop / binary / GPU ABI contracts
-  webgpu/       thin WebGPU bootstrap and utilities
-  gguf/         GGUF reader and random-access sources
-  lfm2/         LFM2 model loading, tokenizer, runtime and WGSL kernels
+  engine-ts/    public engine API + transport/protocol
+  lfm2/         LFM2 model definition, tokenizer, forward/checkpoint logic, shaders
+  quant/        GGUF/WQ4 quantized model tooling/runtime support
+  schema/       shared CPU/GPU ABI schemas and generated layouts
+  webgpu/       WebGPU host/runtime support and tests
+  finetune/     structured-generation datasets/tooling
+  gui/          browser UI/harness
 
-misc/           one-off probes, converters and benchmarks kept for reference
-tests/          focused correctness tests
-docs/           reserved for the current architecture specification
+tests/          public/real-engine correctness and E2E tests
+docs/           current architecture + implementation notes
+misc/           historical one-off probes/benchmarks
 ```
 
-## Current dependency direction
+The precise package graph continues to evolve, but the stable responsibility boundary is:
 
 ```text
-schema ──┐
-         ├──> lfm2 ──┐
-gguf ────┘           ├──> apps/web
-webgpu ───────────────┘
+schema/quant/model data
+        ↓
+LFM2 definition + Sandblaster AOT programs
+        ↓
+WebGPU runtime/backend
+        ↓
+engine-ts public API
 ```
 
-`@chomato/webgpu` deliberately does not provide a resource graph, shader DSL or engine framework. Chomato talks to WebGPU directly.
+## Current execution model
 
-`@chomato/schema` is the intended source of truth for data crossing subsystem / CPU / GPU / process boundaries. During this mechanical repository split the existing `LlmRuntime` codec remains explicit; the next schema step is to move that ABI to schema-pop-generated codec + WGSL layout.
-
-BlockStore logic is still inside the LFM2 runtime. It should only become a separate package after its checkpoint / representation boundary is proven in code. The same applies to structured decoding and a generic core runtime: no empty abstraction packages are created yet.
-
-## Browser harness
-
-Put model files in:
+Build time:
 
 ```text
-models/LFM2.5-1.2B-Instruct-F16.gguf
+WGSL shader bodies/includes
+→ Sandblaster link
+→ serialized LFM2 artifact
 ```
 
-Then run:
+Runtime:
 
-```bash
-bun install
-bun run dev:web
+```text
+load model
+→ deserialize/compile artifact for GPUDevice
+→ prefill / decode / checkpoint / structured generation
 ```
 
-or use the Chromium launcher required by the current NVIDIA/Dawn setup:
+Structured generation runs:
 
-```bash
-./apps/web/run-chromium.sh /
+```text
+model forward -> logits
+→ exact GPU token mask
+→ constrained argmax + decoder-state commit
+→ strict JSON value
+→ JSON.parse
+→ T
 ```
 
-The Vite middleware serves `models/*.gguf` with HTTP Range support, so the browser does not need to fetch a whole GGUF into one JavaScript `ArrayBuffer`.
+For the current 65,536-token vocabulary the exact mask is 8 KiB (`2,048 × u32`).
+
+## Checkpoints
+
+`ContextCheckpoint` is a physical exact continuation snapshot, not prompt replay metadata.
+
+For LFM2.5 it contains:
+
+- populated attention KV prefix,
+- fixed-size rolling short-convolution state,
+- continuation metadata.
+
+Restoring a checkpoint does not re-prefill its source prefix. Checkpoints can branch, chain, and survive dropping their source blocks.
+
+## Current limits
+
+The present implementation is intentionally focused:
+
+- model: `LFM2.5-1.2B-Instruct`,
+- vocabulary: 65,536,
+- runtime context capacity: 1,024 tokens,
+- decode allocation: up to 1,024 tokens subject to remaining context capacity,
+- structured output: finite/bounded schema envelope rather than full JSON Schema,
+- current structured sampler path: full-vocabulary masked dense, not sparse LM-head execution.
 
 ## Tests
 
+Run the complete suite with:
+
 ```bash
-deno test tests
+bun test
 ```
 
-## Notes
+The suite includes real-engine checkpoint tests, structured-generation E2E tests, transport tests, and WebGPU/Sandblaster regression coverage.
 
-- LFM2.5-1.2B is the current reference model; generic model support is not a present goal.
-- The runtime currently owns model tensors, activation state, attention KV, convolution state and experimental cached block representations on one `GPUDevice`.
-- Normal greedy decode is GPU-resident; host readback is used for results/telemetry rather than a required per-token decision.
-- One-off historical experiments are intentionally kept under `misc/` instead of at repository root.
-- Architecture/design documentation is intentionally not duplicated here; put the current spec under `docs/`.
+## Documentation
+
+Start with [docs/README.md](docs/README.md) and [docs/architecture.md](docs/architecture.md).
+
+The focused technical documents are:
+
+- [runtime/WebGPU execution](docs/runtime.md)
+- [context state/checkpoints](docs/checkpoints.md)
+- [structured generation](docs/structured-generation.md)
