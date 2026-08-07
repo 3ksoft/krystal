@@ -3,53 +3,37 @@ import type {
   GpuConstraintProgram,
   GpuConstraintTokenizer,
 } from "../../engine-ts/src/gpu-constraint.ts";
-// import { GPU_CONSTRAINT_STATE } from "../../engine-ts/src/gpu-constraint.ts";
-// import { shaderSources } from "./shaders.generated";
+import { GPU_CONSTRAINT_STATE } from "../../engine-ts/src/gpu-constraint.ts";
+import {
+  CONSTRAINT_MASK_WORDS,
+  CONSTRAINT_PROGRAM_WORD_CAPACITY,
+  CONSTRAINT_TOKENIZER_WORD_CAPACITY,
+  type Lfm2Definition,
+} from "./lfm2-definition";
 
-const MASK_WORKGROUP_SIZE = 64;
-
-function align4(value: number): number {
-  return (value + 3) & ~3;
-}
-
-function createStorageBuffer(
-  device: GPUDevice,
-  label: string,
-  data: Uint32Array,
-  usage: GPUBufferUsageFlags,
-): GPUBuffer {
-  const buffer = device.createBuffer({
-    label,
-    size: Math.max(4, align4(data.byteLength)),
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | usage,
-  });
-  device.queue.writeBuffer(buffer, 0, data);
-  return buffer;
-}
-
-export interface GpuConstraintMaskResources {
-  readonly maskBuffer: GPUBuffer;
-  readonly maskWords: number;
+export interface GpuConstraintUpload {
   readonly vocabSize: number;
-  writeState(state: GpuConstraintDecoderState): void;
-  encode(encoder: GPUCommandEncoder): void;
-  readMask(): Promise<Uint32Array>;
-  destroy(): void;
+  readonly maskWords: number;
+}
+
+function assertCapacity(label: string, actual: number, capacity: number): void {
+  if (actual > capacity) {
+    throw new Error(`${label} requires ${actual} u32 words, capacity is ${capacity}`);
+  }
 }
 
 /**
- * Raw-WebGPU execution wrapper for the upload blobs produced by engine-ts.
+ * Upload one compiled constraint plus the model-global tokenizer byte table.
  *
- * This is intentionally not wired into Lfm2Runtime yet. It proves the exact
- * byte-VM ABI first; the runtime integration can later bind `maskBuffer`
- * directly to masked argmax without ever reading it back to the CPU.
+ * All four buffers are Sandblaster resources declared in lfm2-definition.ts.
+ * This helper deliberately owns no shader module, pipeline or bind group.
  */
-export async function createGpuConstraintMaskResources(
-  device: GPUDevice,
+export function uploadGpuConstraint(
+  definition: Lfm2Definition,
   program: GpuConstraintProgram,
   tokenizer: GpuConstraintTokenizer,
   state: GpuConstraintDecoderState,
-): Promise<GpuConstraintMaskResources> {
+): GpuConstraintUpload {
   if (state.byteLength !== GPU_CONSTRAINT_STATE.byteLength) {
     throw new Error(`Constraint decoder state must be ${GPU_CONSTRAINT_STATE.byteLength} bytes`);
   }
@@ -57,98 +41,101 @@ export async function createGpuConstraintMaskResources(
   const vocabSize = tokenizer.header[0]!;
   const maskWords = Math.ceil(vocabSize / 32);
 
-  const programBuffer = createStorageBuffer(
-    device,
-    "constraint.program",
-    program.blob,
-    0,
-  );
-  const tokenizerBuffer = createStorageBuffer(
-    device,
-    "constraint.tokenizer",
-    tokenizer.blob,
-    0,
-  );
-  const stateBuffer = createStorageBuffer(
-    device,
-    "constraint.state",
-    state,
-    GPUBufferUsage.COPY_SRC,
-  );
-  const maskBuffer = device.createBuffer({
-    label: "constraint.mask",
-    size: Math.max(4, maskWords * 4),
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
-  });
+  assertCapacity("Constraint program", program.blob.length, CONSTRAINT_PROGRAM_WORD_CAPACITY);
+  assertCapacity("Constraint tokenizer", tokenizer.blob.length, CONSTRAINT_TOKENIZER_WORD_CAPACITY);
+  assertCapacity("Constraint mask", maskWords, CONSTRAINT_MASK_WORDS);
 
-  const module = device.createShaderModule({
-    label: "constraint-mask",
-    code: shaderSources.constraint_mask,
-  });
+  const { engine, resources } = definition;
+  const queue = engine.device.queue;
+  queue.writeBuffer(resources.constraintProgram.gpu, 0, program.blob);
+  queue.writeBuffer(resources.constraintTokenizer.gpu, 0, tokenizer.blob);
+  queue.writeBuffer(resources.constraintState.gpu, 0, state);
 
-  const pipeline = await device.createComputePipelineAsync({
-    label: "constraint-mask",
-    layout: "auto",
-    compute: { module, entryPoint: "constraint_mask" },
-  });
+  return { vocabSize, maskWords };
+}
 
-  const bindGroup = device.createBindGroup({
-    label: "constraint-mask",
-    layout: pipeline.getBindGroupLayout(0),
-    entries: [
-      { binding: 0, resource: { buffer: programBuffer } },
-      { binding: 1, resource: { buffer: tokenizerBuffer } },
-      { binding: 2, resource: { buffer: stateBuffer } },
-      { binding: 3, resource: { buffer: maskBuffer } },
-    ],
-  });
+/** Update only the 64-byte transactional VM state between decode steps. */
+export function writeGpuConstraintState(
+  definition: Lfm2Definition,
+  state: GpuConstraintDecoderState,
+): void {
+  if (state.byteLength !== GPU_CONSTRAINT_STATE.byteLength) {
+    throw new Error(`Constraint decoder state must be ${GPU_CONSTRAINT_STATE.byteLength} bytes`);
+  }
+  definition.engine.device.queue.writeBuffer(definition.resources.constraintState.gpu, 0, state);
+}
 
-  const writeState = (next: GpuConstraintDecoderState): void => {
-    if (next.byteLength !== GPU_CONSTRAINT_STATE.byteLength) {
-      throw new Error(`Constraint decoder state must be ${GPU_CONSTRAINT_STATE.byteLength} bytes`);
-    }
-    device.queue.writeBuffer(stateBuffer, 0, next);
-  };
-
-  const encode = (encoder: GPUCommandEncoder): void => {
-    const pass = encoder.beginComputePass({ label: "constraint-mask" });
-    pass.setPipeline(pipeline);
-    pass.setBindGroup(0, bindGroup);
-    pass.dispatchWorkgroups(Math.ceil(maskWords / MASK_WORKGROUP_SIZE));
-    pass.end();
-  };
-
-  const readMask = async (): Promise<Uint32Array> => {
-    const staging = device.createBuffer({
-      label: "constraint.mask.readback",
-      size: Math.max(4, maskWords * 4),
-      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+/**
+ * Encode the exact vocabulary mask through the normal Sandblaster program.
+ * The linked/serialized artifact owns WGSL, layouts and the compute pipeline.
+ */
+export function dispatchGpuConstraintMask(definition: Lfm2Definition): void {
+  definition.engine.submit((encoder) => {
+    encoder.compute({ label: "constraint.mask" }, (pass) => {
+      pass.run(
+        definition.programs.constraint_mask,
+        { workgroups: [definition.constraint.maskWorkgroups, 1, 1] },
+      );
     });
-    try {
-      const encoder = device.createCommandEncoder({ label: "constraint-mask.readback" });
-      encode(encoder);
-      encoder.copyBufferToBuffer(maskBuffer, 0, staging, 0, maskWords * 4);
-      device.queue.submit([encoder.finish()]);
-      await staging.mapAsync(GPUMapMode.READ);
-      return new Uint32Array(staging.getMappedRange().slice(0));
-    } finally {
-      if (staging.mapState === "mapped") staging.unmap();
-      staging.destroy();
-    }
-  };
+  });
+}
 
-  return {
-    maskBuffer,
-    maskWords,
-    vocabSize,
-    writeState,
-    encode,
-    readMask,
-    destroy() {
-      programBuffer.destroy();
-      tokenizerBuffer.destroy();
-      stateBuffer.destroy();
-      maskBuffer.destroy();
-    },
-  };
+/** Diagnostic readback only; constrained inference should keep the mask on GPU. */
+export async function readGpuConstraintMask(
+  definition: Lfm2Definition,
+  maskWords = CONSTRAINT_MASK_WORDS,
+): Promise<Uint32Array> {
+  const device = definition.engine.device;
+  const byteLength = maskWords * 4;
+  const staging = device.createBuffer({
+    label: "constraint.mask.readback",
+    size: Math.max(4, byteLength),
+    usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+  });
+
+  try {
+    const encoder = device.createCommandEncoder({ label: "constraint.mask.readback" });
+    encoder.copyBufferToBuffer(
+      definition.resources.constraintMask.gpu,
+      0,
+      staging,
+      0,
+      byteLength,
+    );
+    device.queue.submit([encoder.finish()]);
+    await staging.mapAsync(GPUMapMode.READ, 0, byteLength);
+    return new Uint32Array(staging.getMappedRange(0, byteLength).slice(0));
+  } finally {
+    if (staging.mapState === "mapped") staging.unmap();
+    staging.destroy();
+  }
+}
+/** Diagnostic/state-equivalence readback for the 64-byte decoder state. */
+export async function readGpuConstraintState(
+  definition: Lfm2Definition,
+): Promise<Uint32Array> {
+  const device = definition.engine.device;
+  const byteLength = GPU_CONSTRAINT_STATE.byteLength;
+  const staging = device.createBuffer({
+    label: "constraint.state.readback",
+    size: byteLength,
+    usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+  });
+
+  try {
+    const encoder = device.createCommandEncoder({ label: "constraint.state.readback" });
+    encoder.copyBufferToBuffer(
+      definition.resources.constraintState.gpu,
+      0,
+      staging,
+      0,
+      byteLength,
+    );
+    device.queue.submit([encoder.finish()]);
+    await staging.mapAsync(GPUMapMode.READ, 0, byteLength);
+    return new Uint32Array(staging.getMappedRange(0, byteLength).slice(0));
+  } finally {
+    if (staging.mapState === "mapped") staging.unmap();
+    staging.destroy();
+  }
 }

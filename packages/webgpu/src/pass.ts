@@ -6,6 +6,7 @@ import {
   lfm2,
   OP_PARAM_BUFFER_BYTES,
   type Lfm2OpParams,
+  type Lfm2PassName,
   type Lfm2PassSpec,
   type Lfm2ShaderName,
   type Lfm2Workgroups,
@@ -18,7 +19,7 @@ import {
  * lfm2.ts; this module deals in semantic pass requests.
  */
 export interface Lfm2PassRequest {
-  readonly name: Lfm2ShaderName;
+  readonly name: Lfm2PassName;
   readonly program: Lfm2PassSpec["program"];
   readonly op: Readonly<Lfm2OpParams>;
   readonly workgroups: Lfm2Workgroups;
@@ -27,7 +28,7 @@ export interface Lfm2PassRequest {
 
 /** Resolve one semantic runtime operation into a concrete GPU pass request. */
 export function lfm2Pass(
-  name: Lfm2ShaderName,
+  name: Lfm2PassName,
   op: Readonly<Lfm2OpParams>,
 ): Lfm2PassRequest {
   const spec = lfm2.passes[name];
@@ -130,7 +131,7 @@ export class Lfm2ComputePass {
   ) {}
 
   run(
-    name: Lfm2ShaderName,
+    name: Lfm2PassName,
     op: Readonly<Lfm2OpParams>,
     weightPage?: Lfm2WeightPage,
   ): void {
@@ -159,6 +160,12 @@ export class Lfm2ComputePass {
         ...(overrides ? { resources: overrides } : {}),
       } as any,
     );
+  }
+
+  /** Dispatch a static AOT program that has no OpParams binding. */
+  runStatic(name: "constraint_mask", workgroups: Lfm2Workgroups): void {
+    this.onRun?.(name);
+    this.pass.run(lfm2.programs[name], { workgroups });
   }
 }
 

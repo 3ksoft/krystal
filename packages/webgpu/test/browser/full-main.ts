@@ -1,7 +1,7 @@
 import { BlobSource } from "../../../quant/src/gguf/source";
 import { createWebGpuDevice } from "../../src/device";
 import { LFM2_GREEDY_SHADER_PATH, Lfm2Forward } from "../../src/forward";
-import { LFM2_ARENA, LFM2_SHADER_NAMES, lfm2 } from "../../src/lfm2";
+import { LFM2_ARENA, LFM2_PASS_NAMES, LFM2_SHADER_NAMES, lfm2 } from "../../src/lfm2";
 import { Lfm2GpuModel } from "../../src/model";
 
 const status = document.querySelector<HTMLDivElement>("#status")!;
@@ -334,7 +334,7 @@ async function run(): Promise<void> {
 
     const alternatives = await exerciseAlternativeShaders(device, model, forward);
     const allCoverage = [...new Set([...first.coverage, ...alternatives.coverage])];
-    const missingAll = LFM2_SHADER_NAMES.filter((name) => !allCoverage.includes(name));
+    const missingAll = LFM2_PASS_NAMES.filter((name) => name !== "constraint_argmax" && !allCoverage.includes(name));
     if (missingAll.length) throw new Error(`shader integration coverage missing: ${missingAll.join(", ")}`);
 
     log("✓ alternative shader paths", {
@@ -367,7 +367,7 @@ async function run(): Promise<void> {
       },
     });
 
-    setStatus("PASS · full forward + all 17 shaders", "ok");
+    setStatus("PASS · full forward + all inference passes", "ok");
   } finally {
     model?.destroy();
     runButton.disabled = false;

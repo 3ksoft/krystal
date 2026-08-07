@@ -675,6 +675,17 @@ export class Lfm2Forward {
     });
   }
 
+  /** Exact GPU mask -> masked argmax -> transactional VM commit. */
+  commitConstraintArgmax(pass: Lfm2ComputePass, mode: Lfm2Mode = "prefill"): void {
+    pass.runStatic("constraint_mask", [lfm2.constraint.maskWorkgroups, 1, 1]);
+    pass.run("constraint_argmax", {
+      inputOffset: LFM2_ARENA.logits,
+      inputDim: this.model.config.vocabSize,
+      u0: GPU_SCHEMA_SENTINELS.emptyToken,
+      mode,
+    });
+  }
+
   /**
    * Sample only from a sparse guide candidate table. This is the first WebGPU
    * guide primitive: the state machine may fill a fixed-size table with token
@@ -721,6 +732,18 @@ export class Lfm2Forward {
   ): void {
     this.forwardToLogits(pass, tokenCount, mode, work, tokenOffset);
     this.commitArgmax(pass, mode);
+  }
+
+  /** Full forward followed by exact structured sampling entirely on GPU. */
+  forwardAndSampleConstrained(
+    pass: Lfm2ComputePass,
+    tokenCount: number,
+    mode: Lfm2Mode = "prefill",
+    work: Lfm2WorkLayout = LFM2_ARENA,
+    tokenOffset = 0,
+  ): void {
+    this.forwardToLogits(pass, tokenCount, mode, work, tokenOffset);
+    this.commitConstraintArgmax(pass, mode);
   }
 
   /** Compatibility wrapper retained while block-0 callers migrate. */

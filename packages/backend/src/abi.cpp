@@ -13,6 +13,7 @@ namespace v1_0_0 {
 	constexpr ConstraintNodeKind ConstraintNodeKind_string = 2;
 	constexpr ConstraintNodeKind ConstraintNodeKind_number = 3;
 	constexpr ConstraintNodeKind ConstraintNodeKind_accept = 4;
+	constexpr ConstraintNodeKind ConstraintNodeKind_jump = 5;
 	
 	using ConstraintDecoderStatus = uint8_t;
 	constexpr ConstraintDecoderStatus ConstraintDecoderStatus_running = 0;

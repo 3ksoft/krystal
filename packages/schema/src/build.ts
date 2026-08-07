@@ -48,4 +48,7 @@ save(paths.types, ts_import + exports);
 const cpp = exportPlan(schemaIR, "cpp");
 save("../backend/src/abi.cpp", cpp)
 
+const webgl = exportPlan(schemaIR, "wgsl");
+save("../webgpu/src/shaders/schema.wgsl", "// THIS FILE IS FOR REFERENCE ONLY!! DO NOT INCCLUDE IT DIRECTLY!!\n" + webgl)
+
 console.log("🐏 Schema build complete.");

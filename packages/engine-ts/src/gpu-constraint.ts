@@ -9,7 +9,7 @@ import { isJsonNumberComplete } from "./json-number.ts";
 
 /** Must stay in lock-step with packages/schema/src/schema.ts. */
 export const GPU_CONSTRAINT_ABI = {
-  version: 1,
+  version: 2,
   invalidNode: 0xffff_ffff,
   maxNodes: 0xffff,
   maxSwitchEdges: 0xff,
@@ -30,6 +30,7 @@ export const GPU_CONSTRAINT_NODE_KIND = {
   string: 2,
   number: 3,
   accept: 4,
+  jump: 5,
 } as const;
 
 export const GPU_CONSTRAINT_NUMBER_FLAGS = {
@@ -37,6 +38,10 @@ export const GPU_CONSTRAINT_NUMBER_FLAGS = {
   hasMin: 1 << 1,
   hasMax: 1 << 2,
   hasStep: 1 << 3,
+} as const;
+
+export const GPU_CONSTRAINT_EDGE_FLAGS = {
+  replayByte: 1 << 24,
 } as const;
 
 export const GPU_CONSTRAINT_TOKEN_META = {
@@ -57,10 +62,17 @@ type MutableGpuNode = {
 type StaticPath = {
   bytes: number[];
   endpoint: number;
+  /** The final dispatch byte selects this endpoint but must be replayed there. */
+  replay?: boolean;
+};
+
+type TrieEndpoint = {
+  source: number;
+  replay: boolean;
 };
 
 type TrieNode = {
-  endpoint?: number;
+  endpoint?: TrieEndpoint;
   children: Map<number, TrieNode>;
 };
 
@@ -72,6 +84,7 @@ export interface GpuConstraintProgramSummary {
   readonly stringNodes: number;
   readonly numberNodes: number;
   readonly acceptNodes: number;
+  readonly jumpNodes: number;
   readonly edges: number;
   readonly byteLength: number;
   readonly blobWords: number;
@@ -153,10 +166,12 @@ function appendTriePath(root: TrieNode, path: StaticPath, label: string): void {
     }
     node = child;
   }
-  if (node.endpoint !== undefined && node.endpoint !== path.endpoint) {
-    fail(`${label}: identical byte prefix reaches source nodes ${node.endpoint} and ${path.endpoint}`);
+  const endpoint = { source: path.endpoint, replay: path.replay === true };
+  if (node.endpoint !== undefined
+    && (node.endpoint.source !== endpoint.source || node.endpoint.replay !== endpoint.replay)) {
+    fail(`${label}: identical byte prefix reaches incompatible source endpoints`);
   }
-  node.endpoint = path.endpoint;
+  node.endpoint = endpoint;
 }
 
 function validatePrefixFreeTrie(node: TrieNode, label: string): void {
@@ -216,7 +231,7 @@ export function linkGpuConstraintProgram(program: LayoutConstraintProgram): GpuC
     const source = sourceNodes[sourceId] as JsonNode | undefined;
     if (!source) fail(`source node ${sourceId} does not exist`);
 
-    if (source.kind === "choice" || source.kind === "string" || source.kind === "number" || source.kind === "accept") {
+    if (source.kind === "choice" || source.kind === "string" || source.kind === "number" || source.kind === "jump" || source.kind === "accept") {
       out.push({ bytes: prefix, endpoint: sourceId });
       return;
     }
@@ -238,25 +253,35 @@ export function linkGpuConstraintProgram(program: LayoutConstraintProgram): GpuC
   const compileTrie = (trie: TrieNode, label: string): number => {
     if (trie.endpoint !== undefined) {
       if (trie.children.size !== 0) fail(`${label}: terminal trie node still has children`);
-      return compileSource(trie.endpoint);
+      if (trie.endpoint.replay) fail(`${label}: replay endpoint must be reached through a switch edge`);
+      return compileSource(trie.endpoint.source);
     }
     if (trie.children.size === 0) fail(`${label}: empty trie node`);
 
     if (trie.children.size === 1) {
-      const bytes: number[] = [];
-      let cursor = trie;
-      while (cursor.endpoint === undefined && cursor.children.size === 1) {
-        const [[byte, child]] = cursor.children;
-        bytes.push(byte);
-        cursor = child;
+      const [[_firstByte, firstChild]] = trie.children;
+      // A replay edge is a zero-consumption dispatch guard. It cannot be
+      // collapsed into a literal because the destination lexer still needs to
+      // consume the discriminating byte itself.
+      if (!(firstChild.endpoint?.replay && firstChild.children.size === 0)) {
+        const bytes: number[] = [];
+        let cursor = trie;
+        while (cursor.endpoint === undefined && cursor.children.size === 1) {
+          const [[byte, child]] = cursor.children;
+          if (child.endpoint?.replay && child.children.size === 0) break;
+          bytes.push(byte);
+          cursor = child;
+        }
+        if (bytes.length > 0) {
+          const id = reserveNode("literal");
+          const stored = appendBytes(Uint8Array.from(bytes));
+          const node = gpuNodes[id]!;
+          node.dataOffset = stored.offset;
+          node.dataCount = stored.length;
+          node.next = compileTrie(cursor, label);
+          return id;
+        }
       }
-      const id = reserveNode("literal");
-      const stored = appendBytes(Uint8Array.from(bytes));
-      const node = gpuNodes[id]!;
-      node.dataOffset = stored.offset;
-      node.dataCount = stored.length;
-      node.next = compileTrie(cursor, label);
-      return id;
     }
 
     if (trie.children.size > GPU_CONSTRAINT_ABI.maxSwitchEdges) {
@@ -265,15 +290,24 @@ export function linkGpuConstraintProgram(program: LayoutConstraintProgram): GpuC
 
     const id = reserveNode("switch");
     const node = gpuNodes[id]!;
-    node.dataOffset = edges.length;
-    node.dataCount = trie.children.size;
+    const packedChildren: number[] = [];
 
     const sorted = [...trie.children.entries()].sort((a, b) => a[0] - b[0]);
     for (const [byte, child] of sorted) {
-      const target = compileTrie(child, label);
+      const replay = child.endpoint?.replay === true && child.children.size === 0;
+      const target = replay
+        ? compileSource(child.endpoint!.source)
+        : compileTrie(child, label);
       if (target >= 0x1_0000) fail(`${label}: edge target ${target} does not fit packed u16`);
-      edges.push((byte | (target << 8)) >>> 0);
+      packedChildren.push((byte | (target << 8) | (replay ? GPU_CONSTRAINT_EDGE_FLAGS.replayByte : 0)) >>> 0);
     }
+
+    // Children may recursively emit their own switch edges. Record this
+    // switch's range only after they are fully linked, otherwise nested tries
+    // point at the first descendant edge instead of their own table slice.
+    node.dataOffset = edges.length;
+    node.dataCount = packedChildren.length;
+    edges.push(...packedChildren);
     return id;
   };
 
@@ -286,17 +320,50 @@ export function linkGpuConstraintProgram(program: LayoutConstraintProgram): GpuC
     const unique = [...dedup.values()];
     if (unique.length === 0) fail(`${label}: static expansion produced no alternatives`);
 
-    const epsilon = unique.filter((path) => path.bytes.length === 0);
+    let expanded = unique;
+    const epsilon = expanded.filter((path) => path.bytes.length === 0);
     if (epsilon.length > 0) {
       const endpoints = new Set(epsilon.map((path) => path.endpoint));
-      if (epsilon.length === unique.length && endpoints.size === 1) {
+      if (epsilon.length === expanded.length && endpoints.size === 1) {
         return compileSource(epsilon[0]!.endpoint);
       }
-      fail(`${label}: epsilon alternative overlaps byte-consuming alternatives`);
+
+      // A split such as bounded `array<string>` branches between `]` and a
+      // dynamic lexer. Guard the lexer by its legal first byte(s), then replay
+      // that byte at the destination. The high byte of the packed switch edge
+      // carries this zero-consumption/replay flag.
+      const guarded: StaticPath[] = [];
+      for (const path of expanded) {
+        if (path.bytes.length !== 0) {
+          guarded.push(path);
+          continue;
+        }
+        const endpoint = sourceNodes[path.endpoint] as JsonNode | undefined;
+        if (!endpoint) fail(`${label}: epsilon endpoint ${path.endpoint} does not exist`);
+        if (endpoint.kind === "string") {
+          guarded.push({ bytes: [0x22], endpoint: path.endpoint, replay: true });
+          continue;
+        }
+        if (endpoint.kind === "number") {
+          guarded.push({ bytes: [0x2d], endpoint: path.endpoint, replay: true });
+          for (let byte = 0x30; byte <= 0x39; byte++) {
+            guarded.push({ bytes: [byte], endpoint: path.endpoint, replay: true });
+          }
+          continue;
+        }
+        if (endpoint.kind === "choice") {
+          for (const alternative of endpoint.alternatives) {
+            guarded.push({ bytes: [...alternative], endpoint: endpoint.next });
+          }
+          continue;
+        }
+        fail(`${label}: epsilon endpoint ${path.endpoint} (${endpoint.kind}) cannot be determinized`);
+      }
+      expanded = guarded;
     }
 
     const trie = createTrie();
-    for (const path of unique) appendTriePath(trie, path, label);
+    for (const path of expanded) appendTriePath(trie, path, label);
     validatePrefixFreeTrie(trie, label);
     return compileTrie(trie, label);
   };
@@ -375,6 +442,13 @@ export function linkGpuConstraintProgram(program: LayoutConstraintProgram): GpuC
 
     if (source.kind === "number") return compileNumber(sourceId, source);
 
+    if (source.kind === "jump") {
+      const id = reserveNode("jump");
+      sourceMemo.set(sourceId, id);
+      gpuNodes[id]!.next = compileSource(source.next);
+      return id;
+    }
+
     if (source.kind === "literal") {
       const id = reserveNode("literal");
       sourceMemo.set(sourceId, id);
@@ -409,6 +483,7 @@ export function linkGpuConstraintProgram(program: LayoutConstraintProgram): GpuC
     string: 0,
     number: 0,
     accept: 0,
+    jump: 0,
   };
   for (let id = 0; id < gpuNodes.length; id++) {
     const node = gpuNodes[id]!;
@@ -461,6 +536,7 @@ export function linkGpuConstraintProgram(program: LayoutConstraintProgram): GpuC
       stringNodes: counts.string,
       numberNodes: counts.number,
       acceptNodes: counts.accept,
+      jumpNodes: counts.jump,
       edges: packedEdges.length,
       byteLength: rawBytes.length,
       blobWords: blob.length,
@@ -532,8 +608,11 @@ export function linkGpuConstraintTokenizer(
  *   1  local0 (literal cursor / string phase / number text length)
  *   2  local1 (string decoded length)
  *   3  local2 (string unicode hex digits remaining)
- *   4..7 reserved
- *   8..15 number lexeme bytes, packed little-endian (32 ASCII bytes)
+ *   4  ConstraintDecoderStatus (low 8 bits; running = 0)
+ *   5  errorCode
+ *   6  reserved0
+ *   7  reserved1
+ *   8..15 numberText, packed little-endian (32 ASCII bytes)
  */
 export const GPU_CONSTRAINT_STATE = {
   words: 16,
@@ -542,6 +621,10 @@ export const GPU_CONSTRAINT_STATE = {
   local0: 1,
   local1: 2,
   local2: 3,
+  status: 4,
+  errorCode: 5,
+  reserved0: 6,
+  reserved1: 7,
   numberWordOffset: 8,
   numberWords: 8,
 } as const;
@@ -710,11 +793,11 @@ function gpuGoto(state: GpuConstraintDecoderState, node: number): void {
   state[GPU_CONSTRAINT_STATE.local2] = 0;
 }
 
-function gpuFindSwitchTarget(
+function gpuFindSwitchEdge(
   program: GpuConstraintProgram,
   nodeId: number,
   byte: number,
-): number | undefined {
+): { target: number; replay: boolean } | undefined {
   const edgeOffset = gpuNodeWord(program, nodeId, 2);
   const edgeCount = gpuNodeWord(program, nodeId, 3);
   let lo = 0;
@@ -729,7 +812,10 @@ function gpuFindSwitchTarget(
   if (lo >= edgeCount) return undefined;
   const packed = program.blob[program.header[6]! + edgeOffset + lo]!;
   if ((packed & 0xff) !== byte) return undefined;
-  return (packed >>> 8) & 0xffff;
+  return {
+    target: (packed >>> 8) & 0xffff,
+    replay: (packed & GPU_CONSTRAINT_EDGE_FLAGS.replayByte) !== 0,
+  };
 }
 
 /**
@@ -757,6 +843,11 @@ export function feedGpuConstraintByte(
 
     if (kind === GPU_CONSTRAINT_NODE_KIND.accept) return false;
 
+    if (kind === GPU_CONSTRAINT_NODE_KIND.jump) {
+      gpuGoto(state, next);
+      continue;
+    }
+
     if (kind === GPU_CONSTRAINT_NODE_KIND.literal) {
       const cursor = state[GPU_CONSTRAINT_STATE.local0]!;
       const byteOffset = gpuNodeWord(program, nodeId, 2);
@@ -770,9 +861,10 @@ export function feedGpuConstraintByte(
     }
 
     if (kind === GPU_CONSTRAINT_NODE_KIND.switch) {
-      const target = gpuFindSwitchTarget(program, nodeId, byte);
-      if (target === undefined) return false;
-      gpuGoto(state, target);
+      const edge = gpuFindSwitchEdge(program, nodeId, byte);
+      if (edge === undefined) return false;
+      gpuGoto(state, edge.target);
+      if (edge.replay) continue;
       return true;
     }
 

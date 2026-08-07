@@ -23,8 +23,19 @@ import {
 	linkGpuConstraintProgram,
 	linkGpuConstraintTokenizer,
 } from "../packages/engine-ts/src/gpu-constraint.ts";
-import type { LayoutConstraintProgram } from "../packages/engine-ts/src/index.ts";
-import { createGpuConstraintMaskResources } from "../packages/webgpu/src/constraint.ts";
+import {
+	compileJsonSchemaProgram,
+	type LayoutConstraintProgram,
+} from "../packages/engine-ts/src/index.ts";
+import {
+	dispatchGpuConstraintMask,
+	readGpuConstraintMask,
+	readGpuConstraintState,
+	uploadGpuConstraint,
+	writeGpuConstraintState,
+} from "../packages/webgpu/src/constraint.ts";
+import { defineLfm2, LFM2_ARENA } from "../packages/webgpu/src/lfm2-definition.ts";
+import { lfm2Artifact } from "../packages/webgpu/src/lfm2.artifact.generated.ts";
 
 async function collect(iterable: AsyncIterable<number>): Promise<number[]> {
 	const out: number[] = [];
@@ -199,66 +210,222 @@ describe("gpu constraint linker", () => {
 	});
 
 
-	test("Dawn mask matches the CPU oracle bit-for-bit", async () => {
+	test("Dawn AOT mask matches the CPU oracle bit-for-bit", async () => {
 		const { create, globals } = await import("webgpu");
 		Object.assign(globalThis, globals);
 
-		// Keep the GPUSupportedLimits owner alive until after device.destroy().
-		// dawn.node keeps its native instance alive through the object returned by create().
+		// Keep the Dawn instance alive until after the device is destroyed.
 		const gpu = create([]);
 		const adapter = await gpu.requestAdapter({ powerPreference: "high-performance" });
 		if (!adapter) throw new Error("Could not acquire a Dawn WebGPU adapter");
-		const device = await adapter.requestDevice({ label: "constraint-mask-test" });
+		const device = await adapter.requestDevice({ label: "constraint-mask-aot-test" });
 
-		const program: LayoutConstraintProgram = {
-			entry: 5,
-			accept: 0,
-			summary: {
-				rootType: "value", segments: 6, fields: 2,
-				optionalIncluded: 0, optionalSkipped: 0, enums: 0,
-				strings: 1, numbers: 1, booleans: 0, arrays: 0,
-			},
-			nodes: [
-				{ kind: "accept", label: "done" },
-				{ kind: "literal", bytes: constraintEncoder.encode("}"), text: "}", label: "close", next: 0 },
-				{ kind: "string", minLength: 1, maxLength: 4, label: "string", next: 1 },
-				{ kind: "literal", bytes: constraintEncoder.encode(',"s":'), text: ',"s":', label: "field-s", next: 2 },
-				{ kind: "number", integer: false, min: 0, max: 10, maxChars: 32, label: "number", next: 3 },
-				{ kind: "literal", bytes: constraintEncoder.encode('{"n":'), text: '{"n":', label: "field-n", next: 4 },
-			],
-		};
-		const linked = linkGpuConstraintProgram(program);
-		const tokenizer = linkGpuConstraintTokenizer([
-			{ id: 0, bytes: constraintEncoder.encode('{"n":'), special: false },
-			{ id: 1, bytes: constraintEncoder.encode("3.5"), special: false },
-			{ id: 2, bytes: constraintEncoder.encode("11,"), special: false },
-			{ id: 3, bytes: constraintEncoder.encode(',"s":"x"}'), special: false },
-			{ id: 4, bytes: null, special: true },
-		], 4);
-		const state = createGpuConstraintDecoderState(linked);
+		const definition = defineLfm2();
+		definition.engine.deserialize(lfm2Artifact);
 
-		let resources: Awaited<ReturnType<typeof createGpuConstraintMaskResources>> | undefined;
 		try {
-			resources = await createGpuConstraintMaskResources(device, linked, tokenizer, state);
+			const compiled = await definition.engine.compile({ device });
+			expect(compiled.failed).toBe(0);
+
+			const program: LayoutConstraintProgram = {
+				entry: 5,
+				accept: 0,
+				summary: {
+					rootType: "value", segments: 6, fields: 2,
+					optionalIncluded: 0, optionalSkipped: 0, enums: 0,
+					strings: 1, numbers: 1, booleans: 0, arrays: 0,
+				},
+				nodes: [
+					{ kind: "accept", label: "done" },
+					{ kind: "literal", bytes: constraintEncoder.encode("}"), text: "}", label: "close", next: 0 },
+					{ kind: "string", minLength: 1, maxLength: 4, label: "string", next: 1 },
+					{ kind: "literal", bytes: constraintEncoder.encode(',"s":'), text: ',"s":', label: "field-s", next: 2 },
+					{ kind: "number", integer: false, min: 0, max: 10, maxChars: 32, label: "number", next: 3 },
+					{ kind: "literal", bytes: constraintEncoder.encode('{"n":'), text: '{"n":', label: "field-n", next: 4 },
+				],
+			};
+			const linked = linkGpuConstraintProgram(program);
+			const tokenizer = linkGpuConstraintTokenizer([
+				{ id: 0, bytes: constraintEncoder.encode('{"n":'), special: false },
+				{ id: 1, bytes: constraintEncoder.encode("3.5"), special: false },
+				{ id: 2, bytes: constraintEncoder.encode("11,"), special: false },
+				{ id: 3, bytes: constraintEncoder.encode(',"s":"x"}'), special: false },
+				{ id: 4, bytes: null, special: true },
+			], 4);
+			const state = createGpuConstraintDecoderState(linked);
+			const upload = uploadGpuConstraint(definition, linked, tokenizer, state);
 
 			const compare = async () => {
 				const cpu = gpuConstraintMaskReference(linked, tokenizer, state);
-				const gpuMask = await resources!.readMask();
+				dispatchGpuConstraintMask(definition);
+				await device.queue.onSubmittedWorkDone();
+				const gpuMask = await readGpuConstraintMask(definition, upload.maskWords);
 				expect(Array.from(gpuMask)).toEqual(Array.from(cpu));
 			};
 
 			await compare();
 
 			expect(feedGpuConstraintBytes(linked, state, constraintEncoder.encode('{"n":'))).toBe(true);
-			resources.writeState(state);
+			writeGpuConstraintState(definition, state);
 			await compare();
 
 			expect(feedGpuConstraintBytes(linked, state, constraintEncoder.encode('3.5,"s":"x"}'))).toBe(true);
 			expect(gpuConstraintComplete(linked, state)).toBe(true);
-			resources.writeState(state);
+			writeGpuConstraintState(definition, state);
 			await compare();
+
+			// Exercise the bounded-array control-flow added by the JSON-Schema
+			// frontend. This specifically covers both the explicit jump barrier and
+			// the replay switch edge used for `]` versus a dynamic string item.
+			const arrayCpu = compileJsonSchemaProgram({
+				type: "array",
+				maxItems: 2,
+				items: { type: "string", maxLength: 2 },
+			});
+			const arrayProgram = linkGpuConstraintProgram(arrayCpu);
+			const arrayTokenizer = linkGpuConstraintTokenizer([
+				{ id: 0, bytes: constraintEncoder.encode("["), special: false },
+				{ id: 1, bytes: constraintEncoder.encode("]"), special: false },
+				{ id: 2, bytes: constraintEncoder.encode('"a"'), special: false },
+				{ id: 3, bytes: constraintEncoder.encode(',"b"'), special: false },
+				{ id: 4, bytes: null, special: true },
+			], 4);
+			const arrayState = createGpuConstraintDecoderState(arrayProgram);
+			const arrayUpload = uploadGpuConstraint(definition, arrayProgram, arrayTokenizer, arrayState);
+
+			const compareArray = async () => {
+				const cpu = gpuConstraintMaskReference(arrayProgram, arrayTokenizer, arrayState);
+				dispatchGpuConstraintMask(definition);
+				await device.queue.onSubmittedWorkDone();
+				const gpuMask = await readGpuConstraintMask(definition, arrayUpload.maskWords);
+				expect(Array.from(gpuMask)).toEqual(Array.from(cpu));
+			};
+
+			await compareArray();
+			expect(feedGpuConstraintBytes(arrayProgram, arrayState, constraintEncoder.encode("["))).toBe(true);
+			writeGpuConstraintState(definition, arrayState);
+			await compareArray();
+			expect(feedGpuConstraintBytes(arrayProgram, arrayState, constraintEncoder.encode('"a"'))).toBe(true);
+			writeGpuConstraintState(definition, arrayState);
+			await compareArray();
+			expect(feedGpuConstraintBytes(arrayProgram, arrayState, constraintEncoder.encode("]"))).toBe(true);
+			expect(gpuConstraintComplete(arrayProgram, arrayState)).toBe(true);
+			writeGpuConstraintState(definition, arrayState);
+			await compareArray();
 		} finally {
-			resources?.destroy();
+			device.destroy();
+			void gpu;
+		}
+	}, 30_000);
+	test("Dawn constrained argmax respects the exact mask and commits VM state", async () => {
+		const { create, globals } = await import("webgpu");
+		Object.assign(globalThis, globals);
+
+		const gpu = create([]);
+		const adapter = await gpu.requestAdapter({ powerPreference: "high-performance" });
+		if (!adapter) throw new Error("Could not acquire a Dawn WebGPU adapter");
+		const device = await adapter.requestDevice({ label: "constraint-argmax-aot-test" });
+
+		const definition = defineLfm2();
+		definition.engine.deserialize(lfm2Artifact);
+
+		try {
+			const compiled = await definition.engine.compile({ device });
+			expect(compiled.failed).toBe(0);
+
+			const cpuProgram = compileJsonSchemaProgram({ enum: ["A", "B", "C"] });
+			const linked = linkGpuConstraintProgram(cpuProgram);
+			const tokenizer = linkGpuConstraintTokenizer([
+				{ id: 0, bytes: constraintEncoder.encode('"A"'), special: false },
+				{ id: 1, bytes: constraintEncoder.encode('"B"'), special: false },
+				{ id: 2, bytes: constraintEncoder.encode('"C"'), special: false },
+				{ id: 3, bytes: constraintEncoder.encode('"D"'), special: false },
+				{ id: 4, bytes: null, special: true },
+			], 4);
+			const state = createGpuConstraintDecoderState(linked);
+			uploadGpuConstraint(definition, linked, tokenizer, state);
+
+			definition.resources.runtime.write({
+				contextCapacity: definition.capacities.context,
+				maxNewTokens: 4,
+				eosToken: 4,
+				promptTokenCount: 1,
+				position: 1,
+				generatedCount: 0,
+				currentToken: 0,
+				status: "running",
+				telemetryRevision: 0,
+				lastToken: 0,
+				errorCode: 0,
+				pad0: 0,
+			});
+			definition.resources.op.write({
+				inputOffset: LFM2_ARENA.logits,
+				inputDim: 5,
+				u0: 2, // synthetic EMPTY_TOKEN: schema allows token 2, sampler still must not emit it
+				mode: "prefill",
+			});
+
+			// Token 3 is forbidden by the schema and token 2 is schema-allowed but reserved by op.u0.
+			// Both outrank B, so selecting token 1 proves mask + global sentinel are applied together.
+			device.queue.writeBuffer(
+				definition.resources.arena.gpu,
+				LFM2_ARENA.logits * 4,
+				new Float32Array([2, 7, 10_000, 20_000, -1000]),
+			);
+
+			dispatchGpuConstraintMask(definition);
+			definition.engine.submit((encoder) => {
+				encoder.compute({ label: "constraint.argmax.test" }, (pass) => {
+					pass.run(
+						definition.programs.constraint_argmax,
+						{ workgroups: [1, 1, 1] },
+						{ dynamicOffsets: { op: 0 } } as any,
+					);
+				});
+			});
+			await device.queue.onSubmittedWorkDone();
+
+			const tokensAfterValue = await definition.resources.tokens.readback({ dropIfBusy: false }) as any;
+			expect(Number(tokensAfterValue[definition.capacities.context])).toBe(1);
+
+			const cpuCommitted = state.slice();
+			expect(feedGpuConstraintBytes(linked, cpuCommitted, constraintEncoder.encode('"B"'))).toBe(true);
+			expect(gpuConstraintComplete(linked, cpuCommitted)).toBe(true);
+			const gpuCommitted = await readGpuConstraintState(definition);
+			expect(Array.from(gpuCommitted)).toEqual(Array.from(cpuCommitted));
+
+			// Once the root value is complete the exact mask contains EOS only.
+			definition.resources.op.write({
+				inputOffset: LFM2_ARENA.logits,
+				inputDim: 5,
+				u0: 2,
+				mode: "decode",
+			});
+			device.queue.writeBuffer(
+				definition.resources.arena.gpu,
+				LFM2_ARENA.logits * 4,
+				new Float32Array([50_000, 40_000, 30_000, 60_000, -1000]),
+			);
+			dispatchGpuConstraintMask(definition);
+			definition.engine.submit((encoder) => {
+				encoder.compute({ label: "constraint.argmax.eos.test" }, (pass) => {
+					pass.run(
+						definition.programs.constraint_argmax,
+						{ workgroups: [1, 1, 1] },
+						{ dynamicOffsets: { op: 0 } } as any,
+					);
+				});
+			});
+			await device.queue.onSubmittedWorkDone();
+
+			const tokensAfterEos = await definition.resources.tokens.readback({ dropIfBusy: false }) as any;
+			expect(Number(tokensAfterEos[definition.capacities.context + 1])).toBe(4);
+			const runtime = await definition.resources.runtime.readback({ dropIfBusy: false }) as any;
+			expect(String(runtime.status)).toBe("eos");
+			const stateAfterEos = await readGpuConstraintState(definition);
+			expect(Array.from(stateAfterEos)).toEqual(Array.from(cpuCommitted));
+		} finally {
 			device.destroy();
 			void gpu;
 		}

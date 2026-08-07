@@ -1,7 +1,0 @@
-diff a/packages/engine-ts/src/index.ts b/packages/engine-ts/src/index.ts	(rejected hunks)
-@@ -1003,3 +1003,5 @@ export function createLayoutPlanJsonConstraint(options: {
- }): LayoutPlanJsonConstraint {
-   return new LayoutPlanJsonConstraint(options.plan, options.tokens, options.eosToken, { rootType: options.rootType });
- }
-+
-+export * from "./gpu-constraint.ts";

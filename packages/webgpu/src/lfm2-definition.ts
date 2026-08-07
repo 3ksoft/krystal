@@ -76,6 +76,17 @@ export const TOKEN_CAPACITY =
 export const TELEMETRY_CAPACITY = 256;
 export const OP_PARAM_BUFFER_BYTES = 8 * 1024 * 1024;
 
+// Structured-generation VM. These are fixed AOT binding capacities, not
+// semantic schema limits. Actual program/tokenizer blobs carry their lengths.
+export const CONSTRAINT_PROGRAM_WORD_CAPACITY = 1 << 18;   // 1 MiB
+export const CONSTRAINT_TOKENIZER_WORD_CAPACITY = 1 << 20; // 4 MiB
+export const CONSTRAINT_STATE_WORDS = 16;                   // 64 B
+export const CONSTRAINT_MASK_WORDS = Math.ceil(VOCAB / 32);
+export const CONSTRAINT_MASK_WORKGROUP_SIZE = 64;
+export const CONSTRAINT_MASK_WORKGROUPS = Math.ceil(
+  CONSTRAINT_MASK_WORDS / CONSTRAINT_MASK_WORKGROUP_SIZE,
+);
+
 export const LFM2_SHADER_NAMES = [
   "embedding",
   "embedding_wq4",
@@ -94,9 +105,15 @@ export const LFM2_SHADER_NAMES = [
   "arena_copy",
   "argmax_candidates",
   "argmax",
+  "constraint_mask",
+  "constraint_argmax",
 ] as const;
 
 export type Lfm2ShaderName = (typeof LFM2_SHADER_NAMES)[number];
+export type Lfm2PassName = Exclude<Lfm2ShaderName, "constraint_mask">;
+export const LFM2_PASS_NAMES = LFM2_SHADER_NAMES.filter(
+  (name): name is Lfm2PassName => name !== "constraint_mask",
+);
 
 export type Lfm2Mode = "prefill" | "decode" | "continuation";
 
@@ -165,6 +182,8 @@ export const LFM2_INCLUDE_NAMES = [
   "runtime",
   "telemetry",
   "weights",
+  "constraint-vm",
+  "constraint-commit",
 ] as const;
 
 export type Lfm2IncludeName = (typeof LFM2_INCLUDE_NAMES)[number];
@@ -211,6 +230,23 @@ export function defineLfm2(bundle: Lfm2ShaderBundle = emptyLfm2ShaderBundle()) {
   const convCache = engine.buffer(engine.type(`f32[] == ${CONV_ELEMENTS}`), { label: "lfm2.conv-cache", readback: true });
   const candidateTokens = engine.buffer(engine.type(`u32[] == ${VOCAB}`), { label: "lfm2.candidate-tokens" });
   const decodeTelemetry = engine.buffer(engine.type(`u32[] == ${TELEMETRY_CAPACITY}`), { label: "lfm2.decode-telemetry" });
+  const constraintProgram = engine.buffer(engine.type("u32"), {
+    label: "lfm2.constraint-program",
+    count: CONSTRAINT_PROGRAM_WORD_CAPACITY,
+  });
+  const constraintTokenizer = engine.buffer(engine.type("u32"), {
+    label: "lfm2.constraint-tokenizer",
+    count: CONSTRAINT_TOKENIZER_WORD_CAPACITY,
+  });
+  const constraintState = engine.buffer(engine.type("u32"), {
+    label: "lfm2.constraint-state",
+    count: CONSTRAINT_STATE_WORDS,
+  });
+  const constraintMask = engine.buffer(engine.type("u32"), {
+    label: "lfm2.constraint-mask",
+    count: CONSTRAINT_MASK_WORDS,
+    readback: true,
+  });
   const weightRaw = engine.buffer(engine.type("u32"), { label: "lfm2.probe-weight-raw", count: 2 });
   const weight32 = engine.buffer(engine.type("f32"), { label: "lfm2.probe-weight32", count: 2 });
 
@@ -259,6 +295,10 @@ export function defineLfm2(bundle: Lfm2ShaderBundle = emptyLfm2ShaderBundle()) {
       convCache: nativeWrite(convCache),
       candidateTokens: nativeRead(candidateTokens),
       decodeTelemetry: nativeWrite(decodeTelemetry),
+      constraintProgram: nativeRead(constraintProgram),
+      constraintTokenizer: nativeRead(constraintTokenizer),
+      constraintState: nativeRead(constraintState),
+      constraintMask: nativeWrite(constraintMask),
       weightRaw: nativeRead(weightRaw, 1),
       weight32: nativeRead(weight32, 1),
     } as const;
@@ -420,6 +460,51 @@ export function defineLfm2(bundle: Lfm2ShaderBundle = emptyLfm2ShaderBundle()) {
       includes: argmaxIncludes,
       compute: { entryPoint: "argmax", params: lid, workgroupSize: 256, code: sources.argmax },
     }),
+    constraint_mask: engine.compute({
+      label: "constraint_mask",
+      resources: {
+        constraintProgram: r.constraintProgram,
+        constraintTokenizer: r.constraintTokenizer,
+        constraintState: r.constraintState,
+        constraintMask: r.constraintMask,
+      },
+      includes: [include("constraint-vm")],
+      compute: {
+        entryPoint: "constraint_mask",
+        params: gid,
+        workgroupSize: CONSTRAINT_MASK_WORKGROUP_SIZE,
+        code: sources.constraint_mask,
+      },
+    }),
+    constraint_argmax: engine.compute({
+      label: "constraint_argmax",
+      resources: {
+        op: r.op,
+        runtime: r.runtime,
+        tokens: r.tokens,
+        arena: r.arena,
+        decodeTelemetry: r.decodeTelemetry,
+        constraintProgram: r.constraintProgram,
+        constraintTokenizer: r.constraintTokenizer,
+        constraintState: nativeWrite(constraintState),
+        constraintMask: nativeRead(constraintMask),
+      },
+      codecs: [engine.type("DecodeTelemetryEntry")],
+      includes: [
+        include("common"),
+        include("telemetry"),
+        include("reduce-f32"),
+        include("reduce-u32"),
+        include("constraint-vm"),
+        include("constraint-commit"),
+      ],
+      compute: {
+        entryPoint: "constraint_argmax",
+        params: lid,
+        workgroupSize: 256,
+        code: sources.constraint_argmax,
+      },
+    }),
   } satisfies Record<Lfm2ShaderName, AnyComputeHandle>;
 
 
@@ -475,7 +560,8 @@ export function defineLfm2(bundle: Lfm2ShaderBundle = emptyLfm2ShaderBundle()) {
 
     argmax_candidates: definePass(programs.argmax_candidates, "none", () => [1, 1, 1]),
     argmax: definePass(programs.argmax, "none", () => [1, 1, 1]),
-  } satisfies Record<Lfm2ShaderName, Lfm2PassSpec>;
+  constraint_argmax: definePass(programs.constraint_argmax, "none", () => [1, 1, 1]),
+  } satisfies Record<Lfm2PassName, Lfm2PassSpec>;
 
   const resources = {
     op,
@@ -486,6 +572,10 @@ export function defineLfm2(bundle: Lfm2ShaderBundle = emptyLfm2ShaderBundle()) {
     convCache,
     candidateTokens,
     decodeTelemetry,
+    constraintProgram,
+    constraintTokenizer,
+    constraintState,
+    constraintMask,
     weightRaw,
     weight32,
   } as const;
@@ -504,6 +594,13 @@ export function defineLfm2(bundle: Lfm2ShaderBundle = emptyLfm2ShaderBundle()) {
       telemetry: TELEMETRY_CAPACITY,
     },
     arena: LFM2_ARENA,
+    constraint: {
+      programWordCapacity: CONSTRAINT_PROGRAM_WORD_CAPACITY,
+      tokenizerWordCapacity: CONSTRAINT_TOKENIZER_WORD_CAPACITY,
+      stateWords: CONSTRAINT_STATE_WORDS,
+      maskWords: CONSTRAINT_MASK_WORDS,
+      maskWorkgroups: CONSTRAINT_MASK_WORKGROUPS,
+    },
     engine,
     resources,
     programs,

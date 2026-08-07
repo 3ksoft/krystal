@@ -290,12 +290,19 @@ export type SplitNode = {
   label: string;
 };
 
+/** Epsilon control-flow barrier used to keep deterministic GPU linking local. */
+export type JumpNode = {
+  kind: "jump";
+  next: number;
+  label: string;
+};
+
 export type AcceptNode = {
   kind: "accept";
   label: string;
 };
 
-export type JsonNode = LiteralNode | ChoiceNode | StringNode | NumberNode | SplitNode | AcceptNode;
+export type JsonNode = LiteralNode | ChoiceNode | StringNode | NumberNode | SplitNode | JumpNode | AcceptNode;
 
 export interface LayoutConstraintProgramSummary {
   rootType: string;
@@ -600,10 +607,11 @@ function normalizeProgramState(program: LayoutConstraintProgram, state: ProgramS
     const branch = queue.pop()!;
     const node = program.nodes[branch.node];
     if (!node) continue;
-    if (node.kind === "split") {
+    if (node.kind === "split" || node.kind === "jump") {
       if (seenSplit.has(branch.node)) continue;
       seenSplit.add(branch.node);
-      for (const target of node.targets) queue.push({ node: target, local: null });
+      if (node.kind === "jump") queue.push({ node: node.next, local: null });
+      else for (const target of node.targets) queue.push({ node: target, local: null });
       continue;
     }
     const key = `${branch.node}|${localKey(branch.local)}`;
@@ -614,7 +622,7 @@ function normalizeProgramState(program: LayoutConstraintProgram, state: ProgramS
   return out;
 }
 
-function ensureLocal(node: Exclude<JsonNode, SplitNode | AcceptNode>, state: BranchState): NodeLocal {
+function ensureLocal(node: Exclude<JsonNode, SplitNode | JumpNode | AcceptNode>, state: BranchState): NodeLocal {
   if (state.local) return state.local;
   switch (node.kind) {
     case "literal": state.local = { kind: "literal", offset: 0 }; break;
@@ -703,7 +711,7 @@ function feedByteFromBranch(
 
   for (const start of starts) {
     const node = program.nodes[start.node];
-    if (!node || node.kind === "accept" || node.kind === "split") continue;
+    if (!node || node.kind === "accept" || node.kind === "split" || node.kind === "jump") continue;
     const state = cloneBranchState(start);
     const local = ensureLocal(node, state);
 
@@ -821,6 +829,7 @@ function describeBranch(program: LayoutConstraintProgram, branch: BranchState): 
   if (!node) return `<invalid node ${branch.node}>`;
   if (node.kind === "accept") return "<complete>";
   if (node.kind === "split") return `${node.label} · split ${node.targets.length}`;
+  if (node.kind === "jump") return `${node.label} · jump`;
   const local = ensureLocal(node, branch);
   switch (node.kind) {
     case "literal":
@@ -1002,3 +1011,5 @@ export * from "./transport";
 export * from "./binary-transport";
 
 export * from "./gpu-constraint.ts";
+
+export * from "./json-schema-constraint.ts";

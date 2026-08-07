@@ -2,18 +2,15 @@
 //
 // bun run src/report_gpu_constraints.ts [path-to-jsonl]
 //
-// Rebuilds every LayoutPlan from the raw JSON schema (never trusts the stored
-// analysis.plan), compiles the CPU constraint graph, links the deterministic
-// GPU byte VM, and reports upload sizes. This intentionally mirrors the fresh
-// analysis path in verify_dataset.ts.
+// Compiles every raw JSON schema directly into the CPU constraint graph, then
+// links the deterministic GPU byte VM and reports upload sizes. Binary LayoutPlan
+// is intentionally bypassed here because it cannot preserve bounded dynamic
+// JSON constructs such as maxItems.
 
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { jsonSchemaToType } from "@ark/json-schema";
-import { SchemaAnalyzer } from "@schema-pop/core";
-import { scope } from "arktype";
 import {
-  compileLayoutPlanProgram,
+  compileJsonSchemaProgram,
   linkGpuConstraintProgram,
   type GpuConstraintProgramSummary,
 } from "../../engine-ts/src/index.ts";
@@ -76,40 +73,9 @@ for (const [index, line] of lines.entries()) {
     continue;
   }
 
-  let converted: unknown;
-  try {
-    converted = jsonSchemaToType(rawSchema as any);
-  } catch (error) {
-    failures.push({ index, record, stage: "schema", message: formatError(error) });
-    continue;
-  }
-  if (converted === undefined) {
-    failures.push({ index, record, stage: "schema", message: "jsonSchemaToType returned undefined" });
-    continue;
-  }
-
-  let plan: Parameters<typeof compileLayoutPlanProgram>[0];
-  try {
-    const module = scope({ value: converted });
-    const analysis = new SchemaAnalyzer().analyze(module, { mode: "binary" });
-    if (!analysis.plan || analysis.errors.length > 0) {
-      failures.push({
-        index,
-        record,
-        stage: "analyzer",
-        message: `SchemaAnalyzer failed: ${JSON.stringify(analysis.errors)}`,
-      });
-      continue;
-    }
-    plan = analysis.plan as Parameters<typeof compileLayoutPlanProgram>[0];
-  } catch (error) {
-    failures.push({ index, record, stage: "analyzer", message: formatError(error) });
-    continue;
-  }
-
   let cpu;
   try {
-    cpu = compileLayoutPlanProgram(plan);
+    cpu = compileJsonSchemaProgram(rawSchema);
   } catch (error) {
     failures.push({ index, record, stage: "cpu", message: formatError(error) });
     continue;
@@ -131,13 +97,13 @@ console.log(`rejected:   ${failures.length}`);
 
 if (successes.length > 0) {
   console.log("\n--- linked records ---");
-  console.log(" idx   id  seed   cpu   gpu  switch  edges  literals  pool   blob");
+  console.log(" idx   id  seed   cpu   gpu  jump  switch  edges  literals  pool   blob");
   for (const row of successes) {
     const g = row.gpu;
     console.log(
       `${String(row.index).padStart(4)} ${String(row.record.id).padStart(4)} ${String(row.record.seed).padStart(5)}` +
       ` ${String(row.cpuNodes).padStart(5)} ${String(g.nodes).padStart(5)}` +
-      ` ${String(g.switchNodes).padStart(7)} ${String(g.edges).padStart(6)}` +
+      ` ${String(g.jumpNodes).padStart(5)} ${String(g.switchNodes).padStart(7)} ${String(g.edges).padStart(6)}` +
       ` ${String(g.literalNodes).padStart(9)} ${String(g.byteLength).padStart(5)}` +
       ` ${kib(g.blobBytes).padStart(10)}`,
     );

@@ -54,7 +54,7 @@ export const schema = scope({
   // so one generation owns one compact decoder state instead of an NFA branch
   // set.
 
-  ConstraintNodeKind: "'literal' | 'switch' | 'string' | 'number' | 'accept'",
+  ConstraintNodeKind: "'literal' | 'switch' | 'string' | 'number' | 'accept' | 'jump'",
   ConstraintDecoderStatus: "'running' | 'accept' | 'dead' | 'error'",
 
   /**
@@ -62,7 +62,7 @@ export const schema = scope({
    * words, except byteLength which is the logical byte-pool length.
    */
   ConstraintProgramHeader: {
-    version: "u32 = 1",
+    version: "u32 = 2",
     flags: "u32 = 0",
     entryNode: "u32 = 0",
     acceptNode: "u32 = 0",
@@ -88,6 +88,7 @@ export const schema = scope({
    *          arg2/3=min byte offset/length, arg4/5=max offset/length,
    *          arg6/7=step offset/length (step rejected by GPU ABI v1)
    * accept:  payload ignored
+   * jump:    epsilon control-flow barrier; next=continuation
    *
    * Number flags: bit0=integer, bit1=hasMin, bit2=hasMax, bit3=hasStep.
    * A switch `next` of 0xffffffff means that its current trie prefix is not a
@@ -112,7 +113,7 @@ export const schema = scope({
    * One packed sparse byte-trie edge:
    *   bits  0..7  = input byte
    *   bits  8..23 = target node (maxNodes=65535)
-   *   bits 24..31 = reserved/flags
+   *   bits 24..31 = flags (bit 24 = replay input byte at target)
    */
   ConstraintByteEdge: {
     word: "u32 = 0",
@@ -149,7 +150,7 @@ export const schema = scope({
    *   string  -> local0 = phase, local1 = logical length, local2 = \uXXXX left
    *   number  -> local0 = numeric text length, local1 = JSON-number lexer phase;
    *              numberText stores <=32 ASCII bytes
-   *   switch/accept -> locals unused
+   *   switch/accept/jump -> locals unused
    *
    * Keeping the bounded number lexeme in-state avoids any per-candidate scan
    * through the generated token stream. 64 B total is cheap enough to clone
