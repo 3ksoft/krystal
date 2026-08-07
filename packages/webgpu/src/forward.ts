@@ -1,4 +1,12 @@
 import {
+  createGpuConstraintDecoderState,
+  linkGpuConstraintTokenizer,
+  type GpuConstraintTokenizer,
+} from "../../engine-ts/src/gpu-constraint.ts";
+import { gpuConstraintProgramFromBlob } from "../../engine-ts/src/structured.ts";
+import { uploadGpuConstraint } from "./constraint.ts";
+import { Lfm2Tokenizer } from "../../lfm2/src/tokenizer.ts";
+import {
   LFM2_ARENA,
   lfm2,
   type Lfm2Mode,
@@ -127,6 +135,8 @@ class Lfm2CheckpointStateImpl implements Lfm2CheckpointState {
  * it owns no bind groups, pipeline layouts or handwritten OpParams ABI.
  */
 export class Lfm2Forward {
+  private structuredTokenizer?: Lfm2Tokenizer;
+  private structuredConstraintTokenizer?: GpuConstraintTokenizer;
   readonly executor: Lfm2Executor;
 
   constructor(
@@ -941,6 +951,153 @@ export class Lfm2Forward {
       // timestamp instrumentation can provide this without synchronization.
       checkpointRestoreUs: 0,
     });
+  }
+
+  private getStructuredTokenizer(): Lfm2Tokenizer {
+    if (!this.structuredTokenizer) this.structuredTokenizer = new Lfm2Tokenizer(this.model as any);
+    return this.structuredTokenizer;
+  }
+
+  private getStructuredConstraintTokenizer(): GpuConstraintTokenizer {
+    if (this.structuredConstraintTokenizer) return this.structuredConstraintTokenizer;
+    const tokenizer = this.getStructuredTokenizer();
+    const entries = Array.from({ length: this.model.config.vocabSize }, (_, id) => {
+      const bytes = tokenizer.tokenBytes(id);
+      return {
+        id,
+        bytes,
+        // No-byte ordinary tokens would allow zero-progress decode steps and
+        // invalidate the schema-derived maxTokens bound. Treat them like other
+        // control/special vocabulary entries; EOS remains explicitly handled.
+        special: tokenizer.isSpecialToken(id) || bytes === null || bytes.length === 0,
+      };
+    });
+    this.structuredConstraintTokenizer = linkGpuConstraintTokenizer(
+      entries,
+      this.model.config.eosToken,
+    );
+    return this.structuredConstraintTokenizer;
+  }
+
+  private prepareStructuredConstraint(constraintBlob: Uint32Array): void {
+    const program = gpuConstraintProgramFromBlob(constraintBlob);
+    const state = createGpuConstraintDecoderState(program);
+    uploadGpuConstraint(
+      lfm2,
+      program,
+      this.getStructuredConstraintTokenizer(),
+      state,
+    );
+  }
+
+  async generateStructured(
+    promptTokens: Uint32Array | readonly number[],
+    constraintBlob: Uint32Array,
+    options: { readonly maxNewTokens: number },
+  ) {
+    const prompt = promptTokens instanceof Uint32Array ? promptTokens : Uint32Array.from(promptTokens);
+    const maxNewTokens = options.maxNewTokens;
+    if (maxNewTokens < 1 || maxNewTokens > lfm2.capacities.maxNewTokens) {
+      throw new Error(`Structured schema requires decode budget ${maxNewTokens}, runtime capacity is ${lfm2.capacities.maxNewTokens}`);
+    }
+    if (prompt.length < 1) throw new Error("generateStructured requires at least one context token");
+    if (prompt.length > lfm2.capacities.context) {
+      throw new Error(`Prompt has ${prompt.length} tokens, context capacity is ${lfm2.capacities.context}`);
+    }
+    if (prompt.length + maxNewTokens - 1 > lfm2.capacities.context) {
+      throw new Error(`Prompt + structured decode positions (${prompt.length + maxNewTokens - 1}) exceed context ${lfm2.capacities.context}`);
+    }
+
+    await this.prepareAll();
+    this.prepareStructuredConstraint(constraintBlob);
+    this.writeRuntime(prompt.length, maxNewTokens);
+    this.writeTokens(prompt, 0);
+
+    this.executor.submit((encoder) => {
+      this.clearState(encoder);
+      encoder.compute((pass) => {
+        this.forwardAndSampleConstrained(pass, prompt.length, "prefill", LFM2_ARENA, 0);
+        for (let step = 1; step < maxNewTokens; step++) {
+          this.forwardAndSampleConstrained(pass, 1, "decode", LFM2_ARENA, 0);
+        }
+      }, { label: "lfm2.generate.structured" });
+    });
+
+    const result = await this.readGenerationResult({
+      prefillTokens: prompt.length,
+      restoredCheckpointBytes: 0,
+      checkpointRestoreUs: 0,
+    });
+    return {
+      ...result,
+      text: this.getStructuredTokenizer().decode(result.tokens, { skipSpecial: true }),
+    };
+  }
+
+  async generateStructuredFromCheckpoint(
+    checkpoint: Lfm2CheckpointState,
+    tailTokens: Uint32Array | readonly number[],
+    constraintBlob: Uint32Array,
+    options: { readonly maxNewTokens: number },
+  ) {
+    const tail = tailTokens instanceof Uint32Array ? tailTokens : Uint32Array.from(tailTokens);
+    const maxNewTokens = options.maxNewTokens;
+    if (maxNewTokens < 1 || maxNewTokens > lfm2.capacities.maxNewTokens) {
+      throw new Error(`Structured schema requires decode budget ${maxNewTokens}, runtime capacity is ${lfm2.capacities.maxNewTokens}`);
+    }
+    const promptTokenCount = checkpoint.position + tail.length;
+    if (promptTokenCount + maxNewTokens - 1 > lfm2.capacities.context) {
+      throw new Error(`Checkpoint + tail + structured decode positions (${promptTokenCount + maxNewTokens - 1}) exceed context ${lfm2.capacities.context}`);
+    }
+
+    await this.prepareAll();
+    this.prepareStructuredConstraint(constraintBlob);
+    this.writeRuntime(promptTokenCount, maxNewTokens);
+    if (tail.length) this.writeTokens(tail, 0);
+
+    const restoredCheckpointBytes =
+      checkpoint.kvBytes + checkpoint.convBytes + (tail.length === 0 ? checkpoint.hiddenBytes : 0);
+
+    this.executor.submit((encoder) => {
+      this.restoreCheckpoint(encoder, checkpoint);
+      if (!tail.length) {
+        encoder.gpu.copyBufferToBuffer(
+          checkpoint.lastHidden,
+          0,
+          lfm2.resources.arena.gpu,
+          LFM2_ARENA.hiddenA * 4,
+          this.model.config.hiddenSize * 4,
+        );
+      }
+
+      encoder.compute((pass) => {
+        if (tail.length) {
+          this.embed(pass, tail.length, "prefill", LFM2_ARENA, 0);
+          this.layers(pass, 0, this.model.config.blockCount, tail.length, {
+            mode: "continuation",
+            work: LFM2_ARENA,
+            positionBase: checkpoint.position,
+          });
+          this.projectLogits(pass, tail.length, "prefill", LFM2_ARENA);
+        } else {
+          this.projectLogits(pass, 1, "prefill", LFM2_ARENA);
+        }
+        this.commitConstraintArgmax(pass, "prefill");
+        for (let step = 1; step < maxNewTokens; step++) {
+          this.forwardAndSampleConstrained(pass, 1, "decode", LFM2_ARENA, 0);
+        }
+      }, { label: "lfm2.generate.structured-checkpoint" });
+    });
+
+    const result = await this.readGenerationResult({
+      prefillTokens: tail.length,
+      restoredCheckpointBytes,
+      checkpointRestoreUs: 0,
+    });
+    return {
+      ...result,
+      text: this.getStructuredTokenizer().decode(result.tokens, { skipSpecial: true }),
+    };
   }
 
   private async readGenerationResult(execution: Lfm2ExecutionFacts): Promise<Lfm2GenerationResult> {

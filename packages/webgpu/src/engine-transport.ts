@@ -1,4 +1,6 @@
+import { CONTEXT_FLAG_STRUCTURED } from "@chomato/bridge/constants";
 import {
+  completedWithPayload,
   InProcessTransport,
   completed,
   decodeU32Payload,
@@ -44,6 +46,28 @@ export interface Lfm2GenerationRuntime {
     tailTokens: Uint32Array | readonly number[],
     options?: { readonly maxNewTokens?: number },
   ): Promise<Lfm2RuntimeGenerationResult>;
+  generateStructured(
+    promptTokens: Uint32Array | readonly number[],
+    constraintBlob: Uint32Array,
+    options: { readonly maxNewTokens: number },
+  ): Promise<Lfm2RuntimeGenerationResult & { readonly text: string }>;
+  generateStructuredFromCheckpoint(
+    checkpoint: Lfm2RuntimeCheckpoint,
+    tailTokens: Uint32Array | readonly number[],
+    constraintBlob: Uint32Array,
+    options: { readonly maxNewTokens: number },
+  ): Promise<Lfm2RuntimeGenerationResult & { readonly text: string }>;
+}
+
+function decodeConstraintWords(payload: Uint8Array | undefined, byteOffset: number): Uint32Array {
+  const total = payload?.byteLength ?? 0;
+  if (byteOffset < 0 || byteOffset > total) throw new Error(`Invalid structured payload offset ${byteOffset}/${total}`);
+  const bytes = total - byteOffset;
+  if (bytes <= 0 || (bytes & 3) !== 0) throw new Error(`Invalid constraint payload size ${bytes}`);
+  const result = new Uint32Array(bytes >>> 2);
+  const view = new DataView(payload!.buffer, payload!.byteOffset + byteOffset, bytes);
+  for (let i = 0; i < result.length; i++) result[i] = view.getUint32(i * 4, true);
+  return result;
 }
 
 function concatTokens(parts: readonly Uint32Array[]): Uint32Array {
@@ -165,6 +189,49 @@ export class Lfm2WebGpuEngineBackend {
       }
 
       case "Generate": {
+        if ((command.context.reserved & CONTEXT_FLAG_STRUCTURED) !== 0) {
+          const blockBytes = command.context.blockCount * 4;
+          const totalBytes = frame.payload?.byteLength ?? 0;
+          if (totalBytes < blockBytes) {
+            throw new Error(`Structured Generate payload has ${totalBytes} bytes; block ids require ${blockBytes}`);
+          }
+          const blockPayload = blockBytes > 0
+            ? frame.payload!.subarray(0, blockBytes)
+            : new Uint8Array(0);
+          const constraintBlob = decodeConstraintWords(frame.payload, blockBytes);
+          const context = this.resolveContext(command.context, blockPayload);
+          if (context.full.length === 0) throw new Error("Generation context is empty");
+          this.cancelled.delete(command.operation);
+
+          const result = context.checkpoint
+            ? await this.forward.generateStructuredFromCheckpoint(
+                context.checkpoint.state,
+                context.appended,
+                constraintBlob,
+                { maxNewTokens: command.maxTokens },
+              )
+            : await this.forward.generateStructured(
+                context.appended,
+                constraintBlob,
+                { maxNewTokens: command.maxTokens },
+              );
+
+          if (this.cancelled.has(command.operation)) {
+            this.cancelled.delete(command.operation);
+            emit(failed(command.operation, "Cancelled", "Generation cancelled"));
+            return;
+          }
+
+          emit(executionStats(command.operation, {
+            prefillTokens: result.execution.prefillTokens,
+            checkpointHits: context.checkpoint ? 1 : 0,
+            checkpointMisses: 0,
+            restoredBytes: result.execution.restoredCheckpointBytes,
+          }));
+          emit(completedWithPayload(command.operation, new TextEncoder().encode(result.text)));
+          return;
+        }
+
         const context = this.resolveContext(command.context, frame.payload);
         if (context.full.length === 0) throw new Error("Generation context is empty");
         this.cancelled.delete(command.operation);

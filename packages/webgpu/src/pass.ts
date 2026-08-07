@@ -41,7 +41,7 @@ export function lfm2Pass(
   };
 }
 
-const OP_PARAM_BYTES = 256;
+const OP_PARAM_BYTES = 64;
 
 function align(value: number, alignment: number): number {
   return Math.ceil(value / alignment) * alignment;

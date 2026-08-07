@@ -127,10 +127,8 @@ struct OpParams {
 	f1: f32,
 	u0: u32,
 	u1: u32,
-	reserved: array<u32, 48>,
 };
 
-const OP_PARAMS_RESERVED_LEN: u32 = 48u;
 
 alias LlmRuntimeStatus = u32;
 const LlmRuntimeStatus_idle: LlmRuntimeStatus = SMB_idle;
@@ -282,6 +280,7 @@ fn unpack_constraint_program_header(raw: array<u32, 12>) -> ConstraintProgramHea
 
 fn pack_constraint_program_header_to_words(unpacked: ConstraintProgramHeader) -> array<u32, 12> {
 	var out: array<u32, 12>;
+	for (var w = 0u; w < 12u; w++) { out[w] = 0u; }
 	out[0u] = bitcast<u32>(unpacked.version);
 	out[1u] = bitcast<u32>(unpacked.flags);
 	out[2u] = bitcast<u32>(unpacked.entryNode);
@@ -324,7 +323,7 @@ fn unpack_constraint_node(raw: array<u32, 12>) -> ConstraintNode {
 
 fn pack_constraint_node_to_words(unpacked: ConstraintNode) -> array<u32, 12> {
 	var out: array<u32, 12>;
-	out[0u] = 0u;
+	for (var w = 0u; w < 12u; w++) { out[w] = 0u; }
 	out[0u] = insertBits(out[0u], u32(unpacked.kind), 0u, 8u);
 	out[1u] = bitcast<u32>(unpacked.next);
 	out[2u] = bitcast<u32>(unpacked.dataOffset);
@@ -355,7 +354,7 @@ fn unpack_constraint_byte_edge(raw: u32) -> ConstraintByteEdge {
 }
 
 fn pack_constraint_byte_edge_to_words(unpacked: ConstraintByteEdge) -> u32 {
-	var out: u32;
+	var out: u32 = 0u;
 	out = bitcast<u32>(unpacked.word);
 	return out;
 }
@@ -383,6 +382,7 @@ fn unpack_constraint_tokenizer_header(raw: array<u32, 8>) -> ConstraintTokenizer
 
 fn pack_constraint_tokenizer_header_to_words(unpacked: ConstraintTokenizerHeader) -> array<u32, 8> {
 	var out: array<u32, 8>;
+	for (var w = 0u; w < 8u; w++) { out[w] = 0u; }
 	out[0u] = bitcast<u32>(unpacked.tokenCount);
 	out[1u] = bitcast<u32>(unpacked.eosToken);
 	out[2u] = bitcast<u32>(unpacked.entryWordOffset);
@@ -411,6 +411,7 @@ fn unpack_constraint_token_byte_entry(raw: array<u32, 2>) -> ConstraintTokenByte
 
 fn pack_constraint_token_byte_entry_to_words(unpacked: ConstraintTokenByteEntry) -> array<u32, 2> {
 	var out: array<u32, 2>;
+	for (var w = 0u; w < 2u; w++) { out[w] = 0u; }
 	out[0u] = bitcast<u32>(unpacked.byteOffset);
 	out[1u] = bitcast<u32>(unpacked.meta);
 	return out;
@@ -442,11 +443,11 @@ fn unpack_constraint_decoder_state(raw: array<u32, 16>) -> ConstraintDecoderStat
 
 fn pack_constraint_decoder_state_to_words(unpacked: ConstraintDecoderState) -> array<u32, 16> {
 	var out: array<u32, 16>;
+	for (var w = 0u; w < 16u; w++) { out[w] = 0u; }
 	out[0u] = bitcast<u32>(unpacked.node);
 	out[1u] = bitcast<u32>(unpacked.local0);
 	out[2u] = bitcast<u32>(unpacked.local1);
 	out[3u] = bitcast<u32>(unpacked.local2);
-	out[4u] = 0u;
 	out[4u] = insertBits(out[4u], u32(unpacked.status), 0u, 8u);
 	out[5u] = bitcast<u32>(unpacked.errorCode);
 	out[6u] = bitcast<u32>(unpacked.reserved0);
@@ -461,7 +462,7 @@ fn pack_constraint_decoder_state(unpacked: ConstraintDecoderState) -> array<u32,
 	return pack_constraint_decoder_state_to_words(unpacked);
 }
 
-fn unpack_words_to_op_params(raw: array<u32, 64>) -> OpParams {
+fn unpack_words_to_op_params(raw: array<u32, 16>) -> OpParams {
 	var out: OpParams;
 	out.inputOffset = bitcast<u32>(raw[0u]);
 	out.outputOffset = bitcast<u32>(raw[1u]);
@@ -479,18 +480,16 @@ fn unpack_words_to_op_params(raw: array<u32, 64>) -> OpParams {
 	out.f1 = bitcast<f32>(raw[13u]);
 	out.u0 = bitcast<u32>(raw[14u]);
 	out.u1 = bitcast<u32>(raw[15u]);
-	for (var i_0 = 0u; i_0 < 48u; i_0++) {
-		out.reserved[i_0] = bitcast<u32>(raw[16u + (i_0 * 1u)]);
-	}
 	return out;
 }
 
-fn unpack_op_params(raw: array<u32, 64>) -> OpParams {
+fn unpack_op_params(raw: array<u32, 16>) -> OpParams {
 	return unpack_words_to_op_params(raw);
 }
 
-fn pack_op_params_to_words(unpacked: OpParams) -> array<u32, 64> {
-	var out: array<u32, 64>;
+fn pack_op_params_to_words(unpacked: OpParams) -> array<u32, 16> {
+	var out: array<u32, 16>;
+	for (var w = 0u; w < 16u; w++) { out[w] = 0u; }
 	out[0u] = bitcast<u32>(unpacked.inputOffset);
 	out[1u] = bitcast<u32>(unpacked.outputOffset);
 	out[2u] = bitcast<u32>(unpacked.auxOffset);
@@ -502,19 +501,15 @@ fn pack_op_params_to_words(unpacked: OpParams) -> array<u32, 64> {
 	out[8u] = bitcast<u32>(unpacked.rowCount);
 	out[9u] = bitcast<u32>(unpacked.layerIndex);
 	out[10u] = bitcast<u32>(unpacked.attentionSlot);
-	out[11u] = 0u;
 	out[11u] = insertBits(out[11u], u32(unpacked.mode), 0u, 8u);
 	out[12u] = bitcast<u32>(unpacked.f0);
 	out[13u] = bitcast<u32>(unpacked.f1);
 	out[14u] = bitcast<u32>(unpacked.u0);
 	out[15u] = bitcast<u32>(unpacked.u1);
-	for (var i_0 = 0u; i_0 < 48u; i_0++) {
-			out[16u + (i_0 * 1u)] = bitcast<u32>(unpacked.reserved[i_0]);
-		}
 	return out;
 }
 
-fn pack_op_params(unpacked: OpParams) -> array<u32, 64> {
+fn pack_op_params(unpacked: OpParams) -> array<u32, 16> {
 	return pack_op_params_to_words(unpacked);
 }
 
@@ -541,6 +536,7 @@ fn unpack_llm_runtime(raw: array<u32, 12>) -> LlmRuntime {
 
 fn pack_llm_runtime_to_words(unpacked: LlmRuntime) -> array<u32, 12> {
 	var out: array<u32, 12>;
+	for (var w = 0u; w < 12u; w++) { out[w] = 0u; }
 	out[0u] = bitcast<u32>(unpacked.contextCapacity);
 	out[1u] = bitcast<u32>(unpacked.maxNewTokens);
 	out[2u] = bitcast<u32>(unpacked.eosToken);
@@ -548,7 +544,6 @@ fn pack_llm_runtime_to_words(unpacked: LlmRuntime) -> array<u32, 12> {
 	out[4u] = bitcast<u32>(unpacked.position);
 	out[5u] = bitcast<u32>(unpacked.generatedCount);
 	out[6u] = bitcast<u32>(unpacked.currentToken);
-	out[7u] = 0u;
 	out[7u] = insertBits(out[7u], u32(unpacked.status), 0u, 8u);
 	out[8u] = bitcast<u32>(unpacked.telemetryRevision);
 	out[9u] = bitcast<u32>(unpacked.lastToken);
@@ -574,8 +569,7 @@ fn unpack_decode_telemetry_entry(raw: u32) -> DecodeTelemetryEntry {
 }
 
 fn pack_decode_telemetry_entry_to_words(unpacked: DecodeTelemetryEntry) -> u32 {
-	var out: u32;
-	out = 0u;
+	var out: u32 = 0u;
 	out = insertBits(out, u32(unpacked.position), 0u, 8u);
 	out = insertBits(out, u32(unpacked.status), 8u, 4u);
 	out = insertBits(out, u32(unpacked.tokenId), 16u, 16u);
@@ -597,6 +591,7 @@ fn unpack_generate_options(raw: array<u32, 5>) -> GenerateOptions {
 
 fn pack_generate_options_to_words(unpacked: GenerateOptions) -> array<u32, 5> {
 	var out: array<u32, 5>;
+	for (var w = 0u; w < 5u; w++) { out[w] = 0u; }
 			return out;
 }
 
@@ -621,6 +616,7 @@ fn unpack_generate_timings(raw: array<u32, 27>) -> GenerateTimings {
 
 fn pack_generate_timings_to_words(unpacked: GenerateTimings) -> array<u32, 27> {
 	var out: array<u32, 27>;
+	for (var w = 0u; w < 27u; w++) { out[w] = 0u; }
 	out[0u] = bitcast<u32>(unpacked.prefillMs);
 	out[2u] = bitcast<u32>(unpacked.decodeMs);
 	out[4u] = bitcast<u32>(unpacked.readbackMs);
@@ -653,6 +649,7 @@ fn unpack_generate_result(raw: array<u32, 41>) -> GenerateResult {
 
 fn pack_generate_result_to_words(unpacked: GenerateResult) -> array<u32, 41> {
 	var out: array<u32, 41>;
+	for (var w = 0u; w < 41u; w++) { out[w] = 0u; }
 	for (var i_0 = 0u; i_0 < 0u; i_0++) {
 			out[0u + (i_0 * 1u)] = bitcast<u32>(unpacked.tokenIds[i_0]);
 		}
@@ -678,6 +675,7 @@ fn unpack_cache_block_options(raw: array<u32, 3>) -> CacheBlockOptions {
 
 fn pack_cache_block_options_to_words(unpacked: CacheBlockOptions) -> array<u32, 3> {
 	var out: array<u32, 3>;
+	for (var w = 0u; w < 3u; w++) { out[w] = 0u; }
 		return out;
 }
 
@@ -716,6 +714,7 @@ fn unpack_lfm2_runtime_config(raw: array<u32, 25>) -> Lfm2RuntimeConfig {
 
 fn pack_lfm2_runtime_config_to_words(unpacked: Lfm2RuntimeConfig) -> array<u32, 25> {
 	var out: array<u32, 25>;
+	for (var w = 0u; w < 25u; w++) { out[w] = 0u; }
 	out[0u] = bitcast<u32>(unpacked.contextLength);
 	out[2u] = bitcast<u32>(unpacked.hiddenSize);
 	out[4u] = bitcast<u32>(unpacked.feedForwardSize);
@@ -758,6 +757,7 @@ fn unpack_matmul_dispatch_args(raw: array<u32, 8>) -> MatmulDispatchArgs {
 
 fn pack_matmul_dispatch_args_to_words(unpacked: MatmulDispatchArgs) -> array<u32, 8> {
 	var out: array<u32, 8>;
+	for (var w = 0u; w < 8u; w++) { out[w] = 0u; }
 	out[0u] = bitcast<u32>(unpacked.rowCount);
 	out[2u] = bitcast<u32>(unpacked.tokenCount);
 	out[4u] = bitcast<u32>(unpacked.inputDim);
@@ -767,6 +767,42 @@ fn pack_matmul_dispatch_args_to_words(unpacked: MatmulDispatchArgs) -> array<u32
 
 fn pack_matmul_dispatch_args(unpacked: MatmulDispatchArgs) -> array<u32, 8> {
 	return pack_matmul_dispatch_args_to_words(unpacked);
+}
+
+fn unpack_words_to_gpu_buffer(raw: u32) -> GPUBuffer {
+	var out: GPUBuffer;
+		return out;
+}
+
+fn unpack_gpu_buffer(raw: u32) -> GPUBuffer {
+	return unpack_words_to_gpu_buffer(raw);
+}
+
+fn pack_gpu_buffer_to_words(unpacked: GPUBuffer) -> u32 {
+	var out: u32 = 0u;
+		return out;
+}
+
+fn pack_gpu_buffer(unpacked: GPUBuffer) -> u32 {
+	return pack_gpu_buffer_to_words(unpacked);
+}
+
+fn unpack_words_to_gpu_device(raw: u32) -> GPUDevice {
+	var out: GPUDevice;
+		return out;
+}
+
+fn unpack_gpu_device(raw: u32) -> GPUDevice {
+	return unpack_words_to_gpu_device(raw);
+}
+
+fn pack_gpu_device_to_words(unpacked: GPUDevice) -> u32 {
+	var out: u32 = 0u;
+		return out;
+}
+
+fn pack_gpu_device(unpacked: GPUDevice) -> u32 {
+	return pack_gpu_device_to_words(unpacked);
 }
 
 fn unpack_words_to_gpu_tensor_page(raw: array<u32, 6>) -> GpuTensorPage {
@@ -784,7 +820,7 @@ fn unpack_gpu_tensor_page(raw: array<u32, 6>) -> GpuTensorPage {
 
 fn pack_gpu_tensor_page_to_words(unpacked: GpuTensorPage) -> array<u32, 6> {
 	var out: array<u32, 6>;
-	out[0u] = 0u;
+	for (var w = 0u; w < 6u; w++) { out[w] = 0u; }
 	out[0u] = insertBits(out[0u], pack_gpu_buffer_to_words(unpacked.buffer), 0u, 0u);
 	out[0u] = bitcast<u32>(unpacked.rowStart);
 	out[2u] = bitcast<u32>(unpacked.rowCount);
@@ -818,8 +854,8 @@ fn unpack_gpu_tensor(raw: array<u32, 7>) -> GpuTensor {
 
 fn pack_gpu_tensor_to_words(unpacked: GpuTensor) -> array<u32, 7> {
 	var out: array<u32, 7>;
-		out[1u] = 0u;
-	out[1u] = insertBits(out[1u], u32(unpacked.format), 0u, 8u);
+	for (var w = 0u; w < 7u; w++) { out[w] = 0u; }
+		out[1u] = insertBits(out[1u], u32(unpacked.format), 0u, 8u);
 	for (var i_0 = 0u; i_0 < 0u; i_0++) {
 			out[2u + (i_0 * 1u)] = bitcast<u32>(unpacked.dimensions[i_0]);
 		}
@@ -836,6 +872,59 @@ fn pack_gpu_tensor(unpacked: GpuTensor) -> array<u32, 7> {
 	return pack_gpu_tensor_to_words(unpacked);
 }
 
+fn unpack_words_to_lfm2_runtime_model(raw: array<u32, 26>) -> Lfm2RuntimeModel {
+	var out: Lfm2RuntimeModel;
+	out.device = unpack_words_to_gpu_device(extractBits(raw[0u], 0u, 0u));
+	{
+		var tmp: array<u32, 25>;
+		for (var j_0 = 0u; j_0 < 25u; j_0++) { tmp[j_0] = raw[0u + j_0]; }
+		out.config = unpack_words_to_lfm2_runtime_config(tmp);
+	}
+	out.tensor = u32(extractBits(raw[25u], 0u, 8u));
+	return out;
+}
+
+fn unpack_lfm2_runtime_model(raw: array<u32, 26>) -> Lfm2RuntimeModel {
+	return unpack_words_to_lfm2_runtime_model(raw);
+}
+
+fn pack_lfm2_runtime_model_to_words(unpacked: Lfm2RuntimeModel) -> array<u32, 26> {
+	var out: array<u32, 26>;
+	for (var w = 0u; w < 26u; w++) { out[w] = 0u; }
+	out[0u] = insertBits(out[0u], pack_gpu_device_to_words(unpacked.device), 0u, 0u);
+	{
+		let tmp = pack_lfm2_runtime_config_to_words(unpacked.config);
+		for (var j_0 = 0u; j_0 < 25u; j_0++) { out[0u + j_0] = tmp[j_0]; }
+	}
+	out[25u] = insertBits(out[25u], u32(unpacked.tensor), 0u, 8u);
+	return out;
+}
+
+fn pack_lfm2_runtime_model(unpacked: Lfm2RuntimeModel) -> array<u32, 26> {
+	return pack_lfm2_runtime_model_to_words(unpacked);
+}
+
+fn unpack_words_to_matmul_kernel_spec(raw: array<u32, 4>) -> MatmulKernelSpec {
+	var out: MatmulKernelSpec;
+			out.workgroups = u32(extractBits(raw[3u], 0u, 8u));
+	return out;
+}
+
+fn unpack_matmul_kernel_spec(raw: array<u32, 4>) -> MatmulKernelSpec {
+	return unpack_words_to_matmul_kernel_spec(raw);
+}
+
+fn pack_matmul_kernel_spec_to_words(unpacked: MatmulKernelSpec) -> array<u32, 4> {
+	var out: array<u32, 4>;
+	for (var w = 0u; w < 4u; w++) { out[w] = 0u; }
+			out[3u] = insertBits(out[3u], u32(unpacked.workgroups), 0u, 8u);
+	return out;
+}
+
+fn pack_matmul_kernel_spec(unpacked: MatmulKernelSpec) -> array<u32, 4> {
+	return pack_matmul_kernel_spec_to_words(unpacked);
+}
+
 fn unpack_words_to_lfm2_runtime_options(raw: array<u32, 22>) -> Lfm2RuntimeOptions {
 	var out: Lfm2RuntimeOptions;
 				return out;
@@ -847,6 +936,7 @@ fn unpack_lfm2_runtime_options(raw: array<u32, 22>) -> Lfm2RuntimeOptions {
 
 fn pack_lfm2_runtime_options_to_words(unpacked: Lfm2RuntimeOptions) -> array<u32, 22> {
 	var out: array<u32, 22>;
+	for (var w = 0u; w < 22u; w++) { out[w] = 0u; }
 				return out;
 }
 

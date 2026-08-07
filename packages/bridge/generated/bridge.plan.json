@@ -1,0 +1,1300 @@
+{
+  "schemaName": "chomato_bridge",
+  "endian": "le",
+  "wordSize": "32",
+  "autoSort": false,
+  "autoPack": false,
+  "layout": "zero-padding",
+  "mode": "binary",
+  "version": "1.0.0",
+  "types": [
+    {
+      "kind": "enum",
+      "name": "EngineEventTag",
+      "size": 1,
+      "align": 1,
+      "paddedSize": 1,
+      "variants": [
+        {
+          "name": "Completed",
+          "value": 0,
+          "description": "",
+          "symbol": "Completed"
+        },
+        {
+          "name": "ExecutionStats",
+          "value": 1,
+          "description": "",
+          "symbol": "ExecutionStats"
+        },
+        {
+          "name": "Failed",
+          "value": 2,
+          "description": "",
+          "symbol": "Failed"
+        },
+        {
+          "name": "TokenEmitted",
+          "value": 3,
+          "description": "",
+          "symbol": "TokenEmitted"
+        }
+      ],
+      "underlyingType": "u8",
+      "synthetic": true
+    },
+    {
+      "kind": "enum",
+      "name": "EngineCommandTag",
+      "size": 1,
+      "align": 1,
+      "paddedSize": 1,
+      "variants": [
+        {
+          "name": "Cancel",
+          "value": 0,
+          "description": "",
+          "symbol": "Cancel"
+        },
+        {
+          "name": "CreateCheckpoint",
+          "value": 1,
+          "description": "",
+          "symbol": "CreateCheckpoint"
+        },
+        {
+          "name": "DropBlock",
+          "value": 2,
+          "description": "",
+          "symbol": "DropBlock"
+        },
+        {
+          "name": "DropCheckpoint",
+          "value": 3,
+          "description": "",
+          "symbol": "DropCheckpoint"
+        },
+        {
+          "name": "Generate",
+          "value": 4,
+          "description": "",
+          "symbol": "Generate"
+        },
+        {
+          "name": "PutBlock",
+          "value": 5,
+          "description": "",
+          "symbol": "PutBlock"
+        }
+      ],
+      "underlyingType": "u8",
+      "synthetic": true
+    },
+    {
+      "kind": "enum",
+      "name": "FrameDirection",
+      "size": 1,
+      "align": 1,
+      "paddedSize": 1,
+      "variants": [
+        {
+          "name": "command",
+          "value": 0,
+          "description": "",
+          "symbol": "command"
+        },
+        {
+          "name": "event",
+          "value": 1,
+          "description": "",
+          "symbol": "event"
+        }
+      ],
+      "underlyingType": "u8",
+      "description": ""
+    },
+    {
+      "kind": "struct",
+      "name": "FrameHeader",
+      "size": 16,
+      "align": 1,
+      "paddedSize": 16,
+      "fields": [
+        {
+          "name": "magic",
+          "type": {
+            "kind": "primitive",
+            "name": "u32",
+            "size": 4,
+            "align": 4,
+            "paddedSize": 4,
+            "bitSize": 32,
+            "unsigned": true,
+            "isFloat": false
+          },
+          "offset": 0,
+          "bitOffset": 0,
+          "bitSize": 32,
+          "size": 4,
+          "paddingAfter": 0
+        },
+        {
+          "name": "version",
+          "type": {
+            "kind": "primitive",
+            "name": "u16",
+            "size": 2,
+            "align": 2,
+            "paddedSize": 2,
+            "bitSize": 16,
+            "unsigned": true,
+            "isFloat": false
+          },
+          "offset": 4,
+          "bitOffset": 0,
+          "bitSize": 16,
+          "size": 2,
+          "paddingAfter": 0
+        },
+        {
+          "name": "direction",
+          "type": {
+            "kind": "reference",
+            "name": "FrameDirection",
+            "indirection": "inline",
+            "isForward": false
+          },
+          "offset": 6,
+          "bitOffset": 0,
+          "bitSize": 8,
+          "size": 1,
+          "paddingAfter": 0
+        },
+        {
+          "name": "flags",
+          "type": {
+            "kind": "primitive",
+            "name": "u8",
+            "size": 1,
+            "align": 1,
+            "paddedSize": 1,
+            "bitSize": 8,
+            "unsigned": true,
+            "isFloat": false
+          },
+          "offset": 7,
+          "bitOffset": 0,
+          "bitSize": 8,
+          "size": 1,
+          "paddingAfter": 0
+        },
+        {
+          "name": "bodyBytes",
+          "type": {
+            "kind": "primitive",
+            "name": "u32",
+            "size": 4,
+            "align": 4,
+            "paddedSize": 4,
+            "bitSize": 32,
+            "unsigned": true,
+            "isFloat": false
+          },
+          "offset": 8,
+          "bitOffset": 0,
+          "bitSize": 32,
+          "size": 4,
+          "paddingAfter": 0
+        },
+        {
+          "name": "payloadBytes",
+          "type": {
+            "kind": "primitive",
+            "name": "u32",
+            "size": 4,
+            "align": 4,
+            "paddedSize": 4,
+            "bitSize": 32,
+            "unsigned": true,
+            "isFloat": false
+          },
+          "offset": 12,
+          "bitOffset": 0,
+          "bitSize": 32,
+          "size": 4,
+          "paddingAfter": 0
+        }
+      ],
+      "description": ""
+    },
+    {
+      "kind": "struct",
+      "name": "ContextRef",
+      "size": 8,
+      "align": 1,
+      "paddedSize": 8,
+      "fields": [
+        {
+          "name": "checkpoint",
+          "type": {
+            "kind": "primitive",
+            "name": "u32",
+            "size": 4,
+            "align": 4,
+            "paddedSize": 4,
+            "bitSize": 32,
+            "unsigned": true,
+            "isFloat": false
+          },
+          "offset": 0,
+          "bitOffset": 0,
+          "bitSize": 32,
+          "size": 4,
+          "paddingAfter": 0
+        },
+        {
+          "name": "blockCount",
+          "type": {
+            "kind": "primitive",
+            "name": "u16",
+            "size": 2,
+            "align": 2,
+            "paddedSize": 2,
+            "bitSize": 16,
+            "unsigned": true,
+            "isFloat": false
+          },
+          "offset": 4,
+          "bitOffset": 0,
+          "bitSize": 16,
+          "size": 2,
+          "paddingAfter": 0
+        },
+        {
+          "name": "reserved",
+          "type": {
+            "kind": "primitive",
+            "name": "u16",
+            "size": 2,
+            "align": 2,
+            "paddedSize": 2,
+            "bitSize": 16,
+            "unsigned": true,
+            "isFloat": false
+          },
+          "offset": 6,
+          "bitOffset": 0,
+          "bitSize": 16,
+          "size": 2,
+          "paddingAfter": 0
+        }
+      ],
+      "description": ""
+    },
+    {
+      "kind": "struct",
+      "name": "PutBlock",
+      "size": 12,
+      "align": 1,
+      "paddedSize": 12,
+      "fields": [
+        {
+          "name": "kind",
+          "type": {
+            "kind": "unit"
+          },
+          "offset": 0,
+          "bitOffset": 0,
+          "bitSize": 0,
+          "size": 0,
+          "paddingAfter": 0
+        },
+        {
+          "name": "operation",
+          "type": {
+            "kind": "primitive",
+            "name": "u32",
+            "size": 4,
+            "align": 4,
+            "paddedSize": 4,
+            "bitSize": 32,
+            "unsigned": true,
+            "isFloat": false
+          },
+          "offset": 0,
+          "bitOffset": 0,
+          "bitSize": 32,
+          "size": 4,
+          "paddingAfter": 0
+        },
+        {
+          "name": "block",
+          "type": {
+            "kind": "primitive",
+            "name": "u32",
+            "size": 4,
+            "align": 4,
+            "paddedSize": 4,
+            "bitSize": 32,
+            "unsigned": true,
+            "isFloat": false
+          },
+          "offset": 4,
+          "bitOffset": 0,
+          "bitSize": 32,
+          "size": 4,
+          "paddingAfter": 0
+        },
+        {
+          "name": "tokenCount",
+          "type": {
+            "kind": "primitive",
+            "name": "u32",
+            "size": 4,
+            "align": 4,
+            "paddedSize": 4,
+            "bitSize": 32,
+            "unsigned": true,
+            "isFloat": false
+          },
+          "offset": 8,
+          "bitOffset": 0,
+          "bitSize": 32,
+          "size": 4,
+          "paddingAfter": 0
+        }
+      ],
+      "description": ""
+    },
+    {
+      "kind": "struct",
+      "name": "DropBlock",
+      "size": 8,
+      "align": 1,
+      "paddedSize": 8,
+      "fields": [
+        {
+          "name": "kind",
+          "type": {
+            "kind": "unit"
+          },
+          "offset": 0,
+          "bitOffset": 0,
+          "bitSize": 0,
+          "size": 0,
+          "paddingAfter": 0
+        },
+        {
+          "name": "operation",
+          "type": {
+            "kind": "primitive",
+            "name": "u32",
+            "size": 4,
+            "align": 4,
+            "paddedSize": 4,
+            "bitSize": 32,
+            "unsigned": true,
+            "isFloat": false
+          },
+          "offset": 0,
+          "bitOffset": 0,
+          "bitSize": 32,
+          "size": 4,
+          "paddingAfter": 0
+        },
+        {
+          "name": "block",
+          "type": {
+            "kind": "primitive",
+            "name": "u32",
+            "size": 4,
+            "align": 4,
+            "paddedSize": 4,
+            "bitSize": 32,
+            "unsigned": true,
+            "isFloat": false
+          },
+          "offset": 4,
+          "bitOffset": 0,
+          "bitSize": 32,
+          "size": 4,
+          "paddingAfter": 0
+        }
+      ],
+      "description": ""
+    },
+    {
+      "kind": "struct",
+      "name": "CreateCheckpoint",
+      "size": 16,
+      "align": 1,
+      "paddedSize": 16,
+      "fields": [
+        {
+          "name": "kind",
+          "type": {
+            "kind": "unit"
+          },
+          "offset": 0,
+          "bitOffset": 0,
+          "bitSize": 0,
+          "size": 0,
+          "paddingAfter": 0
+        },
+        {
+          "name": "operation",
+          "type": {
+            "kind": "primitive",
+            "name": "u32",
+            "size": 4,
+            "align": 4,
+            "paddedSize": 4,
+            "bitSize": 32,
+            "unsigned": true,
+            "isFloat": false
+          },
+          "offset": 0,
+          "bitOffset": 0,
+          "bitSize": 32,
+          "size": 4,
+          "paddingAfter": 0
+        },
+        {
+          "name": "checkpoint",
+          "type": {
+            "kind": "primitive",
+            "name": "u32",
+            "size": 4,
+            "align": 4,
+            "paddedSize": 4,
+            "bitSize": 32,
+            "unsigned": true,
+            "isFloat": false
+          },
+          "offset": 4,
+          "bitOffset": 0,
+          "bitSize": 32,
+          "size": 4,
+          "paddingAfter": 0
+        },
+        {
+          "name": "context",
+          "type": {
+            "kind": "reference",
+            "name": "ContextRef",
+            "indirection": "inline",
+            "isForward": false
+          },
+          "offset": 8,
+          "bitOffset": 0,
+          "bitSize": 64,
+          "size": 8,
+          "paddingAfter": 0
+        }
+      ],
+      "description": ""
+    },
+    {
+      "kind": "struct",
+      "name": "DropCheckpoint",
+      "size": 8,
+      "align": 1,
+      "paddedSize": 8,
+      "fields": [
+        {
+          "name": "kind",
+          "type": {
+            "kind": "unit"
+          },
+          "offset": 0,
+          "bitOffset": 0,
+          "bitSize": 0,
+          "size": 0,
+          "paddingAfter": 0
+        },
+        {
+          "name": "operation",
+          "type": {
+            "kind": "primitive",
+            "name": "u32",
+            "size": 4,
+            "align": 4,
+            "paddedSize": 4,
+            "bitSize": 32,
+            "unsigned": true,
+            "isFloat": false
+          },
+          "offset": 0,
+          "bitOffset": 0,
+          "bitSize": 32,
+          "size": 4,
+          "paddingAfter": 0
+        },
+        {
+          "name": "checkpoint",
+          "type": {
+            "kind": "primitive",
+            "name": "u32",
+            "size": 4,
+            "align": 4,
+            "paddedSize": 4,
+            "bitSize": 32,
+            "unsigned": true,
+            "isFloat": false
+          },
+          "offset": 4,
+          "bitOffset": 0,
+          "bitSize": 32,
+          "size": 4,
+          "paddingAfter": 0
+        }
+      ],
+      "description": ""
+    },
+    {
+      "kind": "struct",
+      "name": "Generate",
+      "size": 16,
+      "align": 1,
+      "paddedSize": 16,
+      "fields": [
+        {
+          "name": "kind",
+          "type": {
+            "kind": "unit"
+          },
+          "offset": 0,
+          "bitOffset": 0,
+          "bitSize": 0,
+          "size": 0,
+          "paddingAfter": 0
+        },
+        {
+          "name": "operation",
+          "type": {
+            "kind": "primitive",
+            "name": "u32",
+            "size": 4,
+            "align": 4,
+            "paddedSize": 4,
+            "bitSize": 32,
+            "unsigned": true,
+            "isFloat": false
+          },
+          "offset": 0,
+          "bitOffset": 0,
+          "bitSize": 32,
+          "size": 4,
+          "paddingAfter": 0
+        },
+        {
+          "name": "context",
+          "type": {
+            "kind": "reference",
+            "name": "ContextRef",
+            "indirection": "inline",
+            "isForward": false
+          },
+          "offset": 4,
+          "bitOffset": 0,
+          "bitSize": 64,
+          "size": 8,
+          "paddingAfter": 0
+        },
+        {
+          "name": "maxTokens",
+          "type": {
+            "kind": "primitive",
+            "name": "u32",
+            "size": 4,
+            "align": 4,
+            "paddedSize": 4,
+            "bitSize": 32,
+            "unsigned": true,
+            "isFloat": false
+          },
+          "offset": 12,
+          "bitOffset": 0,
+          "bitSize": 32,
+          "size": 4,
+          "paddingAfter": 0
+        }
+      ],
+      "description": ""
+    },
+    {
+      "kind": "struct",
+      "name": "Cancel",
+      "size": 8,
+      "align": 1,
+      "paddedSize": 8,
+      "fields": [
+        {
+          "name": "kind",
+          "type": {
+            "kind": "unit"
+          },
+          "offset": 0,
+          "bitOffset": 0,
+          "bitSize": 0,
+          "size": 0,
+          "paddingAfter": 0
+        },
+        {
+          "name": "operation",
+          "type": {
+            "kind": "primitive",
+            "name": "u32",
+            "size": 4,
+            "align": 4,
+            "paddedSize": 4,
+            "bitSize": 32,
+            "unsigned": true,
+            "isFloat": false
+          },
+          "offset": 0,
+          "bitOffset": 0,
+          "bitSize": 32,
+          "size": 4,
+          "paddingAfter": 0
+        },
+        {
+          "name": "target",
+          "type": {
+            "kind": "primitive",
+            "name": "u32",
+            "size": 4,
+            "align": 4,
+            "paddedSize": 4,
+            "bitSize": 32,
+            "unsigned": true,
+            "isFloat": false
+          },
+          "offset": 4,
+          "bitOffset": 0,
+          "bitSize": 32,
+          "size": 4,
+          "paddingAfter": 0
+        }
+      ],
+      "description": ""
+    },
+    {
+      "kind": "union",
+      "name": "EngineCommand",
+      "size": 17,
+      "align": 1,
+      "paddedSize": 17,
+      "tagOffset": 0,
+      "tagSize": 1,
+      "tagType": "u8",
+      "variants": [
+        {
+          "name": "Cancel",
+          "type": {
+            "kind": "reference",
+            "name": "Cancel",
+            "indirection": "inline",
+            "isForward": false
+          },
+          "discriminantValue": "Cancel",
+          "symbol": "Cancel",
+          "tag": 0
+        },
+        {
+          "name": "CreateCheckpoint",
+          "type": {
+            "kind": "reference",
+            "name": "CreateCheckpoint",
+            "indirection": "inline",
+            "isForward": false
+          },
+          "discriminantValue": "CreateCheckpoint",
+          "symbol": "CreateCheckpoint",
+          "tag": 1
+        },
+        {
+          "name": "DropBlock",
+          "type": {
+            "kind": "reference",
+            "name": "DropBlock",
+            "indirection": "inline",
+            "isForward": false
+          },
+          "discriminantValue": "DropBlock",
+          "symbol": "DropBlock",
+          "tag": 2
+        },
+        {
+          "name": "DropCheckpoint",
+          "type": {
+            "kind": "reference",
+            "name": "DropCheckpoint",
+            "indirection": "inline",
+            "isForward": false
+          },
+          "discriminantValue": "DropCheckpoint",
+          "symbol": "DropCheckpoint",
+          "tag": 3
+        },
+        {
+          "name": "Generate",
+          "type": {
+            "kind": "reference",
+            "name": "Generate",
+            "indirection": "inline",
+            "isForward": false
+          },
+          "discriminantValue": "Generate",
+          "symbol": "Generate",
+          "tag": 4
+        },
+        {
+          "name": "PutBlock",
+          "type": {
+            "kind": "reference",
+            "name": "PutBlock",
+            "indirection": "inline",
+            "isForward": false
+          },
+          "discriminantValue": "PutBlock",
+          "symbol": "PutBlock",
+          "tag": 5
+        }
+      ],
+      "discriminant": "kind",
+      "description": ""
+    },
+    {
+      "kind": "enum",
+      "name": "ErrorCode",
+      "size": 1,
+      "align": 1,
+      "paddedSize": 1,
+      "variants": [
+        {
+          "name": "InvalidCommand",
+          "value": 0,
+          "description": "",
+          "symbol": "InvalidCommand"
+        },
+        {
+          "name": "InvalidContext",
+          "value": 1,
+          "description": "",
+          "symbol": "InvalidContext"
+        },
+        {
+          "name": "NotFound",
+          "value": 2,
+          "description": "",
+          "symbol": "NotFound"
+        },
+        {
+          "name": "CapacityExceeded",
+          "value": 3,
+          "description": "",
+          "symbol": "CapacityExceeded"
+        },
+        {
+          "name": "Cancelled",
+          "value": 4,
+          "description": "",
+          "symbol": "Cancelled"
+        },
+        {
+          "name": "InternalError",
+          "value": 5,
+          "description": "",
+          "symbol": "InternalError"
+        }
+      ],
+      "underlyingType": "u8",
+      "description": ""
+    },
+    {
+      "kind": "struct",
+      "name": "Completed",
+      "size": 4,
+      "align": 1,
+      "paddedSize": 4,
+      "fields": [
+        {
+          "name": "kind",
+          "type": {
+            "kind": "unit"
+          },
+          "offset": 0,
+          "bitOffset": 0,
+          "bitSize": 0,
+          "size": 0,
+          "paddingAfter": 0
+        },
+        {
+          "name": "operation",
+          "type": {
+            "kind": "primitive",
+            "name": "u32",
+            "size": 4,
+            "align": 4,
+            "paddedSize": 4,
+            "bitSize": 32,
+            "unsigned": true,
+            "isFloat": false
+          },
+          "offset": 0,
+          "bitOffset": 0,
+          "bitSize": 32,
+          "size": 4,
+          "paddingAfter": 0
+        }
+      ],
+      "description": ""
+    },
+    {
+      "kind": "struct",
+      "name": "TokenEmitted",
+      "size": 8,
+      "align": 1,
+      "paddedSize": 8,
+      "fields": [
+        {
+          "name": "kind",
+          "type": {
+            "kind": "unit"
+          },
+          "offset": 0,
+          "bitOffset": 0,
+          "bitSize": 0,
+          "size": 0,
+          "paddingAfter": 0
+        },
+        {
+          "name": "operation",
+          "type": {
+            "kind": "primitive",
+            "name": "u32",
+            "size": 4,
+            "align": 4,
+            "paddedSize": 4,
+            "bitSize": 32,
+            "unsigned": true,
+            "isFloat": false
+          },
+          "offset": 0,
+          "bitOffset": 0,
+          "bitSize": 32,
+          "size": 4,
+          "paddingAfter": 0
+        },
+        {
+          "name": "token",
+          "type": {
+            "kind": "primitive",
+            "name": "u32",
+            "size": 4,
+            "align": 4,
+            "paddedSize": 4,
+            "bitSize": 32,
+            "unsigned": true,
+            "isFloat": false
+          },
+          "offset": 4,
+          "bitOffset": 0,
+          "bitSize": 32,
+          "size": 4,
+          "paddingAfter": 0
+        }
+      ],
+      "description": ""
+    },
+    {
+      "kind": "struct",
+      "name": "ExecutionStats",
+      "size": 48,
+      "align": 1,
+      "paddedSize": 48,
+      "fields": [
+        {
+          "name": "kind",
+          "type": {
+            "kind": "unit"
+          },
+          "offset": 0,
+          "bitOffset": 0,
+          "bitSize": 0,
+          "size": 0,
+          "paddingAfter": 0
+        },
+        {
+          "name": "operation",
+          "type": {
+            "kind": "primitive",
+            "name": "u32",
+            "size": 4,
+            "align": 4,
+            "paddedSize": 4,
+            "bitSize": 32,
+            "unsigned": true,
+            "isFloat": false
+          },
+          "offset": 0,
+          "bitOffset": 0,
+          "bitSize": 32,
+          "size": 4,
+          "paddingAfter": 0
+        },
+        {
+          "name": "prefillTokens",
+          "type": {
+            "kind": "primitive",
+            "name": "u32",
+            "size": 4,
+            "align": 4,
+            "paddedSize": 4,
+            "bitSize": 32,
+            "unsigned": true,
+            "isFloat": false
+          },
+          "offset": 4,
+          "bitOffset": 0,
+          "bitSize": 32,
+          "size": 4,
+          "paddingAfter": 0
+        },
+        {
+          "name": "checkpointHits",
+          "type": {
+            "kind": "primitive",
+            "name": "u32",
+            "size": 4,
+            "align": 4,
+            "paddedSize": 4,
+            "bitSize": 32,
+            "unsigned": true,
+            "isFloat": false
+          },
+          "offset": 8,
+          "bitOffset": 0,
+          "bitSize": 32,
+          "size": 4,
+          "paddingAfter": 0
+        },
+        {
+          "name": "checkpointMisses",
+          "type": {
+            "kind": "primitive",
+            "name": "u32",
+            "size": 4,
+            "align": 4,
+            "paddedSize": 4,
+            "bitSize": 32,
+            "unsigned": true,
+            "isFloat": false
+          },
+          "offset": 12,
+          "bitOffset": 0,
+          "bitSize": 32,
+          "size": 4,
+          "paddingAfter": 0
+        },
+        {
+          "name": "restoredBytes",
+          "type": {
+            "kind": "primitive",
+            "name": "u32",
+            "size": 4,
+            "align": 4,
+            "paddedSize": 4,
+            "bitSize": 32,
+            "unsigned": true,
+            "isFloat": false
+          },
+          "offset": 16,
+          "bitOffset": 0,
+          "bitSize": 32,
+          "size": 4,
+          "paddingAfter": 0
+        },
+        {
+          "name": "checkpointBytes",
+          "type": {
+            "kind": "primitive",
+            "name": "u32",
+            "size": 4,
+            "align": 4,
+            "paddedSize": 4,
+            "bitSize": 32,
+            "unsigned": true,
+            "isFloat": false
+          },
+          "offset": 20,
+          "bitOffset": 0,
+          "bitSize": 32,
+          "size": 4,
+          "paddingAfter": 0
+        },
+        {
+          "name": "kvBytes",
+          "type": {
+            "kind": "primitive",
+            "name": "u32",
+            "size": 4,
+            "align": 4,
+            "paddedSize": 4,
+            "bitSize": 32,
+            "unsigned": true,
+            "isFloat": false
+          },
+          "offset": 24,
+          "bitOffset": 0,
+          "bitSize": 32,
+          "size": 4,
+          "paddingAfter": 0
+        },
+        {
+          "name": "kvCapacityBytes",
+          "type": {
+            "kind": "primitive",
+            "name": "u32",
+            "size": 4,
+            "align": 4,
+            "paddedSize": 4,
+            "bitSize": 32,
+            "unsigned": true,
+            "isFloat": false
+          },
+          "offset": 28,
+          "bitOffset": 0,
+          "bitSize": 32,
+          "size": 4,
+          "paddingAfter": 0
+        },
+        {
+          "name": "convBytes",
+          "type": {
+            "kind": "primitive",
+            "name": "u32",
+            "size": 4,
+            "align": 4,
+            "paddedSize": 4,
+            "bitSize": 32,
+            "unsigned": true,
+            "isFloat": false
+          },
+          "offset": 32,
+          "bitOffset": 0,
+          "bitSize": 32,
+          "size": 4,
+          "paddingAfter": 0
+        },
+        {
+          "name": "hiddenBytes",
+          "type": {
+            "kind": "primitive",
+            "name": "u32",
+            "size": 4,
+            "align": 4,
+            "paddedSize": 4,
+            "bitSize": 32,
+            "unsigned": true,
+            "isFloat": false
+          },
+          "offset": 36,
+          "bitOffset": 0,
+          "bitSize": 32,
+          "size": 4,
+          "paddingAfter": 0
+        },
+        {
+          "name": "checkpointCreateUs",
+          "type": {
+            "kind": "primitive",
+            "name": "u32",
+            "size": 4,
+            "align": 4,
+            "paddedSize": 4,
+            "bitSize": 32,
+            "unsigned": true,
+            "isFloat": false
+          },
+          "offset": 40,
+          "bitOffset": 0,
+          "bitSize": 32,
+          "size": 4,
+          "paddingAfter": 0
+        },
+        {
+          "name": "checkpointRestoreUs",
+          "type": {
+            "kind": "primitive",
+            "name": "u32",
+            "size": 4,
+            "align": 4,
+            "paddedSize": 4,
+            "bitSize": 32,
+            "unsigned": true,
+            "isFloat": false
+          },
+          "offset": 44,
+          "bitOffset": 0,
+          "bitSize": 32,
+          "size": 4,
+          "paddingAfter": 0
+        }
+      ],
+      "description": ""
+    },
+    {
+      "kind": "struct",
+      "name": "Failed",
+      "size": 8,
+      "align": 1,
+      "paddedSize": 8,
+      "fields": [
+        {
+          "name": "kind",
+          "type": {
+            "kind": "unit"
+          },
+          "offset": 0,
+          "bitOffset": 0,
+          "bitSize": 0,
+          "size": 0,
+          "paddingAfter": 0
+        },
+        {
+          "name": "operation",
+          "type": {
+            "kind": "primitive",
+            "name": "u32",
+            "size": 4,
+            "align": 4,
+            "paddedSize": 4,
+            "bitSize": 32,
+            "unsigned": true,
+            "isFloat": false
+          },
+          "offset": 0,
+          "bitOffset": 0,
+          "bitSize": 32,
+          "size": 4,
+          "paddingAfter": 0
+        },
+        {
+          "name": "messageBytes",
+          "type": {
+            "kind": "primitive",
+            "name": "u16",
+            "size": 2,
+            "align": 2,
+            "paddedSize": 2,
+            "bitSize": 16,
+            "unsigned": true,
+            "isFloat": false
+          },
+          "offset": 4,
+          "bitOffset": 0,
+          "bitSize": 16,
+          "size": 2,
+          "paddingAfter": 0
+        },
+        {
+          "name": "code",
+          "type": {
+            "kind": "reference",
+            "name": "ErrorCode",
+            "indirection": "inline",
+            "isForward": false
+          },
+          "offset": 6,
+          "bitOffset": 0,
+          "bitSize": 8,
+          "size": 1,
+          "paddingAfter": 0
+        },
+        {
+          "name": "reserved",
+          "type": {
+            "kind": "primitive",
+            "name": "u8",
+            "size": 1,
+            "align": 1,
+            "paddedSize": 1,
+            "bitSize": 8,
+            "unsigned": true,
+            "isFloat": false
+          },
+          "offset": 7,
+          "bitOffset": 0,
+          "bitSize": 8,
+          "size": 1,
+          "paddingAfter": 0
+        }
+      ],
+      "description": ""
+    },
+    {
+      "kind": "union",
+      "name": "EngineEvent",
+      "size": 49,
+      "align": 1,
+      "paddedSize": 49,
+      "tagOffset": 0,
+      "tagSize": 1,
+      "tagType": "u8",
+      "variants": [
+        {
+          "name": "Completed",
+          "type": {
+            "kind": "reference",
+            "name": "Completed",
+            "indirection": "inline",
+            "isForward": false
+          },
+          "discriminantValue": "Completed",
+          "symbol": "Completed",
+          "tag": 0
+        },
+        {
+          "name": "ExecutionStats",
+          "type": {
+            "kind": "reference",
+            "name": "ExecutionStats",
+            "indirection": "inline",
+            "isForward": false
+          },
+          "discriminantValue": "ExecutionStats",
+          "symbol": "ExecutionStats",
+          "tag": 1
+        },
+        {
+          "name": "Failed",
+          "type": {
+            "kind": "reference",
+            "name": "Failed",
+            "indirection": "inline",
+            "isForward": false
+          },
+          "discriminantValue": "Failed",
+          "symbol": "Failed",
+          "tag": 2
+        },
+        {
+          "name": "TokenEmitted",
+          "type": {
+            "kind": "reference",
+            "name": "TokenEmitted",
+            "indirection": "inline",
+            "isForward": false
+          },
+          "discriminantValue": "TokenEmitted",
+          "symbol": "TokenEmitted",
+          "tag": 3
+        }
+      ],
+      "discriminant": "kind",
+      "description": ""
+    }
+  ]
+}

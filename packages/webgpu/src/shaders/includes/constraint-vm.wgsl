@@ -49,14 +49,6 @@ const NUMBER_EXPONENT: u32 = 6u;
 const NUMBER_EXPONENT_SIGN: u32 = 7u;
 const NUMBER_EXPONENT_DIGITS: u32 = 8u;
 
-fn load_constraint_state() -> ConstraintDecoderState {
-  var raw: array<u32, 16>;
-  for (var i = 0u; i < 16u; i += 1u) {
-    raw[i] = constraintState[i];
-  }
-  return unpack_constraint_decoder_state(raw);
-}
-
 // Exact binary64 overflow midpoint: 2^1024 - 2^970. The first 32
 // significant decimal digits are enough for every <=32-byte candidate lexeme.
 const F64_OVERFLOW_MAGNITUDE: i32 = 309i;
@@ -541,7 +533,7 @@ fn token_survives(token: u32) -> bool {
   if (token >= vocab) { return false; }
 
   let eos = tokenizer_eos_token();
-  let currentState = load_constraint_state();
+  let currentState = constraintState;
   if (currentState.node == program_accept_node()) { return token == eos; }
   if (token == eos) { return false; }
 
@@ -550,7 +542,7 @@ fn token_survives(token: u32) -> bool {
   let byteLength = tokenMeta & TOKEN_LENGTH_MASK;
   if ((tokenMeta & TOKEN_SPECIAL) != 0u || byteLength == 0u) { return false; }
 
-  var candidate = load_constraint_state();
+  var candidate = constraintState;
   var i = 0u;
   loop {
     if (i >= byteLength) { break; }

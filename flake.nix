@@ -49,6 +49,8 @@
           cudaPackages.cuda_nvcc
           cudaPackages.cudatoolkit
 
+          unzip
+
           # UV & podstawowy Python systemowy jako baza
           uv
           python3

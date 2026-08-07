@@ -190,10 +190,6 @@ export const schema = scope({
     f1: "f32 = 0",
     u0: "u32 = 0",
     u1: "u32 = 0",
-
-    // One uniform slot. The legacy runtime only consumes the first 64 B;
-    // Sandblaster can use the full 256 B layout directly.
-    reserved: ["u32[] == 48", "=", () => new Array(48).fill(0)],
   },
 
   LlmRuntimeStatus: "'idle' | 'running' | 'eos' | 'done' | 'error'",

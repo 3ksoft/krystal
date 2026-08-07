@@ -1013,3 +1013,4 @@ export * from "./binary-transport";
 export * from "./gpu-constraint.ts";
 
 export * from "./json-schema-constraint.ts";
+export * from "./structured.ts";

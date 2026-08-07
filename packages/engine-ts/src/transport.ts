@@ -1,5 +1,12 @@
+import {
+  compileStructuredGeneration,
+  isGeneratableSchema,
+  type GeneratableSchema,
+  type InferGeneratable,
+} from "./structured.ts";
 import type { v1_0_0 as ABI } from "@chomato/bridge/types";
-import { MAX_CONTEXT_BLOCKS } from "@chomato/bridge/constants";
+import {
+  CONTEXT_FLAG_STRUCTURED, MAX_CONTEXT_BLOCKS } from "@chomato/bridge/constants";
 
 export type OperationId = number;
 export type BlockId = number;
@@ -176,6 +183,14 @@ const littleEndian = (() => {
   return new Uint8Array(u16.buffer)[0] === 0x02;
 })();
 
+function concatStructuredPayload(blocks: Uint8Array | undefined, constraint: Uint8Array): Uint8Array {
+  const blockBytes = blocks?.byteLength ?? 0;
+  const result = new Uint8Array(blockBytes + constraint.byteLength);
+  if (blocks) result.set(blocks, 0);
+  result.set(constraint, blockBytes);
+  return result;
+}
+
 /** Encode a u32 vector exactly as the bridge bulk payload. */
 export function encodeU32Payload(values: Uint32Array): Uint8Array {
   if (littleEndian) return new Uint8Array(values.buffer, values.byteOffset, values.byteLength);
@@ -198,7 +213,7 @@ export function decodeU32Payload(payload: Uint8Array | undefined, count: number)
   return result;
 }
 
-function encodeContext(context: Context): { ref: ABI.ContextRef; payload?: Uint8Array } {
+function encodeContext(context: Context, flags = 0): { ref: ABI.ContextRef; payload?: Uint8Array } {
   const checkpoint = context.checkpoint ?? 0;
   if (!Number.isInteger(checkpoint) || checkpoint < 0 || checkpoint > 0xffff_ffff) {
     throw new RangeError(`Invalid checkpoint id ${checkpoint}`);
@@ -218,7 +233,7 @@ function encodeContext(context: Context): { ref: ABI.ContextRef; payload?: Uint8
   }
 
   return {
-    ref: { checkpoint, blockCount: ids.length, reserved: 0 },
+    ref: { checkpoint, blockCount: ids.length, reserved: flags },
     payload: ids.length ? encodeU32Payload(ids) : undefined,
   };
 }
@@ -236,6 +251,7 @@ function decodeFailure(event: ABI.Failed, payload: Uint8Array | undefined): Engi
 }
 
 export class Engine {
+  private readonly structured = new Map<OperationId, Deferred<Uint8Array>>();
   private nextOperation = 1;
   private nextResource = 1;
   private readonly pending = new Map<OperationId, Deferred<void>>();
@@ -314,6 +330,12 @@ export class Engine {
     }
 
     if (event.kind === "Completed") {
+      const structured = this.structured.get(event.operation);
+      if (structured) {
+        this.structured.delete(event.operation);
+        structured.resolve(frame.payload?.slice() ?? new Uint8Array());
+        return;
+      }
       const generation = this.generations.get(event.operation);
       if (generation) {
         generation.finish();
@@ -329,6 +351,12 @@ export class Engine {
     }
 
     const error = decodeFailure(event, frame.payload);
+    const structured = this.structured.get(event.operation);
+    if (structured) {
+      this.structured.delete(event.operation);
+      structured.reject(error);
+      return;
+    }
     const generation = this.generations.get(event.operation);
     if (generation) {
       generation.fail(error);
@@ -383,7 +411,53 @@ export class Engine {
     await this.request({ kind: "DropCheckpoint", operation, checkpoint });
   }
 
-  generate(context: Context, options: GenerateOptions): Generation {
+  generate(context: Context, options: GenerateOptions): Generation;
+  generate<S extends GeneratableSchema>(schema: S, context: Context): Promise<InferGeneratable<S>>;
+  generate(
+    schemaOrContext: GeneratableSchema | Context,
+    contextOrOptions: Context | GenerateOptions,
+  ): Generation | Promise<unknown> {
+    if (isGeneratableSchema(schemaOrContext)) {
+      return this.generateStructured(schemaOrContext, contextOrOptions as Context);
+    }
+    return this.generateTokens(schemaOrContext as Context, contextOrOptions as GenerateOptions);
+  }
+
+  private async generateStructured<S extends GeneratableSchema>(
+    schema: S,
+    context: Context,
+  ): Promise<InferGeneratable<S>> {
+    this.assertOpen();
+    const compiled = compileStructuredGeneration(schema);
+    const operation = this.allocateOperation();
+    const encoded = encodeContext(context, CONTEXT_FLAG_STRUCTURED);
+    const payload = concatStructuredPayload(encoded.payload, encodeU32Payload(compiled.program.blob));
+    const pending = new Deferred<Uint8Array>();
+
+    this.stats.generations++;
+    this.stats.commands++;
+    this.structured.set(operation, pending);
+
+    try {
+      await Promise.resolve(this.transport.send({
+        message: {
+          kind: "Generate",
+          operation,
+          context: encoded.ref,
+          maxTokens: compiled.maxTokens,
+        },
+        payload,
+      }));
+      const bytes = await pending.promise;
+      const json = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+      return JSON.parse(json) as InferGeneratable<S>;
+    } catch (error) {
+      this.structured.delete(operation);
+      throw error;
+    }
+  }
+
+  private generateTokens(context: Context, options: GenerateOptions): Generation {
     this.assertOpen();
     if (!Number.isInteger(options.maxTokens) || options.maxTokens < 1 || options.maxTokens > 0xffff_ffff) {
       throw new RangeError(`Invalid maxTokens ${options.maxTokens}`);
@@ -450,8 +524,10 @@ export class Engine {
     const error = new Error("Engine closed");
     for (const pending of this.pending.values()) pending.reject(error);
     for (const generation of this.generations.values()) generation.fail(error);
+    for (const structured of this.structured.values()) structured.reject(error);
     this.pending.clear();
     this.generations.clear();
+    this.structured.clear();
     await this.transport.close?.();
   }
 }
@@ -540,4 +616,11 @@ export function failed(
     message: { kind: "Failed", operation, code, messageBytes: payload.byteLength, reserved: 0 },
     payload,
   };
+}
+
+export function completedWithPayload(
+  operation: OperationId,
+  payload: Uint8Array,
+): TransportFrame<ABI.EngineEvent> {
+  return { message: { kind: "Completed", operation }, payload };
 }

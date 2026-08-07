@@ -108,7 +108,6 @@ namespace v1_0_0 {
 		float f1;
 		uint32_t u0;
 		uint32_t u1;
-		uint8_t reserved[192];
 	};
 	
 	using LlmRuntimeStatus = uint8_t;

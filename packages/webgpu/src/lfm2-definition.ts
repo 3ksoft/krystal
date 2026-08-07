@@ -215,13 +215,8 @@ export function defineLfm2(bundle: Lfm2ShaderBundle = emptyLfm2ShaderBundle()) {
   const OpParams = engine.type("OpParams");
   const LlmRuntime = engine.type("LlmRuntime");
 
-  const op = engine.buffer(OpParams, {
-    label: "lfm2.op",
-    size: OP_PARAM_BUFFER_BYTES,
-    value: OpParams.assert({}),
-  });
+  const op = engine.buffer(OpParams, { label: "lfm2.op", value: OpParams.assert({}),   count: 4});
   const runtime = engine.buffer(LlmRuntime, { label: "lfm2.runtime", value: LlmRuntime.assert({}), readback: true });
-
   const tokens = engine.buffer(engine.type(`u32[] == ${TOKEN_CAPACITY}`), { label: "lfm2.tokens", readback: true });
   const arena = engine.buffer(engine.type(`f32[] == ${ARENA_ELEMENTS}`), { label: "lfm2.arena", readback: true });
   // Checkpoints snapshot these buffers with copyBufferToBuffer. readback=true
@@ -230,25 +225,19 @@ export function defineLfm2(bundle: Lfm2ShaderBundle = emptyLfm2ShaderBundle()) {
   const convCache = engine.buffer(engine.type(`f32[] == ${CONV_ELEMENTS}`), { label: "lfm2.conv-cache", readback: true });
   const candidateTokens = engine.buffer(engine.type(`u32[] == ${VOCAB}`), { label: "lfm2.candidate-tokens" });
   const decodeTelemetry = engine.buffer(engine.type(`u32[] == ${TELEMETRY_CAPACITY}`), { label: "lfm2.decode-telemetry" });
-  const constraintProgram = engine.buffer(engine.type("u32"), {
+  const constraintProgram = engine.buffer(engine.type(`u32[] == ${CONSTRAINT_PROGRAM_WORD_CAPACITY}`), {
     label: "lfm2.constraint-program",
-    count: CONSTRAINT_PROGRAM_WORD_CAPACITY,
   });
-  const constraintTokenizer = engine.buffer(engine.type("u32"), {
+  const constraintTokenizer = engine.buffer(engine.type(`u32[] == ${CONSTRAINT_TOKENIZER_WORD_CAPACITY}`), {
     label: "lfm2.constraint-tokenizer",
-    count: CONSTRAINT_TOKENIZER_WORD_CAPACITY,
   });
-  const constraintState = engine.buffer(engine.type("u32"), {
-    label: "lfm2.constraint-state",
-    count: CONSTRAINT_STATE_WORDS,
-  });
-  const constraintMask = engine.buffer(engine.type("u32"), {
+  const constraintState = engine.buffer(engine.type("ConstraintDecoderState"), { label: "lfm2.constraint-state" });
+  const constraintMask = engine.buffer(engine.type(`u32[] == ${CONSTRAINT_MASK_WORDS}`), {
     label: "lfm2.constraint-mask",
-    count: CONSTRAINT_MASK_WORDS,
     readback: true,
   });
-  const weightRaw = engine.buffer(engine.type("u32"), { label: "lfm2.probe-weight-raw", count: 2 });
-  const weight32 = engine.buffer(engine.type("f32"), { label: "lfm2.probe-weight32", count: 2 });
+  const weightRaw = engine.buffer(engine.type("u32[] == 2"), { label: "lfm2.probe-weight-raw" });
+  const weight32 = engine.buffer(engine.type("f32[] == 2"), { label: "lfm2.probe-weight32"});
 
 
   type Resource = BufferResource<any>;
@@ -282,10 +271,10 @@ export function defineLfm2(bundle: Lfm2ShaderBundle = emptyLfm2ShaderBundle()) {
         buffer: {
           type: "uniform",
           hasDynamicOffset: true,
-          minBindingSize: 256,
+          minBindingSize: 64,
         },
         offset: 0,
-        size: 256,
+        size: 64,
         representation: "native",
       } satisfies BufferResourceUse,
       runtime: nativeWrite(runtime),
@@ -297,7 +286,7 @@ export function defineLfm2(bundle: Lfm2ShaderBundle = emptyLfm2ShaderBundle()) {
       decodeTelemetry: nativeWrite(decodeTelemetry),
       constraintProgram: nativeRead(constraintProgram),
       constraintTokenizer: nativeRead(constraintTokenizer),
-      constraintState: nativeRead(constraintState),
+      constraintState: nativeWrite(constraintState),
       constraintMask: nativeWrite(constraintMask),
       weightRaw: nativeRead(weightRaw, 1),
       weight32: nativeRead(weight32, 1),
@@ -460,6 +449,7 @@ export function defineLfm2(bundle: Lfm2ShaderBundle = emptyLfm2ShaderBundle()) {
       includes: argmaxIncludes,
       compute: { entryPoint: "argmax", params: lid, workgroupSize: 256, code: sources.argmax },
     }),
+
     constraint_mask: engine.compute({
       label: "constraint_mask",
       resources: {
@@ -476,6 +466,7 @@ export function defineLfm2(bundle: Lfm2ShaderBundle = emptyLfm2ShaderBundle()) {
         code: sources.constraint_mask,
       },
     }),
+
     constraint_argmax: engine.compute({
       label: "constraint_argmax",
       resources: {
@@ -486,9 +477,10 @@ export function defineLfm2(bundle: Lfm2ShaderBundle = emptyLfm2ShaderBundle()) {
         decodeTelemetry: r.decodeTelemetry,
         constraintProgram: r.constraintProgram,
         constraintTokenizer: r.constraintTokenizer,
-        constraintState: nativeWrite(constraintState),
-        constraintMask: nativeRead(constraintMask),
+        constraintState: r.constraintState,
+        constraintMask: r.constraintMask,
       },
+      types: [engine.type("ConstraintDecoderState")],
       codecs: [engine.type("DecodeTelemetryEntry")],
       includes: [
         include("common"),
@@ -498,6 +490,7 @@ export function defineLfm2(bundle: Lfm2ShaderBundle = emptyLfm2ShaderBundle()) {
         include("constraint-vm"),
         include("constraint-commit"),
       ],
+
       compute: {
         entryPoint: "constraint_argmax",
         params: lid,
