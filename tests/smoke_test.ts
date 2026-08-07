@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { BlobSource } from "../packages/quant/src/gguf/source.ts";
+import { BlobSource } from "../packages/quant/src/gguf/source-web.ts";
 import { GgufReader } from "../packages/quant/src/gguf/reader.ts";
 import { GgmlType, GgufValueType } from "../packages/quant/src/gguf/types.ts";
 import { pretokenizeLfm2 } from "../packages/lfm2/src/tokenizer.ts";

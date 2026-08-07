@@ -1,4 +1,4 @@
-import { DenoFileSource } from "../packages/quant/src/gguf/source.ts";
+import { DenoFileSource } from "../packages/quant/src/gguf/source-deno.ts";
 import { GgufReader } from "../packages/quant/src/gguf/reader.ts";
 import { Lfm2Tokenizer } from "../packages/lfm2/src/tokenizer.ts";
 

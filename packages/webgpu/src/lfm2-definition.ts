@@ -3,7 +3,7 @@ import {
   type AnyComputeHandle,
   type BufferResource,
   type BufferResourceUse,
-} from "@sandblaster/core-next";
+} from "@sandblaster/core";
 import { $ } from "../../schema/src/schema";
 import { LFM2_CONFIG } from "./lfm2-init";
 export const CONTEXT_CAPACITY = 1024;
@@ -82,6 +82,16 @@ export const TELEMETRY_CAPACITY = 256;
 // schema-derived budget: MAX_NEW_TOKENS(1024) * ~250 * 256 B ~= 64 MiB. 128 MiB
 // leaves headroom for paged matmuls and the prefill of a long prompt.
 export const OP_PARAM_BUFFER_BYTES = 128 * 1024 * 1024;
+
+/**
+ * Output rows computed per matmul_wq4 workgroup.
+ *
+ * Must equal MATMUL_ROWS in shaders/includes/common.wgsl. Tiling rows is what
+ * takes the kernel off its launch/reduction bound; 8 was chosen because it is
+ * the best value that wins on every shape in the model (16 is faster for
+ * outputDim >= 8192 but slower for the 2048-row attention projections).
+ */
+export const MATMUL_WQ4_ROWS = 8;
 
 // Structured-generation VM. These are fixed AOT binding capacities, not
 // semantic schema limits. Actual program/tokenizer blobs carry their lengths.
@@ -547,8 +557,15 @@ export function defineLfm2(bundle: Lfm2ShaderBundle = emptyLfm2ShaderBundle()) {
     matmul_f32: definePass(programs.matmul_f32, "f32", (op) =>
       [required(op.rowCount, "rowCount"), required(op.tokenCount, "tokenCount"), 1]),
 
+    // matmul_wq4 computes MATMUL_WQ4_ROWS output rows per workgroup, so the
+    // launch count is divided accordingly. The shader's MATMUL_ROWS constant
+    // (shaders/includes/common.wgsl) must match this value.
     matmul_wq4: definePass(programs.matmul_wq4, "raw", (op) =>
-      [required(op.rowCount, "rowCount"), required(op.tokenCount, "tokenCount"), 1]),
+      [
+        Math.ceil(required(op.rowCount, "rowCount") / MATMUL_WQ4_ROWS),
+        required(op.tokenCount, "tokenCount"),
+        1,
+      ]),
 
     residual_add: definePass(programs.residual_add, "none", (op) =>
       linear(required(op.tokenCount, "tokenCount") * required(op.inputDim, "inputDim"), 256)),

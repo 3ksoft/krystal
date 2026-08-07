@@ -1,7 +1,7 @@
 import type {
   ComputePassRunner,
   SandblasterCommandEncoder,
-} from "@sandblaster/core-next";
+} from "@sandblaster/core";
 import {
   lfm2,
   OP_PARAM_BUFFER_BYTES,

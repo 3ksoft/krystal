@@ -1,4 +1,4 @@
-import { BlobSource } from "../../../quant/src/gguf/source";
+import { BlobSource } from "../../../quant/src/gguf/source-web";
 import { createWebGpuDevice } from "../../src/device";
 import { LFM2_GREEDY_SHADER_PATH, Lfm2Forward } from "../../src/forward";
 import { LFM2_ARENA, LFM2_PASS_NAMES, LFM2_SHADER_NAMES, lfm2 } from "../../src/lfm2";

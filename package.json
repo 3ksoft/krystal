@@ -22,6 +22,8 @@
   },
   "dependencies": {
     "@ark/json-schema": "^0.0.7",
+    "@sandblaster/core": "link:@sandblaster/core",
+    "@schema-pop/schema": "link:@schema-pop/schema",
     "arktype": "2.2.3"
   }
 }

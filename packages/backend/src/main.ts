@@ -7,7 +7,7 @@
 //   - model.ts + quant Wq4Reader    -> real WQ4 v3 container parsing + config read
 //
 // The GPU surface (navigator.gpu, device.createBuffer, ...) is not exercised:
-// sandblaster is the local experimental stub (packages/backend/stubs/core-next)
+// sandblaster is the local experimental stub (packages/backend/stubs/core)
 // and the model is opened with preload:false against a fake GPUDevice.
 
 /// <reference types="@webgpu/types" />

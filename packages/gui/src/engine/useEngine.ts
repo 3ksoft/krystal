@@ -218,11 +218,30 @@ export function useEngine() {
   let nextRunId = 1;
   let disposed = false;
 
-  function fail(cause: unknown): never {
-    const message = cause instanceof Error ? `${cause.name}: ${cause.message}` : String(cause);
+  function describe(cause: unknown): string {
+    return cause instanceof Error ? `${cause.name}: ${cause.message}` : String(cause);
+  }
+
+  /** Boot failure: there is no usable engine, so the phase stays in error. */
+  function failFatal(cause: unknown): never {
+    const message = describe(cause);
     state.error = message;
     state.status = message;
     state.phase = "error";
+    throw cause;
+  }
+
+  /**
+   * Operation failure: a rejected PutBlock or Generate leaves the engine
+   * perfectly usable, so the phase returns to ready. Wedging it in "error"
+   * disabled every control in the GUI permanently, since they all gate on
+   * phase === "ready".
+   */
+  function failOperation(cause: unknown): never {
+    const message = describe(cause);
+    state.error = message;
+    state.status = message;
+    state.phase = "ready";
     throw cause;
   }
 
@@ -416,7 +435,7 @@ export function useEngine() {
       state.phase = "ready";
       refreshStats();
     } catch (cause) {
-      fail(cause);
+      failFatal(cause);
     }
   }
 
@@ -432,7 +451,7 @@ export function useEngine() {
       return value;
     } catch (cause) {
       refreshStats();
-      return fail(cause);
+      return failOperation(cause);
     }
   }
 

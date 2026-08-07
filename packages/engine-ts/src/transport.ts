@@ -178,6 +178,28 @@ export interface Generation extends AsyncIterable<TokenId> {
   cancel(): Promise<void>;
 }
 
+/**
+ * Decode UTF-8, rejecting malformed input.
+ *
+ * Equivalent to `new TextDecoder("utf-8", { fatal: true })`, but built from
+ * one-argument constructors so it also compiles for runtimes whose TextDecoder
+ * lib does not model the options bag (the scriptc-built native exe among them).
+ * A non-fatal decode substitutes U+FFFD for malformed sequences, so re-encoding
+ * differs from the input exactly when the input was not valid UTF-8 — input
+ * that legitimately contains U+FFFD round-trips unchanged.
+ */
+function decodeUtf8Strict(bytes: Uint8Array): string {
+  const text = new TextDecoder().decode(bytes);
+  const reencoded = new TextEncoder().encode(text);
+  if (reencoded.length !== bytes.length) {
+    throw new TypeError("Structured payload is not valid UTF-8");
+  }
+  for (let i = 0; i < reencoded.length; i++) {
+    if (reencoded[i] !== bytes[i]) throw new TypeError("Structured payload is not valid UTF-8");
+  }
+  return text;
+}
+
 const littleEndian = (() => {
   const u16 = new Uint16Array([0x0102]);
   return new Uint8Array(u16.buffer)[0] === 0x02;
@@ -449,7 +471,7 @@ export class Engine {
         payload,
       }));
       const bytes = await pending.promise;
-      const json = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+      const json = decodeUtf8Strict(bytes);
       return JSON.parse(json) as InferGeneratable<S>;
     } catch (error) {
       this.structured.delete(operation);

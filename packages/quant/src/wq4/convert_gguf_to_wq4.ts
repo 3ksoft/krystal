@@ -8,7 +8,7 @@
 //   - full GGUF metadata, including tokenizer tables, is embedded in the index
 // Runtime therefore needs only the .wq4 file.
 
-import { DenoFileSource } from "../gguf/source.ts";
+import { DenoFileSource } from "../gguf/source-deno.ts";
 import { GgufReader } from "../gguf/reader.ts";
 import { GgmlType, type GgufTensorInfo } from "../gguf/types.ts";
 import {

@@ -11,6 +11,23 @@ const PRESETS: Array<{ name: string; source: string }> = [
   { name: "object", source: `type({ id: "number", name: "string < 24" })` },
   { name: "enum", source: `type("'red' | 'green' | 'blue'")` },
   { name: "optional", source: `type({ id: "number", "note?": "string < 16" })` },
+  /**
+   * Arrays need both bounds, for different reasons.
+   *
+   * The upper bound is what makes the decode budget finite — it is derived from
+   * the schema's worst case, and a wide row with atMostLength(10) already needs
+   * ~2900 tokens against a 1024 budget.
+   *
+   * The lower bound is what makes the answer interesting: without it the empty
+   * array satisfies the schema, and that is what the model will emit. Note that
+   * it costs nothing — the budget is the same 518 either way. Length predicates
+   * are the *Length spellings; `.moreThan(0)` is a numeric comparison and
+   * arktype rejects it on an array.
+   */
+  {
+    name: "array",
+    source: `type({ id: "number", name: "string < 16" }).array().atLeastLength(1).atMostLength(3)`,
+  },
 ];
 
 export default defineComponent({
@@ -26,7 +43,23 @@ export default defineComponent({
     const showContext = ref(false);
 
     const ready = computed(() => api.state.phase === "ready");
+    // Generation needs at least one context token; an empty context is rejected
+    // by the engine, so gate the controls instead of reporting it afterwards.
+    const hasContext = computed(() =>
+      selection.value.checkpoint !== null || selection.value.blocks.length > 0
+    );
     const program = computed(() => api.state.lastProgram);
+    /**
+     * The decode budget is derived from the schema, and the runtime rejects a
+     * request whose budget exceeds its capacity. Bounded arrays overflow it
+     * easily, so surface it before the click rather than as a failed run.
+     */
+    const budgetOverflow = computed(() => {
+      const max = api.state.model?.maxNewTokens;
+      const needed = program.value?.maxTokens;
+      return max !== undefined && needed !== undefined && needed > max;
+    });
+    const canRun = computed(() => ready.value && hasContext.value && !budgetOverflow.value);
     const contextText = computed(() => api.selectionText(selection.value));
 
     function compile(): void {
@@ -61,7 +94,7 @@ export default defineComponent({
 
     return {
       api, source, maxTokens, compileError, selection, showContext,
-      ready, program, contextText, PRESETS, compile, generate, raw, fmt,
+      ready, hasContext, canRun, budgetOverflow, program, contextText, PRESETS, compile, generate, raw, fmt,
     };
   },
   template: `
@@ -91,11 +124,30 @@ export default defineComponent({
 
         <div class="row">
           <button class="btn" type="button" @click="compile">COMPILE</button>
-          <button class="btn btn--default" type="button" :disabled="!ready" @click="generate">GENERATE T</button>
+          <button
+            class="btn btn--default"
+            type="button"
+            :disabled="!canRun"
+            :title="hasContext ? 'Generate a value of this type' : 'Select a context above first'"
+            @click="generate"
+          >GENERATE T</button>
           <span class="menubar__spacer"></span>
           <label for="max-tokens" class="muted">maxTokens</label>
           <input id="max-tokens" type="number" min="1" max="1024" v-model.number="maxTokens" style="width:8ch" />
-          <button class="btn" type="button" :disabled="!ready" @click="raw">GENERATE TOKENS</button>
+          <button
+            class="btn"
+            type="button"
+            :disabled="!canRun"
+            :title="hasContext ? 'Greedy decode without a schema' : 'Select a context above first'"
+            @click="raw"
+          >GENERATE TOKENS</button>
+        </div>
+        <div v-if="ready && !hasContext" class="muted">
+          select a base checkpoint or a block above to enable generation
+        </div>
+        <div v-else-if="budgetOverflow" class="picker__issues">
+          ! schema needs {{ fmt.int(program.maxTokens) }} decode tokens, runtime budget is
+          {{ fmt.int(api.state.model.maxNewTokens) }} — tighten a length bound
         </div>
 
         <div v-if="compileError" class="pre">compile error: {{ compileError }}</div>

@@ -1,5 +1,5 @@
 // EXPERIMENTAL LOCAL STUB — see package.json.
-// Type declarations for the @sandblaster/core-next API surface consumed by
+// Type declarations for the @sandblaster/core API surface consumed by
 // chomato's packages/webgpu (lfm2-definition.ts, pass.ts, forward.ts, lfm2.ts).
 // Any GPUBuffer/GPUDevice-typed slots use `any` so this file does not depend on
 // @webgpu/types; the real webgpu sources are still checked against the real

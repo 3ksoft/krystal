@@ -259,7 +259,12 @@ export function linkGpuConstraintProgram(program: LayoutConstraintProgram): GpuC
     if (trie.children.size === 0) fail(`${label}: empty trie node`);
 
     if (trie.children.size === 1) {
-      const [[_firstByte, firstChild]] = trie.children;
+      // Destructured in two steps: the first element of an iterable is
+      // `T | undefined`, and nesting the pattern asks TypeScript to iterate
+      // that union. size === 1 above already guarantees the entry exists.
+      const [firstEntry] = trie.children;
+      if (!firstEntry) fail(`${label}: trie node lost its only child`);
+      const [_firstByte, firstChild] = firstEntry;
       // A replay edge is a zero-consumption dispatch guard. It cannot be
       // collapsed into a literal because the destination lexer still needs to
       // consume the discriminating byte itself.
@@ -267,7 +272,9 @@ export function linkGpuConstraintProgram(program: LayoutConstraintProgram): GpuC
         const bytes: number[] = [];
         let cursor = trie;
         while (cursor.endpoint === undefined && cursor.children.size === 1) {
-          const [[byte, child]] = cursor.children;
+          const [entry] = cursor.children;
+          if (!entry) break;
+          const [byte, child] = entry;
           if (child.endpoint?.replay && child.children.size === 0) break;
           bytes.push(byte);
           cursor = child;

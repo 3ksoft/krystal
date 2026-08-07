@@ -34,7 +34,10 @@ function startsWithBytes(value: Uint8Array, prefix: Uint8Array): boolean {
   return true;
 }
 
-function concatBytes(a: Uint8Array, b: Uint8Array): Uint8Array {
+// ArrayBuffer-backed explicitly: freshly allocated here, and the bare
+// `Uint8Array` alias widens to ArrayBufferLike, which will not assign back to
+// the ArrayBuffer-backed fields this feeds.
+function concatBytes(a: Uint8Array, b: Uint8Array): Uint8Array<ArrayBuffer> {
   const out = new Uint8Array(a.length + b.length);
   out.set(a, 0);
   out.set(b, a.length);

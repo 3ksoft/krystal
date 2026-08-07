@@ -1,4 +1,4 @@
-import { BlobSource } from "../../../quant/src/gguf/source";
+import { BlobSource } from "../../../quant/src/gguf/source-web";
 import { createWebGpuDevice } from "../../src/device";
 import { Lfm2Forward } from "../../src/forward";
 import { lfm2 } from "../../src/lfm2";

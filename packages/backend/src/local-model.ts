@@ -114,6 +114,9 @@ async function createSharedRealEngine(modelPath: string): Promise<SharedRealEngi
 
   const { adapter, device } = await createWebGpuDevice({
     label: "chomato-local-model",
+    // Makes GPU pass timing attachable from profiling tests. Nothing is
+    // instrumented unless a probe is explicitly attached.
+    timestampQuery: true,
     requiredLimits: {
       maxBufferSize: GIB,
       maxStorageBufferBindingSize: GIB,

@@ -23,6 +23,11 @@ export default defineComponent({
     const inspecting = ref<number | null>(null);
 
     const ready = computed(() => api.state.phase === "ready");
+    // A checkpoint needs something to materialize. Gate the control on that
+    // rather than letting the click fail and reporting it after the fact.
+    const hasContext = computed(() =>
+      selection.value.checkpoint !== null || selection.value.blocks.length > 0
+    );
     const inspected = computed(() =>
       inspecting.value === null ? null : api.checkpoint(inspecting.value) ?? null
     );
@@ -79,7 +84,7 @@ export default defineComponent({
       }
     }
 
-    return { api, label, selection, inspecting, inspected, ready, tree, create, drop, fmt };
+    return { api, label, selection, inspecting, inspected, ready, hasContext, tree, create, drop, fmt };
   },
   template: `
     <TosWindow title="CHECKPOINTS" :span="4">
@@ -88,7 +93,16 @@ export default defineComponent({
 
         <div class="row">
           <input class="grow" type="text" v-model="label" placeholder="name (optional)" :disabled="!ready" />
-          <button class="btn btn--default" type="button" :disabled="!ready" @click="create">CHECKPOINT</button>
+          <button
+            class="btn btn--default"
+            type="button"
+            :disabled="!ready || !hasContext"
+            :title="hasContext ? 'Freeze the selected context' : 'Choose a base checkpoint or at least one block'"
+            @click="create"
+          >CHECKPOINT</button>
+        </div>
+        <div v-if="ready && !hasContext" class="muted">
+          pick a base checkpoint or a block above to enable CHECKPOINT
         </div>
 
         <div class="list" style="max-height:150px">

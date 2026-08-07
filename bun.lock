@@ -6,6 +6,8 @@
       "name": "chomato",
       "dependencies": {
         "@ark/json-schema": "^0.0.7",
+        "@sandblaster/core": "link:@sandblaster/core",
+        "@schema-pop/schema": "link:@schema-pop/schema",
         "arktype": "2.2.3",
       },
       "devDependencies": {
@@ -99,7 +101,7 @@
         "@chomato/engine-ts": "workspace:*",
       },
       "devDependencies": {
-        "@sandblaster/core-next": "link:@sandblaster/core-next",
+        "@sandblaster/core": "link:@sandblaster/core",
         "@types/deno": "^2.7.0",
         "@types/node": "^26.1.2",
         "@webgpu/types": "^0.1.71",
@@ -170,7 +172,7 @@
 
     "@rolldown/pluginutils": ["@rolldown/pluginutils@1.0.1", "", {}, "sha512-2j9bGt5Jh8hj+vPtgzPtl72j0yRxHAyumoo6TNfAjsLB04UtpSvPbPcDcBMxz7n+9CYB0c1GxQFxYRg2jimqGw=="],
 
-    "@sandblaster/core-next": ["@sandblaster/core-next@link:@sandblaster/core-next", {}],
+    "@sandblaster/core": ["@sandblaster/core@link:@sandblaster/core", {}],
 
     "@sandblaster/schema": ["@sandblaster/schema@workspace:packages/schema"],
 

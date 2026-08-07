@@ -1,5 +1,5 @@
 import { Engine } from "@chomato/engine-ts/transport";
-import { BlobSource } from "../../../quant/src/gguf/source";
+import { BlobSource } from "../../../quant/src/gguf/source-web";
 import { createWebGpuDevice } from "../../src/device";
 import { createLfm2WebGpuTransport } from "../../src/engine-transport";
 import { Lfm2Forward } from "../../src/forward";

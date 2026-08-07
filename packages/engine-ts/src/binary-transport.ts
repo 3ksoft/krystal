@@ -17,10 +17,12 @@ export interface BinaryEngineTransportOptions {
   readonly maxPayloadBytes?: number;
 }
 
-function concat(a: Uint8Array, b: Uint8Array): Uint8Array {
-  if (a.byteLength === 0) return b.slice();
+// Returns ArrayBuffer-backed explicitly: the result is always freshly
+// allocated, and the bare `Uint8Array` alias widens to ArrayBufferLike, which
+// then will not assign back to the ArrayBuffer-backed field it feeds.
+function concat(a: Uint8Array, b: Uint8Array): Uint8Array<ArrayBuffer> {
   const result = new Uint8Array(a.byteLength + b.byteLength);
-  result.set(a, 0);
+  if (a.byteLength > 0) result.set(a, 0);
   result.set(b, a.byteLength);
   return result;
 }

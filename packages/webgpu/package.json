@@ -15,7 +15,7 @@
     "@types/node": "^26.1.2",
     "@webgpu/types": "^0.1.71",
     "vite": "^8.2.0",
-    "@sandblaster/core-next": "link:@sandblaster/core-next"
+    "@sandblaster/core": "link:@sandblaster/core"
   },
   "dependencies": {
     "@chomato/engine-ts": "workspace:*",

@@ -1,6 +1,6 @@
 import { GgmlType, type GgufValue } from "../gguf/types";
 import { GgufReader } from "../gguf/reader";
-import { DenoFileSource } from "../gguf/source";
+import { DenoFileSource } from "../gguf/source-deno";
 
 function asNumber(value: GgufValue, key: string): number {
   if (typeof value === "number") return value;
