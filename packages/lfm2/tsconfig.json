@@ -3,9 +3,8 @@
 		"module": "es2022",
 		"target": "es2022",
 		"lib": ["ES2022", "DOM", "DOM.Iterable"],
-		"jsx": "react-jsx",
 
-		"types": ["@webgpu/types", "@types/deno", "@types/node"],
+		"types": ["@webgpu/types", "@types/deno"],
 
 		"incremental": true,
 		"skipLibCheck": true,
@@ -23,5 +22,6 @@
 		"composite": false,
 		"sourceMap": false,
 		"noEmit": true
-	}
+	},
+	"include": ["src/**/*.ts"]
 }

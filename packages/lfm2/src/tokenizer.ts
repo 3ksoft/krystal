@@ -1,5 +1,5 @@
-import type { GgufValue } from "../../gguf/src/types.ts";
-import type { GgufReader } from "../../gguf/src/reader.ts";
+import type { GgufValue } from "../../quant/src/gguf/types.ts";
+import type { GgufReader } from "../../quant/src/gguf/reader.ts";
 
 const TOKEN_TYPE_CONTROL = 3;
 const TOKEN_TYPE_USER_DEFINED = 4;

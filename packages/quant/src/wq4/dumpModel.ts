@@ -1,6 +1,6 @@
-import { GgmlType, type GgufValue } from "../../quant/src/gguf/types";
-import { GgufReader } from "../../quant/src/gguf/reader";
-import { DenoFileSource } from "../../quant/src/gguf/source";
+import { GgmlType, type GgufValue } from "../gguf/types";
+import { GgufReader } from "../gguf/reader";
+import { DenoFileSource } from "../gguf/source";
 
 function asNumber(value: GgufValue, key: string): number {
   if (typeof value === "number") return value;
@@ -49,7 +49,7 @@ const outputPath = Deno.args[1] ?? "./lfm2-init.ts";
 
 if (!ggufPath) {
   console.error(
-    "Usage: deno run --allow-read --allow-write misc/dump_lfm2_init.ts <model.gguf> [output.ts]",
+    "Usage: deno run --allow-read --allow-write packages/quant/src/wq4/dumpModel.ts <model.gguf> [output.ts]",
   );
   Deno.exit(2);
 }
