@@ -1,3 +1,4 @@
+import { isJsonNumberComplete as isJsonNumberCompleteExact } from "./json-number.ts";
 import type { LayoutPlan } from "@schema-pop/schema";
 
 export interface TokenByteTableEntry {
@@ -248,7 +249,7 @@ export function createLiteralEnumJsonConstraint(options: {
 // LayoutPlan -> canonical compact JSON constraint graph
 // ---------------------------------------------------------------------------
 
-type LiteralNode = {
+export type LiteralNode = {
   kind: "literal";
   bytes: Uint8Array;
   text: string;
@@ -256,7 +257,7 @@ type LiteralNode = {
   next: number;
 };
 
-type ChoiceNode = {
+export type ChoiceNode = {
   kind: "choice";
   alternatives: readonly Uint8Array[];
   texts: readonly string[];
@@ -264,7 +265,7 @@ type ChoiceNode = {
   next: number;
 };
 
-type StringNode = {
+export type StringNode = {
   kind: "string";
   minLength: number;
   maxLength: number;
@@ -272,7 +273,7 @@ type StringNode = {
   next: number;
 };
 
-type NumberNode = {
+export type NumberNode = {
   kind: "number";
   integer: boolean;
   min?: number;
@@ -283,18 +284,18 @@ type NumberNode = {
   next: number;
 };
 
-type SplitNode = {
+export type SplitNode = {
   kind: "split";
   targets: readonly number[];
   label: string;
 };
 
-type AcceptNode = {
+export type AcceptNode = {
   kind: "accept";
   label: string;
 };
 
-type JsonNode = LiteralNode | ChoiceNode | StringNode | NumberNode | SplitNode | AcceptNode;
+export type JsonNode = LiteralNode | ChoiceNode | StringNode | NumberNode | SplitNode | AcceptNode;
 
 export interface LayoutConstraintProgramSummary {
   rootType: string;
@@ -666,20 +667,12 @@ function isJsonNumberPrefix(text: string, integer: boolean): boolean {
 }
 
 function isJsonNumberComplete(node: NumberNode, text: string): boolean {
-  const pattern = node.integer
-    ? /^-?(?:0|[1-9]\d*)$/
-    : /^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$/;
-  if (!pattern.test(text)) return false;
-  const value = Number(text);
-  if (!Number.isFinite(value)) return false;
-  if (node.min !== undefined && value < node.min) return false;
-  if (node.max !== undefined && value > node.max) return false;
-  if (node.step !== undefined) {
-    const base = node.min ?? 0;
-    const scaled = (value - base) / node.step;
-    if (Math.abs(scaled - Math.round(scaled)) > 1e-9 * Math.max(1, Math.abs(scaled))) return false;
-  }
-  return true;
+  return isJsonNumberCompleteExact(text, {
+    integer: node.integer,
+    minText: node.min === undefined ? undefined : String(node.min),
+    maxText: node.max === undefined ? undefined : String(node.max),
+    step: node.step,
+  });
 }
 
 function choiceMatchesPrefix(node: ChoiceNode, prefix: readonly number[]): boolean {
@@ -1007,3 +1000,5 @@ export function createLayoutPlanJsonConstraint(options: {
 export * from "./transport";
 
 export * from "./binary-transport";
+
+export * from "./gpu-constraint.ts";

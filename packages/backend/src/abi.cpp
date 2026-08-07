@@ -7,6 +7,83 @@
 #include <array>
 
 namespace v1_0_0 {
+	using ConstraintNodeKind = uint8_t;
+	constexpr ConstraintNodeKind ConstraintNodeKind_literal = 0;
+	constexpr ConstraintNodeKind ConstraintNodeKind_switch = 1;
+	constexpr ConstraintNodeKind ConstraintNodeKind_string = 2;
+	constexpr ConstraintNodeKind ConstraintNodeKind_number = 3;
+	constexpr ConstraintNodeKind ConstraintNodeKind_accept = 4;
+	
+	using ConstraintDecoderStatus = uint8_t;
+	constexpr ConstraintDecoderStatus ConstraintDecoderStatus_running = 0;
+	constexpr ConstraintDecoderStatus ConstraintDecoderStatus_accept = 1;
+	constexpr ConstraintDecoderStatus ConstraintDecoderStatus_dead = 2;
+	constexpr ConstraintDecoderStatus ConstraintDecoderStatus_error = 3;
+	
+	struct alignas(4) ConstraintProgramHeader {
+		uint32_t version;
+		uint32_t flags;
+		uint32_t entryNode;
+		uint32_t acceptNode;
+		uint32_t nodeWordOffset;
+		uint32_t nodeCount;
+		uint32_t edgeWordOffset;
+		uint32_t edgeCount;
+		uint32_t byteWordOffset;
+		uint32_t byteLength;
+		uint32_t reserved0;
+		uint32_t reserved1;
+	};
+	
+	struct alignas(4) ConstraintNode {
+		ConstraintNodeKind kind;
+		uint8_t _pad_kind[3];
+		uint32_t next;
+		uint32_t dataOffset;
+		uint32_t dataCount;
+		uint32_t arg0;
+		uint32_t arg1;
+		uint32_t arg2;
+		uint32_t arg3;
+		uint32_t arg4;
+		uint32_t arg5;
+		uint32_t arg6;
+		uint32_t arg7;
+	};
+	
+	struct alignas(4) ConstraintByteEdge {
+		uint32_t word;
+	};
+	
+	struct alignas(4) ConstraintTokenizerHeader {
+		uint32_t tokenCount;
+		uint32_t eosToken;
+		uint32_t entryWordOffset;
+		uint32_t byteWordOffset;
+		uint32_t byteLength;
+		uint32_t reserved0;
+		uint32_t reserved1;
+		uint32_t reserved2;
+	};
+	
+	struct alignas(4) ConstraintTokenByteEntry {
+		uint32_t byteOffset;
+		uint32_t meta;
+	};
+	
+	struct alignas(4) ConstraintDecoderState {
+		uint32_t node;
+		uint32_t local0;
+		uint32_t local1;
+		uint32_t local2;
+		ConstraintDecoderStatus status;
+		uint8_t _pad_status[3];
+		uint32_t errorCode;
+		uint32_t reserved0;
+		uint32_t reserved1;
+		uint8_t numberText[32];
+	};
+	
 	using Lfm2Mode = uint8_t;
 	constexpr Lfm2Mode Lfm2Mode_prefill = 0;
 	constexpr Lfm2Mode Lfm2Mode_decode = 1;

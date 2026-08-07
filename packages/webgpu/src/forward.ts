@@ -9,6 +9,7 @@ import {
   Lfm2Executor,
   type Lfm2CommandEncoder,
 } from "./pass";
+import { GPU_SCHEMA_SENTINELS } from "../../schema/src/sparse";
 import {
   Lfm2GpuModel,
   lfm2Block0TensorNames,
@@ -209,6 +210,25 @@ export class Lfm2Forward {
       );
     }
     lfm2.engine.device.queue.writeBuffer(lfm2.resources.tokens.gpu, tokenOffset * 4, values);
+  }
+
+  /**
+   * Upload a sparse set of token IDs accepted by the guide. Slots may contain
+   * EMPTY_TOKEN (0xffff); argmax_candidates ignores them.
+   */
+  writeCandidateTokens(tokens: Uint32Array | readonly number[]): void {
+    const values = tokens instanceof Uint32Array ? tokens : Uint32Array.from(tokens);
+    if (values.length > this.model.config.vocabSize) {
+      throw new RangeError(
+        `Candidate token count ${values.length} exceeds vocabulary ${this.model.config.vocabSize}`,
+      );
+    }
+    for (const token of values) {
+      if (!Number.isInteger(token) || token < 0 || token > 0xffff) {
+        throw new RangeError(`Candidate token ID must fit u16, got ${token}`);
+      }
+    }
+    lfm2.engine.device.queue.writeBuffer(lfm2.resources.candidateTokens.gpu, 0, values);
   }
 
   /** Clear recurrent state without destroying/recreating long-lived buffers. */
@@ -648,6 +668,33 @@ export class Lfm2Forward {
     pass.run("argmax", {
       inputOffset: LFM2_ARENA.logits,
       inputDim: this.model.config.vocabSize,
+      // u0 is pass-local here: token 0xffff is a GPU sentinel and must never
+      // escape through normal sampling.
+      u0: GPU_SCHEMA_SENTINELS.emptyToken,
+      mode,
+    });
+  }
+
+  /**
+   * Sample only from a sparse guide candidate table. This is the first WebGPU
+   * guide primitive: the state machine may fill a fixed-size table with token
+   * IDs and pad unused entries with EMPTY_TOKEN instead of materializing a
+   * 65k-bit mask.
+   */
+  commitArgmaxCandidates(
+    pass: Lfm2ComputePass,
+    candidateCount: number,
+    mode: Lfm2Mode = "prefill",
+  ): void {
+    if (!Number.isInteger(candidateCount) || candidateCount < 1 || candidateCount > this.model.config.vocabSize) {
+      throw new RangeError(
+        `candidateCount must be 1..${this.model.config.vocabSize}, got ${candidateCount}`,
+      );
+    }
+    pass.run("argmax_candidates", {
+      inputOffset: LFM2_ARENA.logits,
+      inputDim: candidateCount,
+      u0: GPU_SCHEMA_SENTINELS.emptyToken,
       mode,
     });
   }

@@ -11,6 +11,20 @@
 //   bun test tests/checkpoint.test.ts
 import { describe, expect, test } from "bun:test";
 import { loadModel } from "../src";
+import {
+	GPU_CONSTRAINT_ABI,
+	GPU_CONSTRAINT_NODE_KIND,
+	GPU_CONSTRAINT_TOKEN_META,
+	GPU_CONSTRAINT_STATE,
+	gpuConstraintMaskReference,
+	createGpuConstraintDecoderState,
+	feedGpuConstraintBytes,
+	gpuConstraintComplete,
+	linkGpuConstraintProgram,
+	linkGpuConstraintTokenizer,
+} from "../packages/engine-ts/src/gpu-constraint.ts";
+import type { LayoutConstraintProgram } from "../packages/engine-ts/src/index.ts";
+import { createGpuConstraintMaskResources } from "../packages/webgpu/src/constraint.ts";
 
 async function collect(iterable: AsyncIterable<number>): Promise<number[]> {
 	const out: number[] = [];
@@ -29,6 +43,227 @@ const GENERATE = {
 	maxTokens: 4,
 	sampler: "argmax",
 } as const;
+
+
+const constraintEncoder = new TextEncoder();
+
+describe("gpu constraint linker", () => {
+	test("collapses split prefixes into a deterministic trie", () => {
+		const program: LayoutConstraintProgram = {
+			entry: 3,
+			accept: 0,
+			summary: {
+				rootType: "value",
+				segments: 4,
+				fields: 0,
+				optionalIncluded: 0,
+				optionalSkipped: 0,
+				enums: 0,
+				strings: 0,
+				numbers: 0,
+				booleans: 0,
+				arrays: 0,
+			},
+			nodes: [
+				{ kind: "accept", label: "done" },
+				{
+					kind: "literal",
+					bytes: constraintEncoder.encode("abc"),
+					text: "abc",
+					label: "a",
+					next: 0,
+				},
+				{
+					kind: "literal",
+					bytes: constraintEncoder.encode("abd"),
+					text: "abd",
+					label: "b",
+					next: 0,
+				},
+				{ kind: "split", targets: [1, 2], label: "split" },
+			],
+		};
+
+		const linked = linkGpuConstraintProgram(program);
+
+		expect(linked.summary.switchNodes).toBe(1);
+		expect(linked.summary.edges).toBe(2);
+		expect(linked.summary.literalNodes).toBe(1);
+		expect(linked.nodes[0]).toBe(GPU_CONSTRAINT_NODE_KIND.literal);
+
+		const switchNode = linked.nodes.subarray(
+			GPU_CONSTRAINT_ABI.nodeWords,
+			GPU_CONSTRAINT_ABI.nodeWords * 2,
+		);
+		expect(switchNode[0]).toBe(GPU_CONSTRAINT_NODE_KIND.switch);
+	});
+
+	test("packs tokenizer byte offsets, lengths and special flag", () => {
+		const linked = linkGpuConstraintTokenizer(
+			[
+				{ id: 0, bytes: constraintEncoder.encode("a"), special: false },
+				{ id: 1, bytes: constraintEncoder.encode("bc"), special: false },
+				{ id: 2, bytes: null, special: true },
+			],
+			2,
+		);
+
+		expect(linked.header[0]).toBe(3);
+		expect(linked.header[1]).toBe(2);
+
+		expect(linked.entries[0]).toBe(0);
+		expect(linked.entries[1]).toBe(1);
+
+		expect(linked.entries[2]).toBe(1);
+		expect(linked.entries[3]).toBe(2);
+
+		expect(linked.entries[4]).toBe(3);
+		expect(linked.entries[5]! & GPU_CONSTRAINT_TOKEN_META.special).not.toBe(0);
+		expect(linked.byteLength).toBe(3);
+	});
+
+	test("executes the upload blob with transactional 64-byte state", () => {
+		const program: LayoutConstraintProgram = {
+			entry: 5,
+			accept: 0,
+			summary: {
+				rootType: "value",
+				segments: 6,
+				fields: 2,
+				optionalIncluded: 0,
+				optionalSkipped: 0,
+				enums: 0,
+				strings: 1,
+				numbers: 1,
+				booleans: 0,
+				arrays: 0,
+			},
+			nodes: [
+				{ kind: "accept", label: "done" },
+				{ kind: "literal", bytes: constraintEncoder.encode("}"), text: "}", label: "close", next: 0 },
+				{ kind: "string", minLength: 1, maxLength: 4, label: "string", next: 1 },
+				{ kind: "literal", bytes: constraintEncoder.encode(',"s":'), text: ',"s":', label: "field-s", next: 2 },
+				{ kind: "number", integer: false, min: 0, max: 10, maxChars: 32, label: "number", next: 3 },
+				{ kind: "literal", bytes: constraintEncoder.encode('{"n":'), text: '{"n":', label: "field-n", next: 4 },
+			],
+		};
+
+		const linked = linkGpuConstraintProgram(program);
+		const state = createGpuConstraintDecoderState(linked);
+		expect(state.byteLength).toBe(GPU_CONSTRAINT_STATE.byteLength);
+
+		expect(feedGpuConstraintBytes(linked, state, constraintEncoder.encode('{"n":'))).toBe(true);
+		const beforeInvalid = state.slice();
+		expect(feedGpuConstraintBytes(linked, state, constraintEncoder.encode("11,"))).toBe(false);
+		expect(Array.from(state)).toEqual(Array.from(beforeInvalid));
+
+		expect(feedGpuConstraintBytes(linked, state, constraintEncoder.encode("3.5"))).toBe(true);
+		expect(feedGpuConstraintBytes(linked, state, constraintEncoder.encode(',"s":"a\\n"}'))).toBe(true);
+		expect(gpuConstraintComplete(linked, state)).toBe(true);
+	});
+
+	test("builds the exact packed mask from upload blobs", () => {
+		const program: LayoutConstraintProgram = {
+			entry: 5,
+			accept: 0,
+			summary: {
+				rootType: "value", segments: 6, fields: 2,
+				optionalIncluded: 0, optionalSkipped: 0, enums: 0,
+				strings: 1, numbers: 1, booleans: 0, arrays: 0,
+			},
+			nodes: [
+				{ kind: "accept", label: "done" },
+				{ kind: "literal", bytes: constraintEncoder.encode("}"), text: "}", label: "close", next: 0 },
+				{ kind: "string", minLength: 1, maxLength: 4, label: "string", next: 1 },
+				{ kind: "literal", bytes: constraintEncoder.encode(',"s":'), text: ',"s":', label: "field-s", next: 2 },
+				{ kind: "number", integer: false, min: 0, max: 10, maxChars: 32, label: "number", next: 3 },
+				{ kind: "literal", bytes: constraintEncoder.encode('{"n":'), text: '{"n":', label: "field-n", next: 4 },
+			],
+		};
+		const linked = linkGpuConstraintProgram(program);
+		const tokenizer = linkGpuConstraintTokenizer([
+			{ id: 0, bytes: constraintEncoder.encode('{"n":'), special: false },
+			{ id: 1, bytes: constraintEncoder.encode("3.5"), special: false },
+			{ id: 2, bytes: constraintEncoder.encode("11,"), special: false },
+			{ id: 3, bytes: constraintEncoder.encode(',"s":"x"}'), special: false },
+			{ id: 4, bytes: null, special: true },
+		], 4);
+		const state = createGpuConstraintDecoderState(linked);
+
+		expect(Array.from(gpuConstraintMaskReference(linked, tokenizer, state))).toEqual([0b00001]);
+		expect(feedGpuConstraintBytes(linked, state, constraintEncoder.encode('{"n":'))).toBe(true);
+		expect(Array.from(gpuConstraintMaskReference(linked, tokenizer, state))).toEqual([0b00010]);
+		expect(feedGpuConstraintBytes(linked, state, constraintEncoder.encode('3.5,"s":"x"}'))).toBe(true);
+		expect(gpuConstraintComplete(linked, state)).toBe(true);
+		expect(Array.from(gpuConstraintMaskReference(linked, tokenizer, state))).toEqual([0b10000]);
+	});
+
+
+	test("Dawn mask matches the CPU oracle bit-for-bit", async () => {
+		const { create, globals } = await import("webgpu");
+		Object.assign(globalThis, globals);
+
+		// Keep the GPUSupportedLimits owner alive until after device.destroy().
+		// dawn.node keeps its native instance alive through the object returned by create().
+		const gpu = create([]);
+		const adapter = await gpu.requestAdapter({ powerPreference: "high-performance" });
+		if (!adapter) throw new Error("Could not acquire a Dawn WebGPU adapter");
+		const device = await adapter.requestDevice({ label: "constraint-mask-test" });
+
+		const program: LayoutConstraintProgram = {
+			entry: 5,
+			accept: 0,
+			summary: {
+				rootType: "value", segments: 6, fields: 2,
+				optionalIncluded: 0, optionalSkipped: 0, enums: 0,
+				strings: 1, numbers: 1, booleans: 0, arrays: 0,
+			},
+			nodes: [
+				{ kind: "accept", label: "done" },
+				{ kind: "literal", bytes: constraintEncoder.encode("}"), text: "}", label: "close", next: 0 },
+				{ kind: "string", minLength: 1, maxLength: 4, label: "string", next: 1 },
+				{ kind: "literal", bytes: constraintEncoder.encode(',"s":'), text: ',"s":', label: "field-s", next: 2 },
+				{ kind: "number", integer: false, min: 0, max: 10, maxChars: 32, label: "number", next: 3 },
+				{ kind: "literal", bytes: constraintEncoder.encode('{"n":'), text: '{"n":', label: "field-n", next: 4 },
+			],
+		};
+		const linked = linkGpuConstraintProgram(program);
+		const tokenizer = linkGpuConstraintTokenizer([
+			{ id: 0, bytes: constraintEncoder.encode('{"n":'), special: false },
+			{ id: 1, bytes: constraintEncoder.encode("3.5"), special: false },
+			{ id: 2, bytes: constraintEncoder.encode("11,"), special: false },
+			{ id: 3, bytes: constraintEncoder.encode(',"s":"x"}'), special: false },
+			{ id: 4, bytes: null, special: true },
+		], 4);
+		const state = createGpuConstraintDecoderState(linked);
+
+		let resources: Awaited<ReturnType<typeof createGpuConstraintMaskResources>> | undefined;
+		try {
+			resources = await createGpuConstraintMaskResources(device, linked, tokenizer, state);
+
+			const compare = async () => {
+				const cpu = gpuConstraintMaskReference(linked, tokenizer, state);
+				const gpuMask = await resources!.readMask();
+				expect(Array.from(gpuMask)).toEqual(Array.from(cpu));
+			};
+
+			await compare();
+
+			expect(feedGpuConstraintBytes(linked, state, constraintEncoder.encode('{"n":'))).toBe(true);
+			resources.writeState(state);
+			await compare();
+
+			expect(feedGpuConstraintBytes(linked, state, constraintEncoder.encode('3.5,"s":"x"}'))).toBe(true);
+			expect(gpuConstraintComplete(linked, state)).toBe(true);
+			resources.writeState(state);
+			await compare();
+		} finally {
+			resources?.destroy();
+			device.destroy();
+			void gpu;
+		}
+	}, 30_000);
+});
 
 describe("context checkpoints", () => {
 	test("checkpoint + continuation is exactly equivalent to full context", async () => {

@@ -3,6 +3,14 @@
 import { $ } from "../../schema/src/schema";
 
 export const {
+	ConstraintNodeKind,
+	ConstraintDecoderStatus,
+	ConstraintProgramHeader,
+	ConstraintNode,
+	ConstraintByteEdge,
+	ConstraintTokenizerHeader,
+	ConstraintTokenByteEntry,
+	ConstraintDecoderState,
 	Lfm2Mode,
 	OpParams,
 	LlmRuntimeStatus,
@@ -25,6 +33,14 @@ export const {
 	Lfm2RuntimeOptions,
 } = $.export();
 
+export type ConstraintNodeKind = typeof ConstraintNodeKind.infer;
+export type ConstraintDecoderStatus = typeof ConstraintDecoderStatus.infer;
+export type ConstraintProgramHeader = typeof ConstraintProgramHeader.infer;
+export type ConstraintNode = typeof ConstraintNode.infer;
+export type ConstraintByteEdge = typeof ConstraintByteEdge.infer;
+export type ConstraintTokenizerHeader = typeof ConstraintTokenizerHeader.infer;
+export type ConstraintTokenByteEntry = typeof ConstraintTokenByteEntry.infer;
+export type ConstraintDecoderState = typeof ConstraintDecoderState.infer;
 export type Lfm2Mode = typeof Lfm2Mode.infer;
 export type OpParams = typeof OpParams.infer;
 export type LlmRuntimeStatus = typeof LlmRuntimeStatus.infer;
