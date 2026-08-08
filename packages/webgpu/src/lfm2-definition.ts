@@ -1,3 +1,13 @@
+// ArkType-backed LFM2 definition DSL.
+//
+// This is the build-time path: it declares the whole typed resource/program
+// graph through Sandblaster's scope API and is used by the AOT scripts
+// (scripts/build-lfm2-artifact.ts, scripts/validate-lfm2-shaders.ts) to link
+// and serialize lfm2.artifact.generated.ts.
+//
+// The runtime never needs it. packages/webgpu/src/lfm2.ts builds the same
+// definition from the already-linked artifact (lfm2-artifact.ts), so this
+// module — and with it arktype and `$` — stays out of scriptc-compiled graphs.
 import {
   Sandblaster,
   type AnyComputeHandle,
@@ -5,195 +15,33 @@ import {
   type BufferResourceUse,
 } from "@sandblaster/core";
 import { $ } from "../../schema/src/schema";
-import { LFM2_CONFIG } from "./lfm2-init";
-export const CONTEXT_CAPACITY = 1024;
-// Capacity guard for the schema-derived decode budget. The parameter itself is
-// scheduled to disappear once buffer sizes are derived from the schema; for now
-// 1024 is the maximum the current arena/token layout can support.
-export const MAX_NEW_TOKENS = 1024;
+import {
+  VOCAB,
+  ARENA_ELEMENTS,
+  KV_ELEMENTS,
+  CONV_ELEMENTS,
+  TOKEN_CAPACITY,
+  TELEMETRY_CAPACITY,
+  OP_PARAM_BUFFER_BYTES,
+  CONSTRAINT_PROGRAM_WORD_CAPACITY,
+  CONSTRAINT_TOKENIZER_WORD_CAPACITY,
+  CONSTRAINT_MASK_WORDS,
+  CONSTRAINT_MASK_WORKGROUP_SIZE,
+  LFM2_DEFINITION_PLAIN,
+  LFM2_SHADER_NAMES,
+  type Lfm2ProgramName,
+  type Lfm2ShaderName,
+  defineLfm2Passes,
+} from "./lfm2-layout";
 
-// block boundary history 4 + repair 4
-export const REPAIR_CAPACITY = 8;
-
-export const H = LFM2_CONFIG.hiddenSize;          // 2048
-export const FF = LFM2_CONFIG.feedForwardSize;    // 8192
-export const VOCAB = LFM2_CONFIG.vocabSize;       // 65536
-
-export const SCRATCH_WIDTH = Math.max(FF, 3 * H);
-
-export interface Lfm2WorkLayout {
-  hiddenA: number;
-  hiddenB: number;
-  tmpH: number;
-  tmpA: number;
-  tmpB: number;
-}
-
-export interface Lfm2ArenaLayout extends Lfm2WorkLayout {
-  repair: Lfm2WorkLayout;
-  logits: number;
-  elements: number;
-}
-
-function createArenaLayout(): Lfm2ArenaLayout {
-  let cursor = 0;
-  const take = (elements: number) => {
-    const offset = cursor;
-    cursor += elements;
-    return offset;
-  };
-  const work = (tokenCapacity: number): Lfm2WorkLayout => ({
-    hiddenA: take(tokenCapacity * H),
-    hiddenB: take(tokenCapacity * H),
-    tmpH: take(tokenCapacity * H),
-    tmpA: take(tokenCapacity * SCRATCH_WIDTH),
-    tmpB: take(tokenCapacity * SCRATCH_WIDTH),
-  });
-
-  const main = work(CONTEXT_CAPACITY);
-  const repair = work(REPAIR_CAPACITY);
-  const logits = take(VOCAB);
-  return { ...main, repair, logits, elements: cursor };
-}
-
-/** Canonical activation offsets shared by all runtime scheduling code. */
-export const LFM2_ARENA = createArenaLayout();
-export const ARENA_ELEMENTS = LFM2_ARENA.elements;
-
-// Generalniejsze niż attentionLayerCount * 8:
-// obsłuży też ewentualnie różną liczbę KV heads per layer.
-export const KV_ELEMENTS =
-  2 * // K + V
-  CONTEXT_CAPACITY *
-  LFM2_CONFIG.headDim *
-  LFM2_CONFIG.kvHeadsByLayer.reduce((sum, heads) => sum + heads, 0);
-
-export const CONV_ELEMENTS =
-  LFM2_CONFIG.blockCount *
-  H *
-  LFM2_CONFIG.convCacheLength;
-
-export const TOKEN_CAPACITY =
-  CONTEXT_CAPACITY + MAX_NEW_TOKENS;
-
-export const TELEMETRY_CAPACITY = 256;
-// One 256-byte (aligned) OpParams record per dispatch. A full decode step of
-// the 16-block model spends ~250 dispatches, so the buffer must fit the whole
-// schema-derived budget: MAX_NEW_TOKENS(1024) * ~250 * 256 B ~= 64 MiB. 128 MiB
-// leaves headroom for paged matmuls and the prefill of a long prompt.
-export const OP_PARAM_BUFFER_BYTES = 128 * 1024 * 1024;
-
-/**
- * Output rows computed per matmul_wq4 workgroup.
- *
- * Must equal MATMUL_ROWS in shaders/includes/common.wgsl. Tiling rows is what
- * takes the kernel off its launch/reduction bound; 8 was chosen because it is
- * the best value that wins on every shape in the model (16 is faster for
- * outputDim >= 8192 but slower for the 2048-row attention projections).
- */
-export const MATMUL_WQ4_ROWS = 8;
-
-// Structured-generation VM. These are fixed AOT binding capacities, not
-// semantic schema limits. Actual program/tokenizer blobs carry their lengths.
-export const CONSTRAINT_PROGRAM_WORD_CAPACITY = 1 << 18;   // 1 MiB
-export const CONSTRAINT_TOKENIZER_WORD_CAPACITY = 1 << 20; // 4 MiB
-export const CONSTRAINT_STATE_WORDS = 24;                   // 96 B
-export const CONSTRAINT_MASK_WORDS = Math.ceil(VOCAB / 32);
-export const CONSTRAINT_MASK_WORKGROUP_SIZE = 64;
-export const CONSTRAINT_MASK_WORKGROUPS = Math.ceil(
-  CONSTRAINT_MASK_WORDS / CONSTRAINT_MASK_WORKGROUP_SIZE,
-);
-
-export const LFM2_SHADER_NAMES = [
-  "embedding",
-  "embedding_wq4",
-  "rms_norm",
-  "matmul_f16",
-  "matmul_f32",
-  "matmul_wq4",
-  "residual_add",
-  "silu_mul",
-  "shortconv_prefill",
-  "shortconv_continue",
-  "shortconv_decode",
-  "qk_norm_rope",
-  "kv_store",
-  "attention",
-  "arena_copy",
-  "argmax_candidates",
-  "argmax",
-  "constraint_mask",
-  "constraint_argmax",
-] as const;
-
-export type Lfm2ShaderName = (typeof LFM2_SHADER_NAMES)[number];
-export type Lfm2PassName = Exclude<Lfm2ShaderName, "constraint_mask">;
-export const LFM2_PASS_NAMES = LFM2_SHADER_NAMES.filter(
-  (name): name is Lfm2PassName => name !== "constraint_mask",
-);
-
-export type Lfm2Mode = "prefill" | "decode" | "continuation";
-
-/** Host-side shape of the per-dispatch OpParams schema. */
-export interface Lfm2OpParams {
-  inputOffset?: number;
-  outputOffset?: number;
-  auxOffset?: number;
-  aux2Offset?: number;
-  tokenCount?: number;
-  inputDim?: number;
-  outputDim?: number;
-  rowStart?: number;
-  rowCount?: number;
-  layerIndex?: number;
-  attentionSlot?: number;
-  mode?: Lfm2Mode;
-  f0?: number;
-  f1?: number;
-  u0?: number;
-  u1?: number;
-}
-
-export type Lfm2Workgroups = readonly [x: number, y: number, z: number];
-export type Lfm2WeightBinding = "none" | "raw" | "f32";
-
-/**
- * A pass is the stable execution-level description of one shader entry point.
- * It owns dispatch geometry; the runtime only supplies OpParams and, where
- * required, the concrete tensor page bound to the weight resource.
- */
-export interface Lfm2PassSpec {
-  readonly program: AnyComputeHandle;
-  readonly weight: Lfm2WeightBinding;
-  workgroups(op: Readonly<Lfm2OpParams>): Lfm2Workgroups;
-}
-
-const QUERY_HEADS = LFM2_CONFIG.attentionHeads;
-const KV_HEADS = Math.max(...LFM2_CONFIG.kvHeadsByLayer);
-const KV_DIM = KV_HEADS * LFM2_CONFIG.headDim;
-
-function required(value: number | undefined, field: keyof Lfm2OpParams): number {
-  if (value === undefined) throw new Error(`LFM2 pass requires op.${field}`);
-  return value;
-}
-
-function linear(value: number, workgroupSize: number): Lfm2Workgroups {
-  return [Math.ceil(value / workgroupSize), 1, 1];
-}
-
-function definePass(
-  program: AnyComputeHandle,
-  weight: Lfm2WeightBinding,
-  workgroups: Lfm2PassSpec["workgroups"],
-): Lfm2PassSpec {
-  return { program, weight, workgroups };
-}
-
+export * from "./lfm2-layout";
 
 export const LFM2_INCLUDE_NAMES = [
   "arena",
   "attention-scores",
   "common",
+  "matmul-rows",
+  "matmul-rows-wide",
   "reduce-f32",
   "reduce-u32",
   "runtime",
@@ -399,10 +247,22 @@ export function defineLfm2(bundle: Lfm2ShaderBundle = emptyLfm2ShaderBundle()) {
       compute: { entryPoint: "matmul_f32", params: widLid, workgroupSize: 64, code: sources.matmul_f32 },
     }),
 
+    // Two programs, one body. They differ only in the MATMUL_ROWS constant the
+    // include supplies; the tiling that wins depends on the output width, and
+    // no single value wins everywhere (see matmul-rows-wide.wgsl). The row
+    // count cannot be a pipeline override: WGSL requires a const-expression for
+    // the size of the function-scope `acc` array.
     matmul_wq4: engine.compute({
       label: "matmul_wq4",
       resources: { op: r.op, arena: r.arena, weightRaw: r.weightRaw },
-      includes: reduceF32Includes,
+      includes: [...reduceF32Includes, include("matmul-rows")],
+      compute: { entryPoint: "matmul_wq4", params: widLid, workgroupSize: 64, code: sources.matmul_wq4 },
+    }),
+
+    matmul_wq4_wide: engine.compute({
+      label: "matmul_wq4_wide",
+      resources: { op: r.op, arena: r.arena, weightRaw: r.weightRaw },
+      includes: [...reduceF32Includes, include("matmul-rows-wide")],
       compute: { entryPoint: "matmul_wq4", params: widLid, workgroupSize: 64, code: sources.matmul_wq4 },
     }),
 
@@ -534,70 +394,9 @@ export function defineLfm2(bundle: Lfm2ShaderBundle = emptyLfm2ShaderBundle()) {
         code: sources.constraint_argmax,
       },
     }),
-  } satisfies Record<Lfm2ShaderName, AnyComputeHandle>;
+  } satisfies Record<Lfm2ProgramName, AnyComputeHandle>;
 
-
-  /**
-   * All shader-specific dispatch rules live here, on the GPU-definition side of
-   * the module boundary. Runtime orchestration should never duplicate these.
-   */
-  const passes = {
-    embedding: definePass(programs.embedding, "raw", (op) =>
-      linear(required(op.tokenCount, "tokenCount") * required(op.outputDim, "outputDim"), 256)),
-
-    embedding_wq4: definePass(programs.embedding_wq4, "raw", (op) =>
-      linear(required(op.tokenCount, "tokenCount") * required(op.outputDim, "outputDim"), 256)),
-
-    rms_norm: definePass(programs.rms_norm, "f32", (op) =>
-      [required(op.tokenCount, "tokenCount"), 1, 1]),
-
-    matmul_f16: definePass(programs.matmul_f16, "raw", (op) =>
-      [required(op.rowCount, "rowCount"), required(op.tokenCount, "tokenCount"), 1]),
-
-    matmul_f32: definePass(programs.matmul_f32, "f32", (op) =>
-      [required(op.rowCount, "rowCount"), required(op.tokenCount, "tokenCount"), 1]),
-
-    // matmul_wq4 computes MATMUL_WQ4_ROWS output rows per workgroup, so the
-    // launch count is divided accordingly. The shader's MATMUL_ROWS constant
-    // (shaders/includes/common.wgsl) must match this value.
-    matmul_wq4: definePass(programs.matmul_wq4, "raw", (op) =>
-      [
-        Math.ceil(required(op.rowCount, "rowCount") / MATMUL_WQ4_ROWS),
-        required(op.tokenCount, "tokenCount"),
-        1,
-      ]),
-
-    residual_add: definePass(programs.residual_add, "none", (op) =>
-      linear(required(op.tokenCount, "tokenCount") * required(op.inputDim, "inputDim"), 256)),
-
-    silu_mul: definePass(programs.silu_mul, "none", (op) =>
-      linear(required(op.tokenCount, "tokenCount") * required(op.inputDim, "inputDim"), 256)),
-
-    shortconv_prefill: definePass(programs.shortconv_prefill, "f32", (op) =>
-      linear(required(op.tokenCount, "tokenCount") * required(op.inputDim, "inputDim"), 256)),
-
-    shortconv_continue: definePass(programs.shortconv_continue, "f32", (op) =>
-      [required(op.inputDim, "inputDim"), 1, 1]),
-
-    shortconv_decode: definePass(programs.shortconv_decode, "f32", (op) =>
-      linear(required(op.inputDim, "inputDim"), 256)),
-
-    qk_norm_rope: definePass(programs.qk_norm_rope, "f32", (op) =>
-      [op.u0 === 0 ? QUERY_HEADS : KV_HEADS, required(op.tokenCount, "tokenCount"), 1]),
-
-    kv_store: definePass(programs.kv_store, "none", (op) =>
-      linear(required(op.tokenCount, "tokenCount") * KV_DIM, 256)),
-
-    attention: definePass(programs.attention, "none", (op) =>
-      [QUERY_HEADS, required(op.tokenCount, "tokenCount"), 1]),
-
-    arena_copy: definePass(programs.arena_copy, "none", (op) =>
-      linear(required(op.tokenCount, "tokenCount") * required(op.inputDim, "inputDim"), 256)),
-
-    argmax_candidates: definePass(programs.argmax_candidates, "none", () => [1, 1, 1]),
-    argmax: definePass(programs.argmax, "none", () => [1, 1, 1]),
-  constraint_argmax: definePass(programs.constraint_argmax, "none", () => [1, 1, 1]),
-  } satisfies Record<Lfm2PassName, Lfm2PassSpec>;
+  const passes = defineLfm2Passes(programs);
 
   const resources = {
     op,
@@ -618,30 +417,10 @@ export function defineLfm2(bundle: Lfm2ShaderBundle = emptyLfm2ShaderBundle()) {
 
 
   return {
-    config: LFM2_CONFIG,
-    capacities: {
-      context: CONTEXT_CAPACITY,
-      maxNewTokens: MAX_NEW_TOKENS,
-      repair: REPAIR_CAPACITY,
-      tokens: TOKEN_CAPACITY,
-      arena: ARENA_ELEMENTS,
-      kv: KV_ELEMENTS,
-      conv: CONV_ELEMENTS,
-      telemetry: TELEMETRY_CAPACITY,
-    },
-    arena: LFM2_ARENA,
-    constraint: {
-      programWordCapacity: CONSTRAINT_PROGRAM_WORD_CAPACITY,
-      tokenizerWordCapacity: CONSTRAINT_TOKENIZER_WORD_CAPACITY,
-      stateWords: CONSTRAINT_STATE_WORDS,
-      maskWords: CONSTRAINT_MASK_WORDS,
-      maskWorkgroups: CONSTRAINT_MASK_WORKGROUPS,
-    },
+    ...LFM2_DEFINITION_PLAIN,
     engine,
     resources,
     programs,
     passes,
   } as const;
 }
-
-export type Lfm2Definition = ReturnType<typeof defineLfm2>;

@@ -15,12 +15,12 @@ const PRESETS: Array<{ name: string; source: string }> = [
    * Arrays need both bounds, for different reasons.
    *
    * The upper bound is what makes the decode budget finite — it is derived from
-   * the schema's worst case, and a wide row with atMostLength(10) already needs
-   * ~2900 tokens against a 1024 budget.
+   * the schema's worst case, and a wide row with atMostLength(10) still needs
+   * ~1050 tokens, just over the 1024 budget.
    *
    * The lower bound is what makes the answer interesting: without it the empty
    * array satisfies the schema, and that is what the model will emit. Note that
-   * it costs nothing — the budget is the same 518 either way. Length predicates
+   * it costs nothing — the budget is the same 194 either way. Length predicates
    * are the *Length spellings; `.moreThan(0)` is a numeric comparison and
    * arktype rejects it on an array.
    */

@@ -87,10 +87,31 @@ export default defineConfig({
   // gui2 intentionally uses runtime templates to keep the first harness free of SFC tooling.
   resolve: { alias: { vue: "vue/dist/vue.esm-bundler.js" } },
   server: {
-    host: "127.0.0.1",
+    /**
+     * Bound to all interfaces so a device on the LAN can reach it (10.1.1.3).
+     *
+     * WebGPU is gated on a secure context, and plain http to an IP is not one —
+     * `navigator.gpu` is simply undefined there, with no error to catch. A
+     * phone therefore needs either `adb reverse tcp:5174 tcp:5174` (which makes
+     * it localhost on the device, and is a secure context) or Chrome's
+     * unsafely-treat-insecure-origin-as-secure flag for this origin.
+     */
+    host: "0.0.0.0",
     port: 5174,
     strictPort: true,
     fs: { allow: [repoRoot] },
+    /**
+     * No HMR, and no auto reload either — a reload throws away the loaded model
+     * along with every block and checkpoint in memory, which is most of the
+     * session. Reloading is the developer's call, not the file watcher's.
+     *
+     * Keep the file watcher on. It is what invalidates the module graph, and
+     * that is independent of HMR: edits are still served fresh on a manual
+     * refresh, they just no longer push themselves into the page. (`watch: null`
+     * would disable HMR just as thoroughly and also break the refresh —
+     * measured: the transform result stays cached and the edit never arrives.)
+     */
+    hmr: false,
   },
   plugins: [ggufRangeServer()],
 });

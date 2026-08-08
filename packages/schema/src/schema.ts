@@ -147,7 +147,8 @@ export const schema = scope({
    * One deterministic decoder state per live generation. The local words are
    * interpreted by the current node:
    *   literal -> local0 = literal cursor
-   *   string  -> local0 = phase, local1 = logical length, local2 = \uXXXX left
+   *   string  -> local0 = phase, local1 = logical length (local2 unused since
+   *              \uXXXX left the accepted language; the word stays for ABI)
    *   number  -> local0 = numeric text length, local1 = JSON-number lexer phase;
    *              numberText stores <=64 ASCII bytes
    *   switch/accept/jump -> locals unused

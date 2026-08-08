@@ -9,6 +9,7 @@ import { Lfm2Tokenizer } from "../../lfm2/src/tokenizer.ts";
 import {
   LFM2_ARENA,
   lfm2,
+  matmulWq4Program,
   type Lfm2Mode,
   type Lfm2WorkLayout,
 } from "./lfm2";
@@ -17,7 +18,7 @@ import {
   Lfm2Executor,
   type Lfm2CommandEncoder,
 } from "./pass";
-import { GPU_SCHEMA_SENTINELS } from "../../schema/src/sparse";
+import { GPU_SCHEMA_SENTINELS } from "../../schema/src/sentinels";
 import {
   Lfm2GpuModel,
   lfm2Block0TensorNames,
@@ -39,7 +40,10 @@ function pageBuffer(page: Lfm2GpuTensorPage): { buffer: GPUBuffer } {
 export const LFM2_GREEDY_SHADER_PATH = [
   "embedding_wq4",
   "rms_norm",
+  // A greedy step hits both tilings: wide for ffn_gate/up, conv in_proj and the
+  // LM head, narrow for the attention projections and ffn_down.
   "matmul_wq4",
+  "matmul_wq4_wide",
   "residual_add",
   "silu_mul",
   "shortconv_prefill",
@@ -434,7 +438,7 @@ export class Lfm2Forward {
     }
 
     const kernel = tensor.format === "wq4"
-      ? "matmul_wq4"
+      ? matmulWq4Program(outputDim)
       : tensor.format === "f16"
         ? "matmul_f16"
         : "matmul_f32";

@@ -8,7 +8,7 @@ import {
   type Lfm2OpParams,
   type Lfm2PassName,
   type Lfm2PassSpec,
-  type Lfm2ShaderName,
+  type Lfm2ProgramName,
   type Lfm2Workgroups,
   type Lfm2WeightBinding,
 } from "./lfm2";
@@ -127,7 +127,7 @@ export class Lfm2ComputePass {
   constructor(
     private readonly pass: ComputePassRunner,
     private readonly params: Lfm2ParamWriter,
-    private readonly onRun?: (name: Lfm2ShaderName) => void,
+    private readonly onRun?: (name: Lfm2ProgramName) => void,
   ) {}
 
   run(
@@ -184,7 +184,7 @@ export interface Lfm2CommandEncoder {
  */
 export class Lfm2Executor {
   private readonly params: Lfm2ParamWriter;
-  private readonly usedShaders = new Set<Lfm2ShaderName>();
+  private readonly usedShaders = new Set<Lfm2ProgramName>();
 
   constructor(readonly definition = lfm2) {
     const recordBytes = definition.resources.op.compiledInfo.physicalStride;
@@ -220,7 +220,7 @@ export class Lfm2Executor {
     );
   }
 
-  get shaderCoverage(): readonly Lfm2ShaderName[] {
+  get shaderCoverage(): readonly Lfm2ProgramName[] {
     return [...this.usedShaders];
   }
 

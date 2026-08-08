@@ -34,6 +34,10 @@ const SHAPES = [
   { name: "attn_q/out", inputDim: 2048, outputDim: 2048 },
   { name: "ffn_gate/up", inputDim: 2048, outputDim: 8192 },
   { name: "ffn_down", inputDim: 8192, outputDim: 2048 },
+  // 6144 is the only output width between the two regimes, and it carries 11%
+  // of the model's bytes. Picking a rows8/rows16 threshold without it would be
+  // an extrapolation across exactly the gap the threshold sits in.
+  { name: "conv_in_proj", inputDim: 2048, outputDim: 6144 },
 ] as const;
 
 function median(values: readonly number[]): number {

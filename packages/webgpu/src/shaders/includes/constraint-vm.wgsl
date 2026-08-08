@@ -122,12 +122,6 @@ fn goto_node(state: ptr<function, ConstraintDecoderState>, node: u32) {
   (*state).local2 = 0u;
 }
 
-fn is_hex(byte: u32) -> bool {
-  return (byte >= 0x30u && byte <= 0x39u)
-    || (byte >= 0x41u && byte <= 0x46u)
-    || (byte >= 0x61u && byte <= 0x66u);
-}
-
 fn find_switch_edge(node: u32, byte: u32) -> u32 {
   let edgeOffset = node_word(node, 2u);
   let edgeCount = node_word(node, 3u);
@@ -474,28 +468,13 @@ fn feed_byte(state: ptr<function, ConstraintDecoderState>, byte: u32) -> bool {
         return true;
       }
       if (phase == 2u) {
-        if (byte == 0x75u) {
-          (*state).local0 = 3u;
-          (*state).local2 = 4u;
-          return true;
-        }
+        // \uXXXX is deliberately not accepted — see NO_UNICODE_ESCAPE.
         let simpleEscape = byte == 0x22u || byte == 0x5cu || byte == 0x2fu
           || byte == 0x62u || byte == 0x66u || byte == 0x6eu
           || byte == 0x72u || byte == 0x74u;
         if (!simpleEscape || decodedLength >= maxLength) { return false; }
         (*state).local1 = decodedLength + 1u;
         (*state).local0 = 1u;
-        return true;
-      }
-      if (phase == 3u) {
-        if (!is_hex(byte) || (*state).local2 == 0u) { return false; }
-        let remaining = (*state).local2 - 1u;
-        (*state).local2 = remaining;
-        if (remaining == 0u) {
-          if (decodedLength >= maxLength) { return false; }
-          (*state).local1 = decodedLength + 1u;
-          (*state).local0 = 1u;
-        }
         return true;
       }
       if (phase != 1u) { return false; }

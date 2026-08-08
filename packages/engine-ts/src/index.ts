@@ -566,9 +566,8 @@ type LiteralLocal = { kind: "literal"; offset: number };
 type ChoiceLocal = { kind: "choice"; prefix: number[] };
 type StringLocal = {
   kind: "string";
-  phase: "open" | "body" | "escape" | "unicode";
+  phase: "open" | "body" | "escape";
   length: number;
-  unicodeRemaining: number;
 };
 type NumberLocal = { kind: "number"; text: string };
 type NodeLocal = LiteralLocal | ChoiceLocal | StringLocal | NumberLocal;
@@ -595,7 +594,7 @@ function localKey(local: NodeLocal | null): string {
   switch (local.kind) {
     case "literal": return `l:${local.offset}`;
     case "choice": return `c:${local.prefix.join(".")}`;
-    case "string": return `s:${local.phase}:${local.length}:${local.unicodeRemaining}`;
+    case "string": return `s:${local.phase}:${local.length}`;
     case "number": return `n:${local.text}`;
   }
 }
@@ -630,14 +629,10 @@ function ensureLocal(node: Exclude<JsonNode, SplitNode | JumpNode | AcceptNode>,
   switch (node.kind) {
     case "literal": state.local = { kind: "literal", offset: 0 }; break;
     case "choice": state.local = { kind: "choice", prefix: [] }; break;
-    case "string": state.local = { kind: "string", phase: "open", length: 0, unicodeRemaining: 0 }; break;
+    case "string": state.local = { kind: "string", phase: "open", length: 0 }; break;
     case "number": state.local = { kind: "number", text: "" }; break;
   }
   return state.local;
-}
-
-function isHex(byte: number): boolean {
-  return (byte >= 0x30 && byte <= 0x39) || (byte >= 0x41 && byte <= 0x46) || (byte >= 0x61 && byte <= 0x66);
 }
 
 function isJsonNumberPrefix(text: string, integer: boolean): boolean {
@@ -747,27 +742,11 @@ function feedByteFromBranch(
         continue;
       }
       if (stringState.phase === "escape") {
-        if (byte === 0x75) {
-          stringState.phase = "unicode";
-          stringState.unicodeRemaining = 4;
-          results.push(state);
-          continue;
-        }
+        // \uXXXX is deliberately not accepted — see NO_UNICODE_ESCAPE.
         if (![0x22, 0x5c, 0x2f, 0x62, 0x66, 0x6e, 0x72, 0x74].includes(byte)) continue;
         if (stringState.length >= node.maxLength) continue;
         stringState.length++;
         stringState.phase = "body";
-        results.push(state);
-        continue;
-      }
-      if (stringState.phase === "unicode") {
-        if (!isHex(byte)) continue;
-        stringState.unicodeRemaining--;
-        if (stringState.unicodeRemaining === 0) {
-          if (stringState.length >= node.maxLength) continue;
-          stringState.length++;
-          stringState.phase = "body";
-        }
         results.push(state);
         continue;
       }

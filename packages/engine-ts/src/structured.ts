@@ -44,9 +44,18 @@ function checkedAdd(a: number, b: number, label: string): number {
  * constraint program. This is used only to bound decode work; the VM remains
  * the source of truth for the language itself.
  *
- * Strings use 6 bytes/codepoint (`\\uXXXX`) as the JSON worst case. A model may
- * emit a shorter raw UTF-8 representation, but never needs more than this bound
- * for one JSON-Schema maxLength unit supported by the v0 frontend.
+ * NO_UNICODE_ESCAPE. Strings cost 2 bytes per maxLength unit, which is the
+ * worst case once `\\uXXXX` is out of the accepted language: the string VM
+ * charges one length unit per body byte, so the only form that spends more
+ * bytes than units is a two-byte escape (`\\n`, `\\"`, ...). Allowing `\\uXXXX`
+ * would raise the ceiling to 6 and it bought nothing — the VM's body phase
+ * accepts every byte >= 0x20, raw UTF-8 included, so `é` and `\\u00e9` were two
+ * spellings of a string that stays reachable either way. What is genuinely lost
+ * is escaping control characters with no short form (`\\u0001`); the five that
+ * matter (`\\b \\f \\n \\r \\t`) keep their escapes.
+ *
+ * The three implementations of this rule must agree: engine-ts/src/index.ts,
+ * engine-ts/src/gpu-constraint.ts and webgpu/src/shaders/includes/constraint-vm.wgsl.
  */
 export function estimateLayoutConstraintMaxBytes(program: LayoutConstraintProgram): number {
   const memo = new Map<number, number>();
@@ -84,7 +93,7 @@ export function estimateLayoutConstraintMaxBytes(program: LayoutConstraintProgra
         break;
       }
       case "string": {
-        const encoded = checkedAdd(2, node.maxLength * 6, `string ${node.label}`);
+        const encoded = checkedAdd(2, node.maxLength * 2, `string ${node.label}`);
         value = checkedAdd(encoded, visit(node.next), `string continuation ${node.label}`);
         break;
       }

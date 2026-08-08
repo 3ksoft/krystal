@@ -695,11 +695,6 @@ function gpuProgramAscii(
   return out;
 }
 
-function gpuIsHex(byte: number): boolean {
-  return (byte >= 0x30 && byte <= 0x39)
-    || (byte >= 0x41 && byte <= 0x46)
-    || (byte >= 0x61 && byte <= 0x66);
-}
 
 const GPU_NUMBER_PHASE = {
   start: 0,
@@ -881,33 +876,18 @@ export function feedGpuConstraintByte(
       const minLength = gpuNodeWord(program, nodeId, 4);
       const maxLength = gpuNodeWord(program, nodeId, 5);
 
-      // 0=open, 1=body, 2=escape, 3=unicode
+      // 0=open, 1=body, 2=escape
       if (phase === 0) {
         if (byte !== 0x22) return false;
         state[GPU_CONSTRAINT_STATE.local0] = 1;
         return true;
       }
       if (phase === 2) {
-        if (byte === 0x75) {
-          state[GPU_CONSTRAINT_STATE.local0] = 3;
-          state[GPU_CONSTRAINT_STATE.local2] = 4;
-          return true;
-        }
+        // \uXXXX is deliberately not accepted — see NO_UNICODE_ESCAPE.
         if (![0x22, 0x5c, 0x2f, 0x62, 0x66, 0x6e, 0x72, 0x74].includes(byte)) return false;
         if (length >= maxLength) return false;
         state[GPU_CONSTRAINT_STATE.local1] = length + 1;
         state[GPU_CONSTRAINT_STATE.local0] = 1;
-        return true;
-      }
-      if (phase === 3) {
-        if (!gpuIsHex(byte)) return false;
-        const remaining = state[GPU_CONSTRAINT_STATE.local2]! - 1;
-        state[GPU_CONSTRAINT_STATE.local2] = remaining;
-        if (remaining === 0) {
-          if (length >= maxLength) return false;
-          state[GPU_CONSTRAINT_STATE.local1] = length + 1;
-          state[GPU_CONSTRAINT_STATE.local0] = 1;
-        }
         return true;
       }
       if (phase !== 1) fail(`string node ${nodeId} has invalid phase ${phase}`);
