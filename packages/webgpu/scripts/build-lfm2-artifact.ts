@@ -1,3 +1,4 @@
+import { artifactReport } from "@sandblaster/core";
 import { readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -14,6 +15,7 @@ const root = resolve(here, "..");
 const shaderDir = resolve(root, "src/shaders");
 const includeDir = resolve(shaderDir, "includes");
 const output = resolve(root, "src/lfm2.artifact.generated.ts");
+const reportOutput = resolve(root, "lfm2.report.html");
 
 async function readNamed<K extends string>(
   dir: string,
@@ -40,3 +42,15 @@ await writeFile(
 );
 
 console.log(`[webgpu] serialized LFM2 artifact: ${artifact.length} bytes -> ${output}`);
+
+// The artifact is the only place the shaders and binding manifests exist in
+// their *linked* form — lfm2-definition.ts is the input, not the result. Emit
+// the readable view of that result alongside it, so the two can never be out of
+// step with each other. Generated, not committed.
+const report = artifactReport(artifact, {
+  title: "Chomato · LFM2 artifact",
+  generatedAt: new Date().toISOString(),
+});
+await writeFile(reportOutput, report);
+
+console.log(`[webgpu] artifact report: ${(report.length / 1024).toFixed(1)} KiB -> ${reportOutput}`);

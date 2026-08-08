@@ -528,6 +528,24 @@ export function useEngine() {
     });
   }
 
+  /**
+   * Fold the last generated output back into the context as a block.
+   *
+   * This is the whole of "advance": there is no separate engine primitive for
+   * continuing past a generation, because a checkpoint is built from a context
+   * selection rather than from wherever the GPU happens to be. Once the output
+   * is a block, both composing on it and checkpointing it already work.
+   *
+   * `addBos` is false and must stay false — this block continues a sequence
+   * that already opened. A second BOS mid-sequence is exactly what made the
+   * model ignore its context before; see context-rules.ts.
+   */
+  async function advanceWithOutput(label?: string): Promise<BlockRow> {
+    const text = state.lastOutput;
+    if (!text) throw new Error("Nothing to advance: generate something first");
+    return putBlock({ text, addBos: false, label: label?.trim() || undefined });
+  }
+
   async function dropBlock(id: number): Promise<void> {
     await withBusy("DropBlock", async () => {
       await requireEngine().dropBlock(id);
@@ -713,6 +731,7 @@ export function useEngine() {
     block,
     checkpoint,
     putBlock,
+    advanceWithOutput,
     dropBlock,
     createCheckpoint,
     dropCheckpoint,

@@ -88,13 +88,31 @@ export default defineComponent({
       }
     }
 
+    /**
+     * Turn the output into a block and append it to *this window's* context, so
+     * the next generation sees it. Appending is the point — storing the block
+     * without selecting it would leave the context exactly where it was.
+     */
+    async function advance(): Promise<void> {
+      try {
+        const row = await api.advanceWithOutput();
+        selection.value = {
+          ...selection.value,
+          blocks: [...selection.value.blocks, row.id],
+        };
+      } catch {
+        // Surfaced through state.error.
+      }
+    }
+
     // Constraint compilation is CPU-only, so the panel can show a real program
     // before any model is loaded.
     onMounted(compile);
 
     return {
       api, source, maxTokens, compileError, selection, showContext,
-      ready, hasContext, canRun, budgetOverflow, program, contextText, PRESETS, compile, generate, raw, fmt,
+      ready, hasContext, canRun, budgetOverflow, program, contextText, PRESETS,
+      compile, generate, raw, advance, fmt,
     };
   },
   template: `
@@ -173,7 +191,16 @@ export default defineComponent({
         <div v-else class="muted">compile a schema to inspect its constraint program</div>
 
         <div>
-          <div class="muted">output</div>
+          <div class="row">
+            <span class="muted grow">output</span>
+            <button
+              class="btn"
+              type="button"
+              :disabled="!ready || !api.state.lastOutput"
+              title="Store the output as a block and append it to this context"
+              @click="advance"
+            >ADVANCE</button>
+          </div>
           <pre class="pre" style="border:1px solid var(--fg);padding:4px;min-height:var(--cell-y)">{{ api.state.lastOutput || ' ' }}</pre>
         </div>
       </div>

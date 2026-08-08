@@ -51,3 +51,6 @@ Thumbs.db
 # --- Logs / caches ----------------------------------------------------------
 *.log
 .cache/
+
+# Generated alongside the LFM2 artifact by scripts/build-lfm2-artifact.ts.
+packages/webgpu/lfm2.report.html
