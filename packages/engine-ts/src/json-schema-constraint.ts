@@ -14,7 +14,7 @@ export const JSON_SCHEMA_CONSTRAINT_LIMITS = {
   maxArrayItems: 0xff,
   maxEnumVariants: 0xff,
   maxStringLength: 0xffff,
-  maxNumberChars: 64,
+  maxNumberChars: 16,
 } as const;
 
 export class UnsupportedJsonSchemaConstraintError extends Error {
