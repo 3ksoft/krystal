@@ -10,7 +10,7 @@ export default defineComponent({
     return { api, fmt };
   },
   template: `
-    <TosWindow title="RUNS" :span="12" flush>
+    <TosWindow title="RUNS" icon="═" :span="12" flush>
       <div v-if="!api.state.runs.length" class="list__empty" style="padding:var(--cell-x)">
         nothing generated yet
       </div>

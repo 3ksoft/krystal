@@ -116,7 +116,7 @@ export default defineComponent({
     };
   },
   template: `
-    <TosWindow title="GENERATE" :span="8">
+    <TosWindow title="GENERATE" icon="▓" :span="8">
       <div class="stack">
         <ContextPicker v-model="selection" />
 

@@ -53,6 +53,7 @@
         "vue": "^3.5.0",
       },
       "devDependencies": {
+        "@fontsource/intel-one-mono": "^5.3.0",
         "@webgpu/types": "^0.1.71",
         "vite": "^8.2.0",
       },
@@ -137,6 +138,8 @@
     "@chomato/quant": ["@chomato/quant@workspace:packages/quant"],
 
     "@chomato/webgpu": ["@chomato/webgpu@workspace:packages/webgpu"],
+
+    "@fontsource/intel-one-mono": ["@fontsource/intel-one-mono@5.3.0", "", {}, "sha512-L9lZRv7C20zJ9Jz61aS7L3Lc4Z5laQ+CJIkGmGjwTtYKddMmR6R+tPg6anwlBQnsJNHn2E0hKLeTjSLLoq62eA=="],
 
     "@jridgewell/sourcemap-codec": ["@jridgewell/sourcemap-codec@1.5.5", "", {}, "sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og=="],
 

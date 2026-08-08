@@ -21,6 +21,7 @@ import SchemaPanel from "./panels/SchemaPanel.ts";
 import StatsPanel from "./panels/StatsPanel.ts";
 import TokenizerPanel from "./panels/TokenizerPanel.ts";
 import { fmt, TosAlert, TosMenuBar, type MenuEntry } from "./ui/tos.ts";
+import { cleanUp, floatingCount } from "./ui/windows.ts";
 
 export default defineComponent({
   name: "App",
@@ -70,6 +71,13 @@ export default defineComponent({
         entries: [
           { label: "About Chomato…", action: () => (about.value = true) },
           { separator: true, label: "" },
+          {
+            label: "Clean Up",
+            hint: "windows",
+            // The only way back from a window dropped somewhere useless.
+            disabled: floatingCount() === 0,
+            action: cleanUp,
+          },
           { label: invert.value ? "Normal video" : "Inverse video", action: toggleInvert },
         ],
       },

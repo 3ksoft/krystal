@@ -24,7 +24,7 @@ export default defineComponent({
     return { api, stats, reuse, fmt };
   },
   template: `
-    <TosWindow title="STATS" :span="4">
+    <TosWindow title="STATS" icon="▄" :span="4">
       <div class="stack">
         <div class="row">
           <button class="btn" type="button" @click="api.refreshStats()">REFRESH</button>

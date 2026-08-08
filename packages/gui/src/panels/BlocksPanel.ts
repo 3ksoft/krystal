@@ -86,7 +86,7 @@ export default defineComponent({
     };
   },
   template: `
-    <TosWindow title="BLOCKS" :span="4">
+    <TosWindow title="BLOCKS" icon="▒" :span="4">
       <div class="stack">
         <textarea v-model="text" rows="3" spellcheck="false" :disabled="!ready"></textarea>
         <div class="field">

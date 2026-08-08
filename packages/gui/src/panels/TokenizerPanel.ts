@@ -82,7 +82,7 @@ export default defineComponent({
     };
   },
   template: `
-    <TosWindow title="TOKENIZER" :span="6">
+    <TosWindow title="TOKENIZER" icon="┼" :span="6">
       <div class="stack">
         <textarea v-model="text" rows="4" spellcheck="false"></textarea>
 

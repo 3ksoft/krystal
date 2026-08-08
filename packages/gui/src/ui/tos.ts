@@ -6,11 +6,17 @@
  * aliases the Vue runtime compiler so this harness needs no SFC toolchain.
  */
 import { computed, defineComponent, onBeforeUnmount, onMounted, ref } from "vue";
+import { isFloating, place, placementOf, raise, reflow } from "./windows.ts";
+
+/** Pixels of movement before a drag counts as a tear-off rather than a click. */
+const TEAR_THRESHOLD = 4;
 
 export const TosWindow = defineComponent({
   name: "TosWindow",
   props: {
     title: { type: String, required: true },
+    /** Glyph shown left of the title. Monochrome by construction. */
+    icon: { type: String, default: "" },
     span: { type: Number, default: 6 },
     flush: { type: Boolean, default: false },
     /** Rendered right of the title, before the fold gadget. */
@@ -19,12 +25,127 @@ export const TosWindow = defineComponent({
   emits: ["close"],
   setup(props, { emit }) {
     const folded = ref(false);
+    const root = ref<HTMLElement | null>(null);
     const spanClass = computed(() => `win--span${props.span}`);
-    return { folded, spanClass, emit };
+    const placement = computed(() => placementOf(props.title));
+    const floating = computed(() => placement.value !== undefined);
+
+    const style = computed(() =>
+      placement.value
+        ? {
+          left: `${placement.value.x}px`,
+          top: `${placement.value.y}px`,
+          zIndex: String(placement.value.z),
+        }
+        : undefined
+    );
+
+    let origin: { pointerX: number; pointerY: number; x: number; y: number } | null = null;
+    let torn = false;
+
+    function workspaceOf(element: HTMLElement): HTMLElement | null {
+      return element.closest(".workspace");
+    }
+
+    /**
+     * Where the window currently sits, in workspace coordinates. Read *before*
+     * it leaves the grid flow so tearing off does not make it jump.
+     */
+    function currentOffset(element: HTMLElement): { x: number; y: number } {
+      const workspace = workspaceOf(element);
+      if (!workspace) return { x: 0, y: 0 };
+      const box = element.getBoundingClientRect();
+      const frame = workspace.getBoundingClientRect();
+      return {
+        x: box.left - frame.left + workspace.scrollLeft,
+        y: box.top - frame.top + workspace.scrollTop,
+      };
+    }
+
+    function clamp(element: HTMLElement, x: number, y: number): { x: number; y: number } {
+      const workspace = workspaceOf(element);
+      if (!workspace) return { x, y };
+      const width = element.offsetWidth;
+      const height = element.offsetHeight;
+      /*
+       * The whole window is kept inside the workspace on both axes. Real GEM
+       * let windows hang off the edge, but these panels are dense tables — a
+       * clipped one is not a window you moved, it is a window you lost half of.
+       * A window larger than the workspace pins to the top-left instead, so its
+       * title bar is always the part that stays reachable.
+       */
+      return {
+        x: Math.max(0, Math.min(x, Math.max(0, workspace.clientWidth - width))),
+        y: Math.max(0, Math.min(y, Math.max(0, workspace.clientHeight - height))),
+      };
+    }
+
+    function onBarPointerDown(event: PointerEvent): void {
+      // Gadgets own their clicks; dragging from one would fight the button.
+      if ((event.target as HTMLElement).closest(".win__gadget")) return;
+      if (event.button !== 0) return;
+      const element = root.value;
+      if (!element) return;
+
+      raise(props.title);
+      const offset = floating.value
+        ? { x: placement.value!.x, y: placement.value!.y }
+        : currentOffset(element);
+      origin = { pointerX: event.clientX, pointerY: event.clientY, x: offset.x, y: offset.y };
+      torn = floating.value;
+      (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+    }
+
+    function onBarPointerMove(event: PointerEvent): void {
+      if (!origin) return;
+      const element = root.value;
+      if (!element) return;
+      const dx = event.clientX - origin.pointerX;
+      const dy = event.clientY - origin.pointerY;
+      if (!torn) {
+        if (Math.abs(dx) < TEAR_THRESHOLD && Math.abs(dy) < TEAR_THRESHOLD) return;
+        torn = true;
+      }
+      const next = clamp(element, origin.x + dx, origin.y + dy);
+      place(props.title, next.x, next.y);
+      event.preventDefault();
+    }
+
+    function onBarPointerUp(event: PointerEvent): void {
+      origin = null;
+      const target = event.currentTarget as HTMLElement;
+      if (target.hasPointerCapture(event.pointerId)) target.releasePointerCapture(event.pointerId);
+    }
+
+    /** Double-click the bar to send a floating window back to the grid. */
+    function onBarDoubleClick(event: MouseEvent): void {
+      if ((event.target as HTMLElement).closest(".win__gadget")) return;
+      if (floating.value) reflow(props.title);
+    }
+
+    return {
+      folded, root, spanClass, floating, style, emit,
+      onBarPointerDown, onBarPointerMove, onBarPointerUp, onBarDoubleClick,
+      raiseSelf: () => raise(props.title),
+      isFloating,
+    };
   },
   template: `
-    <section class="win" :class="[spanClass, { 'win--collapsed': folded }]">
-      <div class="win__bar stripes">
+    <section
+      ref="root"
+      class="win"
+      :class="[spanClass, { 'win--collapsed': folded, 'win--floating': floating }]"
+      :style="style"
+      @pointerdown="raiseSelf"
+    >
+      <div
+        class="win__bar stripes"
+        @pointerdown="onBarPointerDown"
+        @pointermove="onBarPointerMove"
+        @pointerup="onBarPointerUp"
+        @pointercancel="onBarPointerUp"
+        @dblclick="onBarDoubleClick"
+      >
         <button
           v-if="closable"
           class="win__gadget"
@@ -32,7 +153,10 @@ export const TosWindow = defineComponent({
           title="Close"
           @click="emit('close')"
         ><span class="win__gadget-mark win__gadget-mark--filled"></span></button>
-        <div class="win__title"><span>{{ title }}</span></div>
+        <div class="win__title">
+          <span v-if="icon" class="win__icon" aria-hidden="true">{{ icon }}</span>
+          <span>{{ title }}</span>
+        </div>
         <button
           class="win__gadget win__gadget--right"
           type="button"

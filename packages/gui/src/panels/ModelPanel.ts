@@ -29,7 +29,7 @@ export default defineComponent({
     return { api, url, file, loading, booted, boot, pick, fmt };
   },
   template: `
-    <TosWindow title="MODEL" :span="4">
+    <TosWindow title="MODEL" icon="▛" :span="4">
       <div class="stack">
         <template v-if="!booted">
           <div class="field">

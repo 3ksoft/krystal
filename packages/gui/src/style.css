@@ -22,7 +22,13 @@
   --chrome: 19px;
 
   color-scheme: light;
-  font-family: "Berkeley Mono", "SF Mono", ui-monospace, Menlo, Consolas, "DejaVu Sans Mono", monospace;
+  /*
+   * Intel One Mono, bundled by main.ts. Its subsets cover box drawing and block
+   * elements (U+2500-259F) but NOT geometric shapes (U+25A0-25FF), so window
+   * icons are drawn from the former — a glyph outside the face would fall back
+   * to another font and take the cell grid with it.
+   */
+  font-family: "Intel One Mono", ui-monospace, "SF Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace;
   font-size: 13px;
   line-height: var(--cell-y);
   font-variant-ligatures: none;
@@ -93,6 +99,8 @@ body {
 }
 
 .workspace {
+  /* Positioning context for torn-off windows (ui/windows.ts). */
+  position: relative;
   overflow: auto;
   padding: 6px;
   display: grid;
@@ -195,6 +203,13 @@ body {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  /*
+   * Grid items stretch to the row by default, which for a *folded* window means
+   * the body is hidden but the frame is still as tall as its tallest neighbour
+   * — a large empty box. Sizing to content instead makes folding actually fold,
+   * and stops shorter windows carrying dead space to the row height.
+   */
+  align-self: start;
   background: var(--bg);
   border: 1px solid var(--fg);
 }
@@ -207,12 +222,32 @@ body {
 .win--span8 { grid-column: span 8; }
 .win--span12 { grid-column: span 12; }
 
+/*
+ * A torn-off window leaves the grid flow entirely; the remaining tiles reflow
+ * into the gap. Width is kept from its last tiled size so tearing off does not
+ * also resize it.
+ */
+.win--floating {
+  position: absolute;
+  width: 40ch;
+  box-shadow: 2px 2px 0 var(--fg);
+}
+
+.win--floating.win--span6 { width: 56ch; }
+.win--floating.win--span7 { width: 64ch; }
+.win--floating.win--span8 { width: 72ch; }
+.win--floating.win--span12 { width: 96ch; }
+
 .win__bar {
   display: flex;
   align-items: stretch;
   height: var(--chrome);
   border-bottom: 1px solid var(--fg);
   user-select: none;
+  cursor: grab;
+  /* Without this the browser claims the drag as a scroll/pan gesture and
+     pointermove stops arriving mid-drag on touch and some trackpads. */
+  touch-action: none;
 }
 
 .win__gadget {
@@ -256,6 +291,18 @@ body {
   justify-content: center;
   min-width: 0;
   padding: 0 4px;
+}
+
+/*
+ * The icon shares the title's knocked-out background so the two read as one
+ * plate over the striped bar, and it inherits colour — in a monochrome system
+ * an icon that carried its own colour would be the only thing that did.
+ */
+.win__icon {
+  padding: 0 0 0 var(--cell-x);
+  margin-right: calc(var(--cell-x) * -1);
+  background: var(--bg);
+  color: inherit;
 }
 
 .win__title > span {

@@ -87,7 +87,7 @@ export default defineComponent({
     return { api, label, selection, inspecting, inspected, ready, hasContext, tree, create, drop, fmt };
   },
   template: `
-    <TosWindow title="CHECKPOINTS" :span="4">
+    <TosWindow title="CHECKPOINTS" icon="▞" :span="4">
       <div class="stack">
         <ContextPicker v-model="selection" :exclude-checkpoint="null" compact />
 
