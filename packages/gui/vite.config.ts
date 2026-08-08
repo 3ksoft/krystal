@@ -82,8 +82,14 @@ function ggufRangeServer(): Plugin {
   };
 }
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   root: here,
+  /**
+   * A GitHub project page is served from /<repo>/, so the built site needs that
+   * prefix while the dev server stays at the root. Set BASE_PATH to "/" for a
+   * user page or a custom domain.
+   */
+  base: command === "build" ? (process.env.BASE_PATH ?? "/chomato/") : "/",
   // gui2 intentionally uses runtime templates to keep the first harness free of SFC tooling.
   resolve: { alias: { vue: "vue/dist/vue.esm-bundler.js" } },
   server: {
@@ -114,4 +120,4 @@ export default defineConfig({
     hmr: false,
   },
   plugins: [ggufRangeServer()],
-});
+}));

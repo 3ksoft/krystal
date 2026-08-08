@@ -42,9 +42,9 @@ import {
   expandReserved,
   type ReservedTable,
 } from "./reserved.ts";
+import { DEFAULT_MODEL_URL } from "./model-source.ts";
 
 const GIB = 1024 * 1024 * 1024;
-const DEFAULT_MODEL_URL = "/models/LFM2.5-1.2B-Instruct-WQ4.wq4";
 
 export type Phase = "idle" | "device" | "model" | "runtime" | "ready" | "busy" | "error";
 

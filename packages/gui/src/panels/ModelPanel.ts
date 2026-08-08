@@ -2,6 +2,8 @@ import { computed, defineComponent, inject, ref } from "vue";
 import { ENGINE_KEY } from "../engine/key.ts";
 import { fmt, TosMeter, TosWindow } from "../ui/tos.ts";
 
+import { DEFAULT_IS_REMOTE, MODEL_DOWNLOAD_URL } from "../engine/model-source.ts";
+
 export default defineComponent({
   name: "ModelPanel",
   components: { TosWindow, TosMeter },
@@ -26,7 +28,7 @@ export default defineComponent({
       file.value = input.files?.[0] ?? null;
     }
 
-    return { api, url, file, loading, booted, boot, pick, fmt };
+    return { api, url, file, loading, booted, boot, pick, fmt, MODEL_DOWNLOAD_URL, DEFAULT_IS_REMOTE };
   },
   template: `
     <TosWindow title="MODEL" icon="▛" :span="4">
@@ -45,6 +47,11 @@ export default defineComponent({
               {{ loading ? 'LOADING…' : 'LOAD MODEL' }}
             </button>
             <span class="muted">WQ4 v3, self-contained</span>
+          </div>
+          <div v-if="DEFAULT_IS_REMOTE && !file" class="muted">
+            the url streams ~700 MB from
+            <a :href="MODEL_DOWNLOAD_URL" target="_blank" rel="noreferrer">HuggingFace</a>;
+            pick a local copy above to skip the download
           </div>
           <TosMeter v-if="loading" :value="api.state.progress" />
         </template>

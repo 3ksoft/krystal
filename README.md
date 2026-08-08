@@ -110,6 +110,44 @@ bun test
 
 The suite includes real-engine checkpoint tests, structured-generation E2E tests, transport tests, and WebGPU/Sandblaster regression coverage.
 
+## Publishing the developer GUI
+
+```bash
+DRY_RUN=1 bun run deploy:pages   # build, commit to gh-pages, stop
+bun run deploy:pages             # …and push
+```
+
+The site is built locally and pushed to an orphan `gh-pages` branch through a
+throwaway worktree, so nothing built ever lands on `main`. Point the repository's
+Pages source at branch `gh-pages`, folder `/`.
+
+Two constraints shape this, and both are worth knowing before reaching for a
+GitHub Actions workflow instead:
+
+- **The build cannot run on a runner.** `@sandblaster/core` and `@schema-pop/*`
+  are `link:` dependencies on sibling checkouts and are not published to npm, so
+  `bun install` fails anywhere but a machine that has them.
+- **The model is not published and cannot be.** It is a single ~700 MB file,
+  against GitHub's 100 MB per-file limit and the 1 GB Pages site limit.
+
+The weights live in a HuggingFace repo instead, and the built GUI points at them
+by default. The GUI reads the model in ranges rather than downloading it whole,
+so its host must answer HTTP range requests *and* send permissive CORS. GitHub
+Pages does neither for this purpose; HuggingFace does both, including after the
+CDN redirect (verified: `206 Partial Content`, `accept-ranges: bytes`,
+`access-control-allow-origin: *` on a 709 MB LFS file). The file picker stays as
+the way to load a local copy without the download.
+
+| variable | effect |
+|---|---|
+| `BASE_PATH` | path prefix for the build, default `/chomato/` |
+| `VITE_MODEL_URL` | model the built GUI loads, default the HuggingFace `resolve/main` URL |
+| `VITE_MODEL_DOWNLOAD_URL` | where the GUI's model link points, default the HuggingFace repo |
+
+Note that the `.wq4` is a quantized derivative of `LiquidAI/LFM2.5-1.2B-Instruct`
+and carries that model's licence (`other` / `lfm1.0`), which is separate from
+this repository's AGPL on the code.
+
 ## Documentation
 
 Start with [docs/README.md](docs/README.md) and [docs/architecture.md](docs/architecture.md).
