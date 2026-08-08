@@ -11,6 +11,7 @@ Start with [architecture.md](architecture.md). The implementation details are sp
 - [Runtime and WebGPU execution](runtime.md)
 - [Context state and exact checkpoints](checkpoints.md)
 - [Structured generation](structured-generation.md)
+- [Benchmark report](benchmarks.md)
 - [Changes in v0.4](changes-v0.4.md)
 
 ## Decisions
@@ -26,7 +27,7 @@ Start with [architecture.md](architecture.md). The implementation details are sp
 
 ## Historical experiments
 
-The files under `docs/experiments/` are retained as experimental records. They are not the current implementation specification and are intentionally not expanded in v0.4. Future measured results should move toward benchmark reports rather than growing the historical experiment notes.
+The files under `docs/experiments/` are retained as experimental records. They are not the current implementation specification and are intentionally not expanded in v0.4. Measured results belong in [benchmarks.md](benchmarks.md) rather than growing the historical experiment notes.
 
 - [Exact checkpoints](experiments/exact-checkpoints.md)
 - [Composable context blocks](experiments/composable-blocks.md)

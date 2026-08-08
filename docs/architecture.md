@@ -229,7 +229,7 @@ For the 65,536-entry vocabulary:
 
 The current implementation scans the full vocabulary. Sparse LM-head row evaluation is not implemented.
 
-The measured constraint mask cost is small relative to model forward (roughly 0.08–0.48 ms for the mask versus ~31 ms/token forward in the current benchmark setup, with structured overhead around 1%). This does not justify a sparse execution path yet.
+The measured constraint mask cost is small relative to model forward: 0.07–0.30 ms for the mask and 0.14–0.16 ms for the masked argmax against ~8.5 ms/token, with the end-to-end constrained-vs-unconstrained difference inside run-to-run noise. Sparse execution is also capped from above — the LM head is only ~8% of a decode step against ~90% for the block stack — so even a perfect oracle could not save more than that. This does not justify a sparse execution path.
 
 See [structured-generation.md](structured-generation.md).
 

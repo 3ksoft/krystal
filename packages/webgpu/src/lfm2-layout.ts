@@ -157,9 +157,6 @@ export const LFM2_PROGRAM_NAMES = [...LFM2_SHADER_NAMES, "matmul_wq4_wide"] as c
 export type Lfm2ProgramName = (typeof LFM2_PROGRAM_NAMES)[number];
 
 export type Lfm2PassName = Exclude<Lfm2ProgramName, "constraint_mask">;
-export const LFM2_PASS_NAMES = LFM2_PROGRAM_NAMES.filter(
-  (name): name is Lfm2PassName => name !== "constraint_mask",
-);
 
 export type Lfm2Mode = "prefill" | "decode" | "continuation";
 

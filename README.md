@@ -17,13 +17,15 @@ The repository is split by implementation ownership:
 
 ```text
 packages/
-  engine-ts/    public engine API + transport/protocol
-  lfm2/         LFM2 model definition, tokenizer, forward/checkpoint logic, shaders
+  engine-ts/    public engine API + transport/protocol + constraint compiler
+  webgpu/       LFM2 definition, shaders, forward/checkpoint logic, GPU runtime
+  lfm2/         model metadata and tokenizer
   quant/        GGUF/WQ4 quantized model tooling/runtime support
-  schema/       shared CPU/GPU ABI schemas and generated layouts
-  webgpu/       WebGPU host/runtime support and tests
+  schema/       shared CPU/GPU ABI schemas and generated codec
+  bridge/       stdio frame protocol between engine and a host process
+  backend/      out-of-process engine hosts, incl. the native (scriptc) target
   finetune/     structured-generation datasets/tooling
-  gui/          browser UI/harness
+  gui/          developer UI exposing the engine primitives
 
 tests/          public/real-engine correctness and E2E tests
 docs/           current architecture + implementation notes
@@ -56,9 +58,11 @@ Runtime:
 
 ```text
 load model
-→ deserialize/compile artifact for GPUDevice
+→ recreate handles from the artifact, compile for GPUDevice
 → prefill / decode / checkpoint / structured generation
 ```
+
+The runtime never re-declares the resource graph — `Sandblaster.fromArtifact()` builds the handles from the serialized plans, which keeps arktype and the schema tooling out of the runtime entirely. See [docs/runtime.md](docs/runtime.md).
 
 Structured generation runs:
 

@@ -46,6 +46,23 @@ Recent benchmark candidates show the WQ4 kernel can beat the current F16 referen
 
 However, the F16 comparator has received only limited optimization, so this benchmark is evidence that WQ4 is viable — not proof that the current WQ4 kernel/layout is globally optimal.
 
+## Measured results
+
+Kernel and end-to-end numbers live in [../benchmarks.md](../benchmarks.md), per
+this pack's rule that measured results go to a benchmark report rather than
+growing an experiment note. The short version, as it bears on the questions
+below:
+
+- Row tiling took the kernel from ~22 GiB/s to 85–156 GiB/s depending on shape,
+  and no single tiling wins on every shape, so two are linked and picked per
+  call by output width.
+- The achievable bandwidth on the same GPU is 298–321 GiB/s, and a whole decode
+  step runs at ~98 GiB/s — so question 2 below is *not* closed.
+- But an isolated +18% on the shape carrying 46% of the model's bytes produced
+  ~1% in the model. **Isolated matmul benchmarks are currently not predictive
+  for the block stack**, which is the single most important caveat on the
+  benchmark matrix below.
+
 ## Do not conflate three questions
 
 ### 1. Quantization quality
@@ -63,6 +80,11 @@ Does the runtime representation actually reduce resident VRAM after all repackin
 The third question is tracked in `wq4-model-layout.md` and may invalidate a layout that looks excellent in an isolated matmul benchmark.
 
 ## Benchmark matrix
+
+Read the caveat in *Measured results* first: an isolated matmul benchmark has
+already been shown to mispredict the in-model block stack by an order of
+magnitude. Anything measured with this matrix needs an in-model A/B before it is
+acted on.
 
 Keep at least:
 
@@ -115,4 +137,4 @@ A production format still needs:
 
 Do not over-optimize isolated matmul while the larger architectural unknowns are still being closed.
 
-At the same time, the current ~1.5 GB resident footprint makes whole-model layout work important enough that WQ4 can no longer be treated as a solved subsystem.
+At the same time, whole-model layout work is important enough that WQ4 cannot be treated as a solved subsystem. The declared buffer allocation is ~946 MiB — 699.5 weights, 128 `OpParams`, 88.9 activation arena, 24 KV, ~6 the rest — which is a computed figure, not measured residency; actual VRAM including driver overhead has not been re-measured since the layout changed.

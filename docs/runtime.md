@@ -30,10 +30,10 @@ WGSL source is a build input, not a runtime dependency.
 Build:
 
 ```text
-packages/lfm2/src/shaders/*.wgsl
-packages/lfm2/src/shaders/includes/*.wgsl
+packages/webgpu/src/shaders/*.wgsl
+packages/webgpu/src/shaders/includes/*.wgsl
         ↓
-defineLfm2({ sources, includes })
+defineLfm2({ sources, includes })          lfm2-definition.ts — arktype DSL
         ↓
 engine.link()
         ↓
@@ -45,12 +45,23 @@ lfm2.artifact.generated.ts
 Runtime:
 
 ```text
-const definition = defineLfm2();
-definition.engine.deserialize(lfm2Artifact);
-await definition.engine.compile({ device });
+const lfm2 = defineLfm2FromArtifact();     lfm2-artifact.ts
+await lfm2.engine.compile({ device });
 ```
 
-Shaders in `src/shaders/` are body-oriented Sandblaster program sources. Shared WGSL helper functions belong in includes rather than being embedded as independent `@compute` modules.
+The runtime does **not** call `defineLfm2()`. `Sandblaster.fromArtifact()` creates the typed resource and program handles *from* the serialized artifact, so the resource graph is never re-declared: no arktype scope, no `link()`. This is what keeps arktype, `$` and @schema-pop out of the runtime graph, which is what the scriptc-compiled native target needs (`packages/backend/NATIVE-EXE.md`).
+
+The definition therefore lives in three files with a deliberate split:
+
+| file | role | in the runtime graph |
+|---|---|---|
+| `lfm2-layout.ts` | constants, arena layout, dispatch geometry — pure TS | yes |
+| `lfm2-artifact.ts` | handle creation from the artifact | yes |
+| `lfm2-definition.ts` | the arktype DSL that declares the graph | **no** — AOT scripts only |
+
+Shaders in `src/shaders/` are body-oriented Sandblaster program sources. Shared WGSL helper functions belong in includes rather than being embedded as independent `@compute` modules — and so must any `var<workgroup>`, which WGSL will not accept in a function body.
+
+Program names are not 1:1 with shader files: `matmul_wq4.wgsl` is linked twice, as `matmul_wq4` and `matmul_wq4_wide`, differing only in an include-supplied constant. See `src/shaders/README.md`.
 
 ## 3. `OpParams`
 

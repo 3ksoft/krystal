@@ -1,7 +1,7 @@
 import { BlobSource } from "../../../quant/src/gguf/source-web";
 import { createWebGpuDevice } from "../../src/device";
 import { LFM2_GREEDY_SHADER_PATH, Lfm2Forward } from "../../src/forward";
-import { LFM2_ARENA, LFM2_PASS_NAMES, LFM2_SHADER_NAMES, lfm2 } from "../../src/lfm2";
+import { LFM2_ARENA, LFM2_PROGRAM_NAMES, LFM2_SHADER_NAMES, lfm2 } from "../../src/lfm2";
 import { Lfm2GpuModel } from "../../src/model";
 
 const status = document.querySelector<HTMLDivElement>("#status")!;
@@ -334,7 +334,12 @@ async function run(): Promise<void> {
 
     const alternatives = await exerciseAlternativeShaders(device, model, forward);
     const allCoverage = [...new Set([...first.coverage, ...alternatives.coverage])];
-    const missingAll = LFM2_PASS_NAMES.filter((name) => name !== "constraint_argmax" && !allCoverage.includes(name));
+    // Derived here rather than exported from lfm2-layout: this is the only
+    // consumer, and Array.filter has no scriptc lowering, so a runtime-module
+    // export of it lands as a blocker on the native graph for a test's benefit.
+    const missingAll = LFM2_PROGRAM_NAMES.filter((name) =>
+      name !== "constraint_mask" && name !== "constraint_argmax" && !allCoverage.includes(name)
+    );
     if (missingAll.length) throw new Error(`shader integration coverage missing: ${missingAll.join(", ")}`);
 
     log("✓ alternative shader paths", {

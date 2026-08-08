@@ -88,7 +88,8 @@ The GPU program is a compact deterministic byte VM. Current instruction/state co
 
 - literals,
 - byte switches/tries,
-- strings and JSON escapes,
+- strings and JSON escapes (the short forms `\" \\ \/ \b \f \n \r \t`; `\uXXXX`
+  is deliberately not accepted — see *Output bounds* below),
 - numbers,
 - epsilon/jump transitions used by bounded repetition,
 - accept/terminal state.
@@ -169,13 +170,34 @@ full model logits
 
 There is no sparse LM-head row execution yet. Sparse trie edges make individual token validation cheap, but all 65,536 token IDs are still considered by the mask kernel.
 
-Current measurements do not make sparse execution urgent: the mask kernel is roughly 0.08–0.48 ms while the model forward is around 31 ms/token in the present benchmark environment, yielding roughly 1% structured-generation overhead.
+Current measurements do not make sparse execution urgent. On an RTX 3060 the mask kernel is 0.07–0.30 ms and the masked argmax 0.14–0.16 ms against ~8.5 ms/token, and `tests/structured-benchmark.test.ts` measures the end-to-end difference between constrained and unconstrained decoding at −1.5% to +2.8% — that is, inside run-to-run noise.
+
+There is a hard ceiling on what sparse LM-head execution could ever be worth, and it is smaller than it looks: `tests/decode-profile.test.ts` puts the LM head at ~8% of a decode step and the block stack at ~90%.
 
 ## 10. Output bounds
 
 The typed API does not require a separate user-facing `maxTokens` for ordinary structured generation. A finite generation budget is derived conservatively from the schema.
 
-Therefore schemas used for generation should be bounded where their textual representation is otherwise unbounded, for example:
+`compileStructuredGeneration()` walks the constraint graph for the longest JSON
+byte string it accepts, and charges **one token per byte** plus EOS. That is not
+pessimism: under a legal-token mask the model can always pick a single-byte
+token, so one byte is genuinely one token in the worst case.
+
+The per-node costs are therefore what decides whether a schema fits:
+
+| node | worst case | where |
+|---|---|---|
+| string | `2 + maxLength * 2` | 2 bytes/unit is the short escape; the body charges one unit per byte, so raw UTF-8 costs no more than it measures |
+| number | `maxNumberChars` | a flat bound, `JSON_SCHEMA_CONSTRAINT_LIMITS` in `json-schema-constraint.ts` |
+| array | per-item cost × `maxItems` | plus separators |
+
+`\uXXXX` is excluded from the accepted language precisely because of the first
+row: allowing it would raise the string ceiling from 2 bytes per length unit to
+6, and it buys nothing — the body phase accepts every byte `>= 0x20`, so `é` and
+`é` were two spellings of a string that stays reachable either way. What is
+lost is escaping control characters with no short form.
+
+Schemas used for generation should be bounded where their textual representation is otherwise unbounded, for example:
 
 ```ts
 type("string < 512")
@@ -183,7 +205,10 @@ type("string < 512")
 
 instead of an unconstrained string when a finite response budget is required.
 
-The derived response budget must also fit the runtime context capacity.
+The derived response budget must also fit the runtime context capacity, and the
+binding constraint is the context, not `MAX_NEW_TOKENS`: the runtime rejects a
+request when `promptTokens + budget - 1 > context`, so the budget actually
+available is `context - promptTokens + 1`.
 
 ## 11. Current schema coverage
 
