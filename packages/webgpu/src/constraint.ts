@@ -8,8 +8,8 @@ import {
   CONSTRAINT_MASK_WORDS,
   CONSTRAINT_PROGRAM_WORD_CAPACITY,
   CONSTRAINT_TOKENIZER_WORD_CAPACITY,
-  type Lfm2Definition,
-} from "./lfm2-definition";
+} from "./lfm2-layout";
+import type { Lfm2Definition } from "./lfm2-artifact";
 
 export interface GpuConstraintUpload {
   readonly vocabSize: number;
