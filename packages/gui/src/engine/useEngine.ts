@@ -138,6 +138,26 @@ export interface ModelInfo {
   maxNewTokens: number;
 }
 
+/**
+ * Token-selection settings for a raw generation.
+ *
+ * Structured generation stays greedy — the constrained kernels do not sample —
+ * so this only reaches generateTokens().
+ */
+export interface TokenSampling {
+  sampler: "argmax" | "topk";
+  temperature: number;
+  topK: number;
+  seed: number;
+}
+
+export const GREEDY_SAMPLING: TokenSampling = {
+  sampler: "argmax",
+  temperature: 0,
+  topK: 1,
+  seed: 0,
+};
+
 /** Shape of the linked GPU constraint program, as reported by its own summary. */
 export interface ProgramInfo {
   blobBytes: number;
@@ -671,7 +691,11 @@ export function useEngine() {
     });
   }
 
-  async function generateTokens(maxTokens: number, selection: ContextSelection): Promise<number[]> {
+  async function generateTokens(
+    maxTokens: number,
+    selection: ContextSelection,
+    sampling: TokenSampling = GREEDY_SAMPLING,
+  ): Promise<number[]> {
     return withBusy("Generate (tokens)", async () => {
       const engine = requireEngine();
       const label = selectionLabel(selection);
@@ -682,7 +706,7 @@ export function useEngine() {
       let ok = true;
       let detail = "";
       try {
-        const generation = engine.generate(resolveContext(selection), { maxTokens, sampler: "argmax" });
+        const generation = engine.generate(resolveContext(selection), { maxTokens, ...sampling });
         for await (const token of generation) collected.push(token);
         detail = decode(collected);
       } catch (cause) {
@@ -693,7 +717,11 @@ export function useEngine() {
         state.runs.unshift({
           id: nextRunId++,
           kind: "tokens",
-          source: `maxTokens=${maxTokens}`,
+          // The seed is part of the run label on purpose: it is everything a
+          // reader needs to reproduce the row.
+          source: sampling.sampler === "topk"
+            ? `maxTokens=${maxTokens} topK=${sampling.topK} temp=${sampling.temperature} seed=${sampling.seed}`
+            : `maxTokens=${maxTokens} greedy`,
           ok,
           detail,
           contextLabel: label,

@@ -30,6 +30,25 @@ export const VOCAB = LFM2_CONFIG.vocabSize;       // 65536
 
 export const SCRATCH_WIDTH = Math.max(FF, 3 * H);
 
+/**
+ * Sampling lanes and per-lane candidate slots.
+ *
+ * The argmax kernel runs as ONE workgroup of ARGMAX_WG(256) invocations, so a
+ * top-k selection cannot be spread over more parallelism than that. Each lane
+ * owns the tokens `lane, lane + 256, lane + 512, ...` and keeps its own sorted
+ * top-k of them; the union of those lists provably contains the global top-k,
+ * which a k-round tournament over the list heads then merges exactly.
+ *
+ * The lists live in the arena rather than workgroup memory: 256 lanes * 64
+ * slots * (value + token) is 128 KiB, far past the 16 KiB workgroup storage
+ * limit, and each lane only ever reads its own slots so no cross-lane storage
+ * barrier is needed. 64 is the cap on topK because of this allocation; raising
+ * it costs 2 KiB of arena per extra slot.
+ */
+export const SAMPLE_LANES = 256;
+export const SAMPLE_TOP_K_MAX = 64;
+export const SAMPLE_SCRATCH_ELEMENTS = 2 * SAMPLE_LANES * SAMPLE_TOP_K_MAX;
+
 export interface Lfm2WorkLayout {
   hiddenA: number;
   hiddenB: number;
@@ -41,6 +60,8 @@ export interface Lfm2WorkLayout {
 export interface Lfm2ArenaLayout extends Lfm2WorkLayout {
   repair: Lfm2WorkLayout;
   logits: number;
+  /** Per-lane top-k candidate lists, written and read only by the argmax pass. */
+  sampleScratch: number;
   elements: number;
 }
 
@@ -62,7 +83,8 @@ function createArenaLayout(): Lfm2ArenaLayout {
   const main = work(CONTEXT_CAPACITY);
   const repair = work(REPAIR_CAPACITY);
   const logits = take(VOCAB);
-  return { ...main, repair, logits, elements: cursor };
+  const sampleScratch = take(SAMPLE_SCRATCH_ELEMENTS);
+  return { ...main, repair, logits, sampleScratch, elements: cursor };
 }
 
 /** Canonical activation offsets shared by all runtime scheduling code. */

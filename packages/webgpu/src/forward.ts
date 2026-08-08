@@ -10,6 +10,7 @@ import {
   LFM2_ARENA,
   lfm2,
   matmulWq4Program,
+  SAMPLE_TOP_K_MAX,
   type Lfm2Mode,
   type Lfm2WorkLayout,
 } from "./lfm2";
@@ -53,6 +54,43 @@ export const LFM2_GREEDY_SHADER_PATH = [
   "attention",
   "argmax",
 ] as const;
+
+/**
+ * Seeded top-k sampling configuration for a single generation.
+ *
+ * Omitting it (or passing temperature 0 / topK 1) keeps the greedy path, which
+ * still produces bit-identical tokens to the pre-sampling kernel. The sampler
+ * is deterministic in the seed: the same seed, context and options reproduce
+ * the same token stream on any device, including after a checkpoint restore,
+ * because the RNG is a pure hash of (seed, decode step, token) rather than
+ * carried state.
+ */
+export interface Lfm2Sampling {
+  /** Softmax temperature. Must be finite and > 0; 0 means greedy. */
+  readonly temperature: number;
+  /** Candidate count, 1..SAMPLE_TOP_K_MAX. 1 means greedy. */
+  readonly topK: number;
+  /** RNG seed, an unsigned 32-bit integer. */
+  readonly seed: number;
+}
+
+/** OpParams slots for a greedy commit — the k = 1 case of the sampler. */
+const GREEDY_SAMPLING: Lfm2Sampling = { temperature: 0, topK: 1, seed: 0 };
+
+function resolveSampling(sampling: Lfm2Sampling | undefined): Lfm2Sampling {
+  if (!sampling) return GREEDY_SAMPLING;
+  const { temperature, topK, seed } = sampling;
+  if (!Number.isFinite(temperature) || temperature < 0) {
+    throw new RangeError(`Sampling temperature must be finite and >= 0, got ${temperature}`);
+  }
+  if (!Number.isInteger(topK) || topK < 1 || topK > SAMPLE_TOP_K_MAX) {
+    throw new RangeError(`Sampling topK must be an integer 1..${SAMPLE_TOP_K_MAX}, got ${topK}`);
+  }
+  if (!Number.isInteger(seed) || seed < 0 || seed > 0xffff_ffff) {
+    throw new RangeError(`Sampling seed must be a u32, got ${seed}`);
+  }
+  return sampling;
+}
 
 export interface Lfm2BlockRunOptions {
   readonly mode?: Lfm2Mode;
@@ -678,13 +716,27 @@ export class Lfm2Forward {
     );
   }
 
-  commitArgmax(pass: Lfm2ComputePass, mode: Lfm2Mode = "prefill"): void {
+  /**
+   * Commit one token: greedy by default, seeded top-k when `sampling` asks for
+   * it. Both are the same kernel; see shaders/argmax.wgsl for the slot mapping.
+   */
+  commitArgmax(
+    pass: Lfm2ComputePass,
+    mode: Lfm2Mode = "prefill",
+    sampling?: Lfm2Sampling,
+  ): void {
+    const { temperature, topK, seed } = resolveSampling(sampling);
     pass.run("argmax", {
       inputOffset: LFM2_ARENA.logits,
       inputDim: this.model.config.vocabSize,
+      // Per-lane candidate lists. Scratch, never read outside this dispatch.
+      auxOffset: LFM2_ARENA.sampleScratch,
       // u0 is pass-local here: token 0xffff is a GPU sentinel and must never
       // escape through normal sampling.
       u0: GPU_SCHEMA_SENTINELS.emptyToken,
+      u1: seed,
+      f0: temperature,
+      f1: topK,
       mode,
     });
   }
@@ -743,9 +795,10 @@ export class Lfm2Forward {
     mode: Lfm2Mode = "prefill",
     work: Lfm2WorkLayout = LFM2_ARENA,
     tokenOffset = 0,
+    sampling?: Lfm2Sampling,
   ): void {
     this.forwardToLogits(pass, tokenCount, mode, work, tokenOffset);
-    this.commitArgmax(pass, mode);
+    this.commitArgmax(pass, mode, sampling);
   }
 
   /** Full forward followed by exact structured sampling entirely on GPU. */
@@ -899,10 +952,11 @@ export class Lfm2Forward {
   async generateGreedyFromCheckpoint(
     checkpoint: Lfm2CheckpointState,
     tailTokens: Uint32Array | readonly number[],
-    options: { readonly maxNewTokens?: number } = {},
+    options: { readonly maxNewTokens?: number; readonly sampling?: Lfm2Sampling } = {},
   ): Promise<Lfm2GenerationResult> {
     const tail = tailTokens instanceof Uint32Array ? tailTokens : Uint32Array.from(tailTokens);
     const maxNewTokens = options.maxNewTokens ?? lfm2.capacities.maxNewTokens;
+    const sampling = resolveSampling(options.sampling);
     const promptTokenCount = checkpoint.position + tail.length;
     if (promptTokenCount + maxNewTokens - 1 > lfm2.capacities.context) {
       throw new Error(
@@ -940,9 +994,9 @@ export class Lfm2Forward {
         } else {
           this.projectLogits(pass, 1, "prefill", LFM2_ARENA);
         }
-        this.commitArgmax(pass, "prefill");
+        this.commitArgmax(pass, "prefill", sampling);
         for (let step = 1; step < maxNewTokens; step++) {
-          this.forwardAndSample(pass, 1, "decode", LFM2_ARENA, 0);
+          this.forwardAndSample(pass, 1, "decode", LFM2_ARENA, 0, sampling);
         }
       }, { label: "lfm2.generate.checkpoint" });
     });
@@ -1143,10 +1197,15 @@ export class Lfm2Forward {
    */
   async generateGreedy(
     promptTokens: Uint32Array | readonly number[],
-    options: { readonly maxNewTokens?: number; readonly resetState?: boolean } = {},
+    options: {
+      readonly maxNewTokens?: number;
+      readonly resetState?: boolean;
+      readonly sampling?: Lfm2Sampling;
+    } = {},
   ): Promise<Lfm2GenerationResult> {
     const prompt = promptTokens instanceof Uint32Array ? promptTokens : Uint32Array.from(promptTokens);
     const maxNewTokens = options.maxNewTokens ?? lfm2.capacities.maxNewTokens;
+    const sampling = resolveSampling(options.sampling);
     if (prompt.length < 1) throw new Error("generateGreedy requires at least one prompt token");
     if (prompt.length > lfm2.capacities.context) {
       throw new Error(`Prompt has ${prompt.length} tokens, context capacity is ${lfm2.capacities.context}`);
@@ -1163,9 +1222,9 @@ export class Lfm2Forward {
     this.executor.submit((encoder) => {
       if (options.resetState ?? true) this.clearState(encoder);
       encoder.compute((pass) => {
-        this.forwardAndSample(pass, prompt.length, "prefill", LFM2_ARENA, 0);
+        this.forwardAndSample(pass, prompt.length, "prefill", LFM2_ARENA, 0, sampling);
         for (let step = 1; step < maxNewTokens; step++) {
-          this.forwardAndSample(pass, 1, "decode", LFM2_ARENA, 0);
+          this.forwardAndSample(pass, 1, "decode", LFM2_ARENA, 0, sampling);
         }
       }, { label: "lfm2.generate.greedy" });
     });

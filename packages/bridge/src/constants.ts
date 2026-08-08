@@ -1,6 +1,6 @@
 /** ASCII "CHOM". Binary transports use little-endian integer encoding. */
 export const CHOMATO_BRIDGE_MAGIC = 0x43484f4d;
-export const CHOMATO_BRIDGE_VERSION = 3;
+export const CHOMATO_BRIDGE_VERSION = 4;
 export const NO_CHECKPOINT = 0;
 /** ContextRef.reserved bit: Generate payload appends a GPU constraint program. */
 export const CONTEXT_FLAG_STRUCTURED = 1 << 0;

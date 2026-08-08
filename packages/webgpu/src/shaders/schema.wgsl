@@ -23,18 +23,18 @@ const SMB_conv: u32 = 18u;
 const SMB_attention: u32 = 19u;
 
 alias ConstraintNodeKind = u32;
-const ConstraintNodeKind_literal: ConstraintNodeKind = SMB_literal;
-const ConstraintNodeKind_switch: ConstraintNodeKind = SMB_switch;
-const ConstraintNodeKind_string: ConstraintNodeKind = SMB_string;
-const ConstraintNodeKind_number: ConstraintNodeKind = SMB_number;
-const ConstraintNodeKind_accept: ConstraintNodeKind = SMB_accept;
-const ConstraintNodeKind_jump: ConstraintNodeKind = SMB_jump;
+const ConstraintNodeKind_literal: ConstraintNodeKind = 0u;
+const ConstraintNodeKind_switch: ConstraintNodeKind = 1u;
+const ConstraintNodeKind_string: ConstraintNodeKind = 2u;
+const ConstraintNodeKind_number: ConstraintNodeKind = 3u;
+const ConstraintNodeKind_accept: ConstraintNodeKind = 4u;
+const ConstraintNodeKind_jump: ConstraintNodeKind = 5u;
 
 alias ConstraintDecoderStatus = u32;
-const ConstraintDecoderStatus_running: ConstraintDecoderStatus = SMB_running;
-const ConstraintDecoderStatus_accept: ConstraintDecoderStatus = SMB_accept;
-const ConstraintDecoderStatus_dead: ConstraintDecoderStatus = SMB_dead;
-const ConstraintDecoderStatus_error: ConstraintDecoderStatus = SMB_error;
+const ConstraintDecoderStatus_running: ConstraintDecoderStatus = 0u;
+const ConstraintDecoderStatus_accept: ConstraintDecoderStatus = 1u;
+const ConstraintDecoderStatus_dead: ConstraintDecoderStatus = 2u;
+const ConstraintDecoderStatus_error: ConstraintDecoderStatus = 3u;
 
 struct ConstraintProgramHeader {
 	version: u32,
@@ -106,9 +106,9 @@ struct ConstraintDecoderState {
 const CONSTRAINT_DECODER_STATE_NUMBERTEXT_LEN: u32 = 16u;
 
 alias Lfm2Mode = u32;
-const Lfm2Mode_prefill: Lfm2Mode = SMB_prefill;
-const Lfm2Mode_decode: Lfm2Mode = SMB_decode;
-const Lfm2Mode_continuation: Lfm2Mode = SMB_continuation;
+const Lfm2Mode_prefill: Lfm2Mode = 0u;
+const Lfm2Mode_decode: Lfm2Mode = 1u;
+const Lfm2Mode_continuation: Lfm2Mode = 2u;
 
 struct OpParams {
 	inputOffset: u32,
@@ -131,11 +131,11 @@ struct OpParams {
 
 
 alias LlmRuntimeStatus = u32;
-const LlmRuntimeStatus_idle: LlmRuntimeStatus = SMB_idle;
-const LlmRuntimeStatus_running: LlmRuntimeStatus = SMB_running;
-const LlmRuntimeStatus_eos: LlmRuntimeStatus = SMB_eos;
-const LlmRuntimeStatus_done: LlmRuntimeStatus = SMB_done;
-const LlmRuntimeStatus_error: LlmRuntimeStatus = SMB_error;
+const LlmRuntimeStatus_idle: LlmRuntimeStatus = 0u;
+const LlmRuntimeStatus_running: LlmRuntimeStatus = 1u;
+const LlmRuntimeStatus_eos: LlmRuntimeStatus = 2u;
+const LlmRuntimeStatus_done: LlmRuntimeStatus = 3u;
+const LlmRuntimeStatus_error: LlmRuntimeStatus = 4u;
 
 struct LlmRuntime {
 	contextCapacity: u32,
@@ -194,13 +194,13 @@ struct CacheBlockOptions {
 
 
 alias GpuWeightFormat = u32;
-const GpuWeightFormat_f16: GpuWeightFormat = SMB_f16;
-const GpuWeightFormat_f32: GpuWeightFormat = SMB_f32;
-const GpuWeightFormat_wq4: GpuWeightFormat = SMB_wq4;
+const GpuWeightFormat_f16: GpuWeightFormat = 0u;
+const GpuWeightFormat_f32: GpuWeightFormat = 1u;
+const GpuWeightFormat_wq4: GpuWeightFormat = 2u;
 
 alias Lfm2LayerKind = u32;
-const Lfm2LayerKind_conv: Lfm2LayerKind = SMB_conv;
-const Lfm2LayerKind_attention: Lfm2LayerKind = SMB_attention;
+const Lfm2LayerKind_conv: Lfm2LayerKind = 0u;
+const Lfm2LayerKind_attention: Lfm2LayerKind = 1u;
 
 struct Lfm2RuntimeConfig {
 	contextLength: u32,

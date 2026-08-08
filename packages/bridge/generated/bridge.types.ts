@@ -60,10 +60,21 @@ export namespace v1_0_0 {
 		checkpoint: number;
 	}
 
+	export const Sampler = {
+		argmax: 0,
+		topk: 1,
+	} as const;
+	export type Sampler = "argmax" | "topk";
+
 	export interface Generate {
 		operation: number;
 		context: ContextRef;
 		maxTokens: number;
+		temperature: number;
+		seed: number;
+		topK: number;
+		sampler: Sampler;
+		reserved: number;
 	}
 
 	export interface Cancel {

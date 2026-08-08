@@ -16,7 +16,7 @@ Both speak the `@chomato/bridge` frame protocol over stdio and share
 | --- | --- | --- | --- | --- |
 | `src/exe/native-exe.ts` | native ELF | `ffiIo` (C shim) | mock | **270 stmts, 100% static** |
 | `src/exe/dawn-exe.ts` | bun | `nodeIo` | real Dawn | n/a (not a target) |
-| `src/exe/dawn-native-exe.ts` | native (goal) | `ffiIo` | real Dawn | **1473 stmts, 94% static** |
+| `src/exe/dawn-native-exe.ts` | native (goal) | `ffiIo` | real Dawn | **1446 stmts, 94.9% static, 14 dynamic sites** |
 
 `NativeIo` (`src/exe/native-io.ts`) is the seam that lets one bridge loop run in
 both worlds. Keep it that way.
@@ -47,23 +47,32 @@ cd packages/backend
   the remainder being scriptc stdlib gaps (`ArrayBuffer`, `DataView`,
   `TextDecoder`), not our code.
 
-## The remaining 26 dynamic sites
+## The remaining 14 dynamic sites (was 26)
 
-They are not in the algorithm. Roughly 22 of 26 come from **arktype (9),
-@sandblaster/core (5), @schema-pop (2) and the `lfm2` definition object graph**
-— that is, from rebuilding the resource/program graph at startup.
+The startup-graph rebuild is gone. `packages/webgpu/src/lfm2.ts` now builds the
+runtime definition with `Sandblaster.fromArtifact(lfm2.artifact.generated.ts)`
+via `lfm2-artifact.ts` (artifact handle creation) + `lfm2-layout.ts` (pure-TS
+constants/arena/pass geometry). The arktype DSL (`lfm2-definition.ts`), `$`,
+@schema-pop and the generated schema scope are out of the runtime graph — the
+AOT scripts still use them. 2026-08-08 measured 26 -> 14 dynamic sites.
 
-That work is redundant: `lfm2.artifact.generated.ts` is **already linked at
-build time** and carries the layout plans, binding manifests and linked WGSL.
-`Sandblaster.deserialize()` merely binds it to handles that were re-declared
-through arktype moments earlier.
+| sites | source | owner |
+| --- | --- | --- |
+| ~4 | the WebGPU binding: `import("webgpu")`, `Promise<WebGpuContext>`, `@webgpu/types`, `createWebGpuDevice`/`device`/`adapter` | the shim |
+| ~4 | `@sandblaster/core` package boundary (SC2013) | resolution wrinkle, below |
+| ~6 | the `lfm2` definition/resources/programs/passes objects, downstream of the package boundary | the shim |
 
-Closing this needs a Sandblaster addition, roughly
-`Sandblaster.fromArtifact(artifact)`, that *creates* handles from the
-serialized plans instead of requiring them to pre-exist. Everything it needs is
-in the artifact; only the type parameters are compile-time.
-
-The last ~4 sites are the WebGPU binding itself — the shim below.
+**Package resolution wrinkle (new finding).** scriptc puts bare-specifier npm
+packages on the dynamic island by policy; `--npm-static @sandblaster/core` and
+tsconfig `paths` do not change that. The stub in `packages/backend/stubs/core`
+is unreachable by default because scriptc resolves `@sandblaster/core` through
+`packages/webgpu/node_modules` (the real bun-linked package). Pointing that
+symlink at the stub makes the graph typecheck against the stub's surface —
+`stubs/core` now declares `fromArtifact`/`resource`/`computeProgram`/`compile`
+plus the device surface (`createBuffer`, `createCommandEncoder`, `queue.submit`,
+`compiledInfo.byteSize`, `AnyComputeHandle.manifest`) — but the swap breaks
+bun/browser, which need the real core. Deciding how a scriptc build selects the
+stub without disturbing browser resolution belongs to the shim step.
 
 ## The shim: scriptc FFI has a trap, but a cheap one
 
@@ -146,10 +155,12 @@ enumerable, which is what makes a hand-written shim tractable.
 
 ## Suggested order
 
-1. `Sandblaster.fromArtifact()` — removes ~22 of 26 dynamic sites and is pure
-   TypeScript work in a repo you control. Do this first; it is the larger win
-   and it is independent of Dawn.
-2. The Dawn shim, using the wrapper idiom above.
+1. ✅ `Sandblaster.fromArtifact()` — done on the sandblaster side; wired into
+   the chomato runtime 2026-08-08 (`lfm2-artifact.ts`, `lfm2-layout.ts`, stub
+   surface). The graph went from 26 dynamic sites to 14; the remainder is the
+   WebGPU binding + the package-resolution wrinkle above.
+2. The Dawn shim, using the wrapper idiom above. It also owns the decision of
+   how a scriptc build resolves `@sandblaster/core` to the stub.
 3. Re-run `scriptc coverage src/exe/dawn-native-exe.ts` after each step.
 
 ## Known scriptc stdlib gaps hit so far

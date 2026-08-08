@@ -32,10 +32,24 @@ export interface Lfm2RuntimeGenerationResult {
   };
 }
 
+/**
+ * Structural mirror of forward.ts's Lfm2Sampling. Omitting it keeps the greedy
+ * path; the runtime is free to reject values it cannot serve.
+ */
+export interface Lfm2SamplingRequest {
+  readonly temperature: number;
+  readonly topK: number;
+  readonly seed: number;
+}
+
 export interface Lfm2GenerationRuntime {
   generateGreedy(
     promptTokens: Uint32Array | readonly number[],
-    options?: { readonly maxNewTokens?: number; readonly resetState?: boolean },
+    options?: {
+      readonly maxNewTokens?: number;
+      readonly resetState?: boolean;
+      readonly sampling?: Lfm2SamplingRequest;
+    },
   ): Promise<Lfm2RuntimeGenerationResult>;
   createCheckpoint(
     tailTokens: Uint32Array | readonly number[],
@@ -44,7 +58,7 @@ export interface Lfm2GenerationRuntime {
   generateGreedyFromCheckpoint(
     checkpoint: Lfm2RuntimeCheckpoint,
     tailTokens: Uint32Array | readonly number[],
-    options?: { readonly maxNewTokens?: number },
+    options?: { readonly maxNewTokens?: number; readonly sampling?: Lfm2SamplingRequest },
   ): Promise<Lfm2RuntimeGenerationResult>;
   generateStructured(
     promptTokens: Uint32Array | readonly number[],
@@ -236,15 +250,22 @@ export class Lfm2WebGpuEngineBackend {
         if (context.full.length === 0) throw new Error("Generation context is empty");
         this.cancelled.delete(command.operation);
 
+        // The seed travels with the command, so a replay of the same Generate
+        // against the same context reproduces the tokens exactly.
+        const sampling: Lfm2SamplingRequest | undefined = command.sampler === "topk"
+          ? { temperature: command.temperature, topK: command.topK, seed: command.seed }
+          : undefined;
+
         const result = context.checkpoint
           ? await this.forward.generateGreedyFromCheckpoint(
               context.checkpoint.state,
               context.appended,
-              { maxNewTokens: command.maxTokens },
+              { maxNewTokens: command.maxTokens, sampling },
             )
           : await this.forward.generateGreedy(context.appended, {
               maxNewTokens: command.maxTokens,
               resetState: true,
+              sampling,
             });
 
         if (this.cancelled.has(command.operation)) {

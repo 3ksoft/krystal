@@ -45,6 +45,7 @@ export const LFM2_INCLUDE_NAMES = [
   "reduce-f32",
   "reduce-u32",
   "runtime",
+  "sampling",
   "telemetry",
   "weights",
   "constraint-vm",
@@ -210,6 +211,9 @@ export function defineLfm2(bundle: Lfm2ShaderBundle = emptyLfm2ShaderBundle()) {
     include("reduce-f32"),
     include("reduce-u32"),
   ];
+  // Only the plain argmax kernel samples. The candidate and constraint kernels
+  // stay greedy, so they must not pull in the sampling workgroup arrays.
+  const samplingArgmaxIncludes = [...argmaxIncludes, include("sampling")];
 
   const programs = {
     embedding: engine.compute({
@@ -342,7 +346,7 @@ export function defineLfm2(bundle: Lfm2ShaderBundle = emptyLfm2ShaderBundle()) {
       label: "argmax",
       resources: { op: r.op, runtime: r.runtime, tokens: r.tokens, arena: r.arena, decodeTelemetry: r.decodeTelemetry },
       codecs: [engine.type("DecodeTelemetryEntry")],
-      includes: argmaxIncludes,
+      includes: samplingArgmaxIncludes,
       compute: { entryPoint: "argmax", params: lid, workgroupSize: 256, code: sources.argmax },
     }),
 

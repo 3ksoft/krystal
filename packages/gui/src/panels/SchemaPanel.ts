@@ -1,6 +1,11 @@
 import { computed, defineComponent, inject, onMounted, ref } from "vue";
 import { ENGINE_KEY } from "../engine/key.ts";
-import { emptySelection, type ContextSelection } from "../engine/useEngine.ts";
+import {
+  emptySelection,
+  GREEDY_SAMPLING,
+  type ContextSelection,
+  type TokenSampling,
+} from "../engine/useEngine.ts";
 import ContextPicker from "../ui/ContextPicker.ts";
 import { fmt, TosWindow } from "../ui/tos.ts";
 
@@ -30,6 +35,11 @@ const PRESETS: Array<{ name: string; source: string }> = [
   },
 ];
 
+/** Uniform u32. Only the seed is random here — the sampler itself is not. */
+function randomSeed(): number {
+  return Math.floor(Math.random() * 0x1_0000_0000) >>> 0;
+}
+
 export default defineComponent({
   name: "SchemaPanel",
   components: { ContextPicker, TosWindow },
@@ -37,6 +47,12 @@ export default defineComponent({
     const api = inject(ENGINE_KEY)!;
     const source = ref(PRESETS[3]!.source);
     const maxTokens = ref(32);
+    const sampled = ref(false);
+    const temperature = ref(0.8);
+    const topK = ref(40);
+    // A fresh seed per session, not per click: leaving it fixed is what makes
+    // two runs comparable, and rerolling is one button away.
+    const seed = ref(randomSeed());
     const compileError = ref<string | null>(null);
     // This window's own request context, independent of the other panels.
     const selection = ref<ContextSelection>(emptySelection());
@@ -80,9 +96,24 @@ export default defineComponent({
       }
     }
 
+    const sampling = computed<TokenSampling>(() =>
+      sampled.value
+        ? {
+          sampler: "topk",
+          temperature: Math.max(0.01, temperature.value),
+          topK: Math.min(64, Math.max(1, Math.floor(topK.value))),
+          seed: Math.max(0, Math.floor(seed.value)) >>> 0,
+        }
+        : GREEDY_SAMPLING
+    );
+
     async function raw(): Promise<void> {
       try {
-        await api.generateTokens(Math.max(1, Math.floor(maxTokens.value)), selection.value);
+        await api.generateTokens(
+          Math.max(1, Math.floor(maxTokens.value)),
+          selection.value,
+          sampling.value,
+        );
       } catch {
         // Surfaced through state.error.
       }
@@ -111,6 +142,7 @@ export default defineComponent({
 
     return {
       api, source, maxTokens, compileError, selection, showContext,
+      sampled, temperature, topK, seed, randomSeed,
       ready, hasContext, canRun, budgetOverflow, program, contextText, PRESETS,
       compile, generate, raw, advance, fmt,
     };
@@ -156,9 +188,32 @@ export default defineComponent({
             class="btn"
             type="button"
             :disabled="!canRun"
-            :title="hasContext ? 'Greedy decode without a schema' : 'Select a context above first'"
+            :title="hasContext ? 'Decode without a schema' : 'Select a context above first'"
             @click="raw"
           >GENERATE TOKENS</button>
+        </div>
+
+        <div class="row row--tight">
+          <button
+            class="btn"
+            type="button"
+            :class="{ 'btn--on': sampled }"
+            title="Greedy argmax, or seeded top-k sampling. Structured generation is always greedy."
+            @click="sampled = !sampled"
+          >{{ sampled ? 'TOP-K' : 'GREEDY' }}</button>
+          <template v-if="sampled">
+            <label for="sample-temp" class="muted">temp</label>
+            <input id="sample-temp" type="number" min="0.01" max="5" step="0.05"
+              v-model.number="temperature" style="width:7ch" />
+            <label for="sample-topk" class="muted">top-k</label>
+            <input id="sample-topk" type="number" min="1" max="64" step="1"
+              v-model.number="topK" style="width:6ch" />
+            <label for="sample-seed" class="muted">seed</label>
+            <input id="sample-seed" type="number" min="0" max="4294967295" step="1"
+              v-model.number="seed" style="width:12ch" />
+            <button class="btn" type="button" title="Roll a new seed" @click="seed = randomSeed()">↻</button>
+          </template>
+          <span v-else class="muted">deterministic; same context always decodes the same tokens</span>
         </div>
         <div v-if="ready && !hasContext" class="muted">
           select a base checkpoint or a block above to enable generation

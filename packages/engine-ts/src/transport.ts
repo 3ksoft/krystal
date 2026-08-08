@@ -18,10 +18,58 @@ export interface Context {
   readonly blocks?: readonly BlockId[];
 }
 
+/** Largest topK a backend must accept; the WebGPU sampler's per-lane capacity. */
+export const MAX_TOP_K = 64;
+export const DEFAULT_TOP_K = 40;
+export const DEFAULT_TEMPERATURE = 1;
+
 export interface GenerateOptions {
   readonly maxTokens: number;
-  /** Sampling strategy. The transport/backends currently only implement argmax. */
-  readonly sampler?: "argmax";
+  /**
+   * Token selection. "argmax" (the default) is greedy and ignores the three
+   * fields below; "topk" draws from the k highest logits at `temperature`.
+   */
+  readonly sampler?: "argmax" | "topk";
+  /** Softmax temperature for "topk". Must be finite and > 0. Defaults to 1. */
+  readonly temperature?: number;
+  /** Candidate count for "topk", 1..MAX_TOP_K. Defaults to 40. */
+  readonly topK?: number;
+  /**
+   * RNG seed, a u32. Defaults to 0 — engine-ts never substitutes entropy of
+   * its own, so an unseeded "topk" generation is still fully reproducible and
+   * repeating the call repeats the tokens. Callers that want variety pass a
+   * different seed per generation.
+   */
+  readonly seed?: number;
+}
+
+type WireSampling = Pick<ABI.Generate, "sampler" | "temperature" | "topK" | "seed" | "reserved">;
+
+/** Structured generation is greedy; the constrained kernels do not sample. */
+const GREEDY_SAMPLING = {
+  sampler: "argmax",
+  temperature: 0,
+  topK: 1,
+  seed: 0,
+  reserved: 0,
+} as const satisfies WireSampling;
+
+function encodeSampling(options: GenerateOptions): WireSampling {
+  if ((options.sampler ?? "argmax") === "argmax") return GREEDY_SAMPLING;
+
+  const temperature = options.temperature ?? DEFAULT_TEMPERATURE;
+  const topK = options.topK ?? DEFAULT_TOP_K;
+  const seed = options.seed ?? 0;
+  if (!Number.isFinite(temperature) || temperature <= 0) {
+    throw new RangeError(`Sampler "topk" needs a finite temperature > 0, got ${temperature}`);
+  }
+  if (!Number.isInteger(topK) || topK < 1 || topK > MAX_TOP_K) {
+    throw new RangeError(`Invalid topK ${topK}; must be an integer 1..${MAX_TOP_K}`);
+  }
+  if (!Number.isInteger(seed) || seed < 0 || seed > 0xffff_ffff) {
+    throw new RangeError(`Invalid seed ${seed}; must be a u32`);
+  }
+  return { sampler: "topk", temperature, topK, seed, reserved: 0 };
 }
 
 export interface EngineStats {
@@ -467,6 +515,7 @@ export class Engine {
           operation,
           context: encoded.ref,
           maxTokens: compiled.maxTokens,
+          ...GREEDY_SAMPLING,
         },
         payload,
       }));
@@ -485,6 +534,7 @@ export class Engine {
       throw new RangeError(`Invalid maxTokens ${options.maxTokens}`);
     }
 
+    const sampling = encodeSampling(options);
     const operation = this.allocateOperation();
     const queue = new TokenQueue();
     const encoded = encodeContext(context);
@@ -499,6 +549,7 @@ export class Engine {
           operation,
           context: encoded.ref,
           maxTokens: options.maxTokens,
+          ...sampling,
         },
         payload: encoded.payload,
       }),

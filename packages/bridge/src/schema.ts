@@ -20,6 +20,7 @@ export const $ = scope({
   u8: primitives.u8,
   u16: primitives.u16,
   u32: primitives.u32,
+  f32: primitives.f32,
 
   FrameDirection: "'command' | 'event'",
   FrameHeader: {
@@ -64,11 +65,38 @@ export const $ = scope({
     checkpoint: "u32",
   },
 
+  /**
+   * Token selection for one Generate.
+   *
+   * 'argmax' is greedy and fully deterministic on its own. 'topk' draws from
+   * the k highest logits at the given temperature using a seeded Gumbel-max,
+   * so it is deterministic in (seed, context, options) rather than random —
+   * replaying a generation is a matter of resending the same seed.
+   */
+  Sampler: "'argmax' | 'topk'",
+
   Generate: {
     kind: "'Generate'",
     operation: "u32",
     context: "ContextRef",
     maxTokens: "u32",
+    /**
+     * Softmax temperature; must be > 0 for sampler 'topk'.
+     *
+     * Field ORDER here is load-bearing. The generated C++ struct is not
+     * packed, so it only agrees with this wire layout while every member also
+     * lands on its natural alignment — widest first, and `reserved` paying for
+     * the tail padding the compiler would add anyway. packages/bridge/test/
+     * native-smoke.cpp asserts exactly that.
+     */
+    temperature: "f32",
+    /** RNG seed. Backends must not substitute their own entropy for it. */
+    seed: "u32",
+    /** Candidate count, 1..64 (the GPU per-lane list capacity). */
+    topK: "u16",
+    /** Sampler for this generation. 'argmax' ignores the three fields above. */
+    sampler: "Sampler",
+    reserved: "u8",
   },
 
   Cancel: {

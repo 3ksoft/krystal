@@ -22,7 +22,13 @@ class StubBuffer {
     this.name = name;
     this.options = options || {};
     this.gpu = { label: "stub:" + name, destroy: function () {} };
-    this.compiledInfo = { physicalStride: name === "OpParams" ? 256 : 0 };
+    // Latent mismatch, unreachable in mock builds: Lfm2Executor asserts the op
+    // record stride is 64 B and never runs against the stub (step 2's shim
+    // supplies the real value). 256 here predates the fromArtifact path.
+    this.compiledInfo = {
+      physicalStride: name === "OpParams" ? 256 : 0,
+      byteSize: 0,
+    };
     this._written = null;
   }
 
@@ -93,6 +99,14 @@ export class Sandblaster {
     return new Sandblaster();
   }
 
+  // The serialized artifact is intentionally not parsed here: under scriptc
+  // JSON.parse of the multi-MB artifact would be a dynamic island, and the stub
+  // exists to prove the graph compiles statically. The real engine (browser/bun
+  // via the linked core, native via the shim) parses it.
+  static fromArtifact(_serialized, _options) {
+    return new Sandblaster();
+  }
+
   constructor() {
     this.device = {
       queue: {
@@ -100,6 +114,14 @@ export class Sandblaster {
         onSubmittedWorkDone: function () {
           return Promise.resolve();
         },
+        submit: function () {},
+      },
+      // Real WebGPU objects; the native shim (step 2) supplies them over FFI.
+      createBuffer: function () {
+        return { destroy: function () {}, size: 0 };
+      },
+      createCommandEncoder: function () {
+        return { finish: function () { return {}; } };
       },
       limits: {
         minUniformBufferOffsetAlignment: 256,
@@ -108,6 +130,22 @@ export class Sandblaster {
         maxComputeWorkgroupsPerDimension: 65535,
       },
     };
+  }
+
+  resource(key) {
+    return new StubBuffer(String(key), {});
+  }
+
+  computeProgram(label) {
+    return {
+      kind: "compute",
+      label: label,
+      manifest: { bindings: [] },
+    };
+  }
+
+  async compile(_options) {
+    return { status: "ok", failed: 0, total: 0 };
   }
 
   type(nameOrShape) {

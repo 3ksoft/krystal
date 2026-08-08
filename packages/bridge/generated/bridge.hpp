@@ -60,10 +60,19 @@ namespace v1_0_0 {
 		uint32_t checkpoint;
 	};
 
+	using Sampler = uint8_t;
+	constexpr Sampler Sampler_argmax = 0;
+	constexpr Sampler Sampler_topk = 1;
+
 	struct alignas(1) Generate {
 		uint32_t operation;
 		ContextRef context;
 		uint32_t maxTokens;
+		float temperature;
+		uint32_t seed;
+		uint16_t topK;
+		Sampler sampler;
+		uint8_t reserved;
 	};
 
 	struct alignas(1) Cancel {
@@ -71,7 +80,7 @@ namespace v1_0_0 {
 		uint32_t target;
 	};
 
-	struct alignas(1) EngineCommand { uint8_t _bytes[17]; };
+	struct alignas(1) EngineCommand { uint8_t _bytes[29]; };
 
 	using ErrorCode = uint8_t;
 	constexpr ErrorCode ErrorCode_InvalidCommand = 0;

@@ -60,6 +60,11 @@ export function encodeCommandBody(command: ABI.EngineCommand): Uint8Array {
       view.setUint32(base, command.operation, true);
       writeContext(view, base + 4, command.context);
       view.setUint32(base + 12, command.maxTokens, true);
+      view.setFloat32(base + 16, command.temperature, true);
+      view.setUint32(base + 20, command.seed, true);
+      view.setUint16(base + 24, command.topK, true);
+      view.setUint8(base + 26, ABI.Sampler[command.sampler]);
+      view.setUint8(base + 27, command.reserved);
       break;
     case "PutBlock":
       view.setUint32(base, command.operation, true);
@@ -82,7 +87,17 @@ export function decodeCommandBody(bytes: Uint8Array): ABI.EngineCommand {
     case "CreateCheckpoint": return { kind, operation: view.getUint32(base, true), checkpoint: view.getUint32(base + 4, true), context: readContext(view, base + 8) };
     case "DropBlock": return { kind, operation: view.getUint32(base, true), block: view.getUint32(base + 4, true) };
     case "DropCheckpoint": return { kind, operation: view.getUint32(base, true), checkpoint: view.getUint32(base + 4, true) };
-    case "Generate": return { kind, operation: view.getUint32(base, true), context: readContext(view, base + 4), maxTokens: view.getUint32(base + 12, true) };
+    case "Generate": return {
+      kind,
+      operation: view.getUint32(base, true),
+      context: readContext(view, base + 4),
+      maxTokens: view.getUint32(base + 12, true),
+      temperature: view.getFloat32(base + 16, true),
+      seed: view.getUint32(base + 20, true),
+      topK: view.getUint16(base + 24, true),
+      sampler: enumName(ABI.Sampler, view.getUint8(base + 26), "Sampler"),
+      reserved: view.getUint8(base + 27),
+    };
     case "PutBlock": return { kind, operation: view.getUint32(base, true), block: view.getUint32(base + 4, true), tokenCount: view.getUint32(base + 8, true) };
   }
 }

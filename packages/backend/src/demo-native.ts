@@ -13,7 +13,7 @@ import { mockGenerate } from "./exe/mock-backend.ts";
 import { pickExeCommand } from "./exe/pick-command.ts";
 
 const backendRoot = resolve(import.meta.dir, "..");
-const repoRoot = resolve(backendRoot, "..");
+const repoRoot = resolve(backendRoot, "..", "..");
 const useDawn = process.argv.includes("--dawn");
 
 function pickCommand(): { command: string; args: string[]; env?: Record<string, string> } {
