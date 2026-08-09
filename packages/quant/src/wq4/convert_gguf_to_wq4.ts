@@ -161,6 +161,11 @@ function shouldQuantize(info: GgufTensorInfo): { ok: true } | { ok: false; reaso
   if (info.name.endsWith(".shortconv.conv.weight")) {
     return { ok: false, reason: "direct shortconv kernel weight" };
   }
+  // Learned position embeddings are additive tensors, not matmul weights;
+  // keep them raw (used by vision sidecars, harmless elsewhere).
+  if (info.name.endsWith(".position_embd.weight")) {
+    return { ok: false, reason: "position embedding is additive, not a matmul" };
+  }
   const rowElements = info.dimensions[0] ?? 1;
   if (rowElements % WQ4_BLOCK_SIZE !== 0) {
     return { ok: false, reason: `row width ${rowElements} is not divisible by ${WQ4_BLOCK_SIZE}` };
