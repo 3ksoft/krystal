@@ -11,13 +11,22 @@ export default defineComponent({
     const api = inject(ENGINE_KEY)!;
     const url = ref(api.state.modelUrl);
     const file = ref<File | null>(null);
+    const kind = ref<"text" | "vl">("text");
 
     const loading = computed(() => ["device", "model", "runtime"].includes(api.state.phase));
     const booted = computed(() => api.state.model !== null);
 
+    /**
+     * Which source LOAD MODEL will actually open. A picked file wins over the
+     * url field — say so up front, that precedence was invisible before.
+     */
+    const willLoad = computed(() =>
+      file.value ? `file: ${file.value.name}` : `url: ${url.value}`
+    );
+
     async function boot(): Promise<void> {
       try {
-        await api.boot(file.value ? { file: file.value } : { url: url.value });
+        await api.boot(file.value ? { file: file.value, kind: kind.value } : { url: url.value, kind: kind.value });
       } catch {
         // Surfaced through state.error by the alert in App.
       }
@@ -28,12 +37,19 @@ export default defineComponent({
       file.value = input.files?.[0] ?? null;
     }
 
-    return { api, url, file, loading, booted, boot, pick, fmt, MODEL_DOWNLOAD_URL, DEFAULT_IS_REMOTE };
+    return { api, url, file, kind, loading, booted, willLoad, boot, pick, fmt, MODEL_DOWNLOAD_URL, DEFAULT_IS_REMOTE };
   },
   template: `
     <TosWindow title="MODEL" icon="▛" :span="4">
       <div class="stack">
         <template v-if="!booted">
+          <div class="field">
+            <label for="model-kind">kind</label>
+            <select id="model-kind" class="grow" v-model="kind" :disabled="loading || !!file">
+              <option value="text">ordinary text</option>
+              <option value="vl">vision-language (VL)</option>
+            </select>
+          </div>
           <div class="field">
             <label for="model-url">url</label>
             <input id="model-url" class="grow" type="text" v-model="url" :disabled="loading || !!file" />
@@ -46,7 +62,15 @@ export default defineComponent({
             <button class="btn btn--default" type="button" :disabled="loading" @click="boot">
               {{ loading ? 'LOADING…' : 'LOAD MODEL' }}
             </button>
-            <span class="muted">WQ4 v3, self-contained</span>
+            <span class="muted" :title="willLoad" style="overflow:hidden;text-overflow:ellipsis">
+              {{ file ? '← file wins over url' : 'built-in url' }}
+            </span>
+          </div>
+          <div v-if="file" class="muted" style="overflow:hidden;text-overflow:ellipsis" title="will load this file">
+            will load: <strong>{{ file.name }}</strong>
+          </div>
+          <div v-else class="muted" style="overflow:hidden;text-overflow:ellipsis" title="will load this url">
+            will load: {{ url }}
           </div>
           <div v-if="DEFAULT_IS_REMOTE && !file" class="muted">
             the url streams ~700 MB from

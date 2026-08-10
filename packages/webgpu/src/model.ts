@@ -130,6 +130,7 @@ export function lfm2Block0TensorNames(): string[] {
 
 function readConfig(reader: Wq4Reader): Lfm2ModelConfig {
   const meta = (key: string) => reader.metadataValue(key);
+  const optionalMeta = (key: string) => (reader.hasMetadata(key) ? reader.metadataValue(key) : undefined);
   const architecture = meta("general.architecture");
   if (architecture !== "lfm2") {
     throw new Error(`Expected lfm2 WQ4 model, got '${String(architecture)}'`);
@@ -171,8 +172,10 @@ function readConfig(reader: Wq4Reader): Lfm2ModelConfig {
     ),
     bosToken: asNumber(meta("tokenizer.ggml.bos_token_id"), "tokenizer.ggml.bos_token_id"),
     eosToken: asNumber(meta("tokenizer.ggml.eos_token_id"), "tokenizer.ggml.eos_token_id"),
-    addBosToken: Boolean(meta("tokenizer.ggml.add_bos_token")),
-    addEosToken: Boolean(meta("tokenizer.ggml.add_eos_token")),
+    // Optional flags: the VL GGUF conversion omits add_eos_token, and llama.cpp
+    // tolerates both being absent. Missing means false, not an error.
+    addBosToken: Boolean(optionalMeta("tokenizer.ggml.add_bos_token")),
+    addEosToken: Boolean(optionalMeta("tokenizer.ggml.add_eos_token")),
     layers,
     attentionLayerSlots,
   };

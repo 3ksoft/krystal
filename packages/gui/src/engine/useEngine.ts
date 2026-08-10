@@ -33,6 +33,7 @@ import {
   Lfm2Forward,
   Lfm2GpuModel,
   lfm2,
+  VisionLfm2Session,
 } from "@chomato/webgpu";
 import type { Lfm2Tokenizer } from "@chomato/lfm2";
 import { contextIssues, type ContextPart } from "./context-rules.ts";
@@ -42,11 +43,12 @@ import {
   expandReserved,
   type ReservedTable,
 } from "./reserved.ts";
-import { DEFAULT_MODEL_URL } from "./model-source.ts";
+import { DEFAULT_MODEL_URL, VL_TEXT_MODEL_URL, VL_VISION_MODEL_URL } from "./model-source.ts";
 
 const GIB = 1024 * 1024 * 1024;
 
 export type Phase = "idle" | "device" | "model" | "runtime" | "ready" | "busy" | "error";
+export type ModelKind = "text" | "vl";
 
 /** What a panel wants the engine to run against. Panels do not share these. */
 export interface ContextSelection {
@@ -84,6 +86,7 @@ export interface BlockRow {
   bosLeading: boolean;
   /** BOS anywhere after index 0. Always wrong: it resets the model mid-context. */
   bosInterior: number;
+  image?: { rgba: Uint8Array; width: number; height: number };
 }
 
 /** One resolved piece of a checkpoint's context, snapshotted at creation. */
@@ -218,6 +221,7 @@ export function useEngine() {
     error: null as string | null,
     progress: 0,
     modelUrl: DEFAULT_MODEL_URL,
+    modelKind: "text" as ModelKind,
     model: null as ModelInfo | null,
     blocks: [] as BlockRow[],
     checkpoints: [] as CheckpointRow[],
@@ -233,6 +237,15 @@ export function useEngine() {
   const engineRef = shallowRef<Engine | null>(null);
   const forwardRef = shallowRef<Lfm2Forward | null>(null);
   const modelRef = shallowRef<Lfm2GpuModel | null>(null);
+  /**
+   * The device the global Sandblaster definition was compiled on. A second
+   * runtime consumer (the VL session) must open its model on exactly this
+   * device: Lfm2Forward rejects a model whose device differs from
+   * lfm2.engine.device. Exposed for the VL panel, which reuses the device and
+   * its compiled programs rather than compiling a second definition.
+   */
+  const deviceRef = shallowRef<GPUDevice | null>(null);
+  const vlSessionRef = shallowRef<VisionLfm2Session | null>(null);
   let tokenizer: Lfm2Tokenizer | null = null;
   let reserved: ReservedTable = EMPTY_RESERVED;
   let nextRunId = 1;
@@ -342,7 +355,8 @@ export function useEngine() {
   function resolveContext(selection: ContextSelection): { checkpoint?: number; blocks?: number[] } {
     const context: { checkpoint?: number; blocks?: number[] } = {};
     if (selection.checkpoint !== null) context.checkpoint = selection.checkpoint;
-    if (selection.blocks.length) context.blocks = [...selection.blocks];
+    const textBlocks = selection.blocks.filter((id) => id >= 0);
+    if (textBlocks.length) context.blocks = textBlocks;
     return context;
   }
 
@@ -363,7 +377,7 @@ export function useEngine() {
 
   // ------------------------------------------------------------------- boot
 
-  async function boot(options: { url?: string; file?: File } = {}): Promise<void> {
+  async function boot(options: { url?: string; file?: File; kind?: ModelKind } = {}): Promise<void> {
     if (engineRef.value) return;
     try {
       state.error = null;
@@ -380,6 +394,7 @@ export function useEngine() {
         },
       });
       if (disposed) return;
+      deviceRef.value = device;
 
       // The Sandblaster LFM2 definition owns a device-bound resource graph, so
       // the model must be opened on exactly the device it compiled against.
@@ -393,9 +408,11 @@ export function useEngine() {
 
       state.phase = "model";
       state.status = "opening WQ4 container";
+      const kind = options.kind ?? "text";
       const source = options.file
         ? new BlobSource(options.file)
-        : await HttpRangeSource.open(options.url ?? state.modelUrl);
+        : await HttpRangeSource.open(options.url ?? (kind === "vl" ? VL_TEXT_MODEL_URL : state.modelUrl));
+      state.modelKind = kind;
       if (options.url) state.modelUrl = options.url;
       if (options.file) state.modelUrl = options.file.name;
 
@@ -432,6 +449,15 @@ export function useEngine() {
       modelRef.value = model;
       forwardRef.value = forward;
       engineRef.value = engine;
+
+      if (kind === "vl") {
+        state.status = "loading VL vision tower";
+        vlSessionRef.value = await VisionLfm2Session.create({
+          device,
+          textSource: await HttpRangeSource.open(VL_TEXT_MODEL_URL),
+          visionSource: await HttpRangeSource.open(VL_VISION_MODEL_URL),
+        });
+      }
 
       state.model = {
         blockCount: model.config.blockCount,
@@ -545,6 +571,54 @@ export function useEngine() {
       };
       state.blocks.push(row);
       return row;
+    });
+  }
+
+  async function putImageBlock(file: File, label?: string): Promise<BlockRow> {
+    if (!vlSessionRef.value) throw new Error("Load a VL model before adding an image block");
+    const bitmap = await createImageBitmap(file);
+    try {
+      const canvas = document.createElement("canvas");
+      canvas.width = bitmap.width;
+      canvas.height = bitmap.height;
+      const context = canvas.getContext("2d", { willReadFrequently: true });
+      if (!context) throw new Error("2d canvas context unavailable");
+      context.drawImage(bitmap, 0, 0);
+      const data = context.getImageData(0, 0, bitmap.width, bitmap.height).data;
+      const id = -((state.blocks.length + 1) * 1_000_000 + Date.now() % 1_000_000);
+      const row: BlockRow = {
+        id,
+        label: label?.trim() || `image ${id}`,
+        text: "<image>",
+        tokens: [],
+        addBos: false,
+        bosLeading: false,
+        bosInterior: 0,
+        image: {
+          rgba: new Uint8Array(data.slice().buffer),
+          width: bitmap.width,
+          height: bitmap.height,
+        },
+      };
+      state.blocks.push(row);
+      return row;
+    } finally {
+      bitmap.close();
+    }
+  }
+
+  async function generateVision(maxTokens: number, selection: ContextSelection): Promise<string> {
+    return withBusy("Generate (vision)", async () => {
+      const session = vlSessionRef.value;
+      if (!session) throw new Error("VL model is not loaded");
+      const rows = selection.blocks.map((id) => block(id)).filter((row): row is BlockRow => !!row);
+      const images = rows.filter((row) => row.image);
+      if (images.length !== 1) throw new Error("VL query requires exactly one image block");
+      const prompt = rows.map((row) => row.image ? "<image>" : row.text).join("\n");
+      const image = images[0]!.image!;
+      const result = await session.chat({ ...image, prompt, maxNewTokens: maxTokens });
+      state.lastOutput = result.text;
+      return result.text;
     });
   }
 
@@ -747,18 +821,23 @@ export function useEngine() {
       // Closing a half-initialized engine must not mask the original failure.
     }
     modelRef.value?.destroy();
+    vlSessionRef.value?.destroy();
     engineRef.value = null;
     forwardRef.value = null;
     modelRef.value = null;
+    vlSessionRef.value = null;
+    deviceRef.value = null;
     tokenizer = null;
   }
 
   return {
     state: readonly(state) as typeof state,
     boot,
+    vlSession: vlSessionRef,
     block,
     checkpoint,
     putBlock,
+    putImageBlock,
     advanceWithOutput,
     dropBlock,
     createCheckpoint,
@@ -766,11 +845,13 @@ export function useEngine() {
     compileSchema,
     generateStructured,
     generateTokens,
+    generateVision,
     selectionLabel,
     selectionTokens,
     selectionText,
     selectionIssues,
     resolveParts,
+    getDevice: () => deviceRef.value,
     refreshStats,
     resetStats,
     tokenize,

@@ -71,6 +71,19 @@ export default defineComponent({
       }
     }
 
+    async function putImage(event: Event): Promise<void> {
+      const input = event.target as HTMLInputElement;
+      const file = input.files?.[0];
+      input.value = "";
+      if (!file) return;
+      try {
+        const row = await api.putImageBlock(file);
+        inspecting.value = row.id;
+      } catch {
+        // Surfaced through state.error.
+      }
+    }
+
     async function drop(id: number): Promise<void> {
       try {
         await api.dropBlock(id);
@@ -82,7 +95,7 @@ export default defineComponent({
 
     return {
       api, text, label, addBos, bosOverride, wrap, WRAPS, wrapped,
-      ready, preview, inspecting, inspected, view, pieces, put, drop, fmt,
+      ready, preview, inspecting, inspected, view, pieces, put, putImage, drop, fmt,
     };
   },
   template: `
@@ -106,6 +119,9 @@ export default defineComponent({
             {{ addBos ? '[x]' : '[ ]' }} BOS
           </button>
           <button class="btn btn--default" type="button" :disabled="!ready || !text" @click="put">PUT BLOCK</button>
+          <label class="btn" for="block-image" :class="{ 'btn--default': api.state.modelKind === 'vl' }">
+            PUT IMAGE<input id="block-image" type="file" accept="image/*" style="display:none" @change="putImage" />
+          </label>
           <span class="muted" v-if="preview !== null">{{ preview }} tok</span>
           <span class="muted" v-if="bosOverride === null">auto</span>
         </div>

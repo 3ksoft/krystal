@@ -1,8 +1,8 @@
-# Chomato Architecture Pack v0.4
+# Chomato Architecture Pack v0.5
 
 Status: Current technical architecture  
-Revision: 0.4  
-Date: 2026-08-07
+Revision: 0.5
+Date: 2026-08-09
 
 Revision 0.4 records the implementation that is now running end to end on the real LFM2.5 WebGPU backend: exact physical checkpoints, Sandblaster AOT shader/program artifacts, typed structured generation, and GPU-resident constraint masking/sampling.
 
@@ -24,6 +24,7 @@ Start with [architecture.md](architecture.md). The implementation details are sp
 6. [ADA-0006 — Structured GPU Decoding](decisions/0006-structured-gpu-decoding.md)
 7. [ADA-0007 — Host Runtime Language](decisions/0007-host-runtime-language.md)
 8. [ADA-0008 — Correctness Classes and Optimization Boundaries](decisions/0008-correctness-classes.md)
+9. [ADA-0009 — Vision-Language Integration (LFM2.5-VL-1.6B)](decisions/0009-vision-language-integration.md)
 
 ## Historical experiments
 

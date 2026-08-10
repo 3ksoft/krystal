@@ -1191,6 +1191,104 @@ export class Lfm2Forward {
   }
 
   /**
+   * Image-aware prefill + decode (ADA-0009, M3).
+   *
+   * Identical to generateGreedy except that `embeddings` — the vision tower's
+   * projector output, [imageTokenCount x hiddenSize] — is written into the
+   * arena hiddenA rows [imageStart, imageStart+imageTokenCount) between the
+   * embedding pass and the layer stack. The prompt sequence must already
+   * contain the placeholder tokens at exactly those positions (they are
+   * embedded normally, then overwritten); causal attention and RoPE treat
+   * image tokens as ordinary sequence positions, so the existing prefill
+   * machinery needs no changes.
+   *
+   * Injection ordering: the embed pass and the layers+decode pass are two
+   * separate command buffers with the host `queue.writeBuffer` between them.
+   * Queue operations are strictly ordered, so the layer stack always observes
+   * the injected rows (a write inside one Sandblaster submit would instead be
+   * ordered before the whole command buffer and get clobbered by the embed
+   * pass).
+   */
+  async generateWithImageEmbeddings(
+    promptTokens: Uint32Array | readonly number[],
+    embeddings: Float32Array,
+    options: {
+      readonly imageStart: number;
+      readonly maxNewTokens?: number;
+      readonly sampling?: Lfm2Sampling;
+    },
+  ): Promise<Lfm2GenerationResult> {
+    const prompt = promptTokens instanceof Uint32Array ? promptTokens : Uint32Array.from(promptTokens);
+    const h = this.model.config.hiddenSize;
+    const imageTokenCount = embeddings.length / h;
+    if (!Number.isInteger(imageTokenCount) || imageTokenCount < 1) {
+      throw new Error(
+        `Image embeddings length ${embeddings.length} is not a positive multiple of hidden size ${h}`,
+      );
+    }
+    const imageStart = options.imageStart;
+    if (!Number.isInteger(imageStart) || imageStart < 0 || imageStart + imageTokenCount > prompt.length) {
+      throw new Error(
+        `Image token range [${imageStart}, ${imageStart + imageTokenCount}) does not fit a prompt of ${prompt.length} tokens`,
+      );
+    }
+    const maxNewTokens = options.maxNewTokens ?? lfm2.capacities.maxNewTokens;
+    const sampling = resolveSampling(options.sampling);
+    if (prompt.length < 1) {
+      throw new Error("generateWithImageEmbeddings requires at least one prompt token");
+    }
+    if (prompt.length > lfm2.capacities.context) {
+      throw new Error(`Prompt has ${prompt.length} tokens, context capacity is ${lfm2.capacities.context}`);
+    }
+    if (prompt.length + maxNewTokens - 1 > lfm2.capacities.context) {
+      throw new Error(
+        `Prompt + decode positions (${prompt.length + maxNewTokens - 1}) exceed context ${lfm2.capacities.context}`,
+      );
+    }
+
+    await this.prepareAll();
+    this.writeRuntime(prompt.length, maxNewTokens);
+    this.writeTokens(prompt, 0);
+
+    // Pass 1: embed the whole combined sequence (placeholders included; the
+    // injected rows below replace them before any layer reads hiddenA).
+    this.executor.submit((encoder) => {
+      this.clearState(encoder);
+      encoder.compute((pass) => {
+        this.embed(pass, prompt.length, "prefill", LFM2_ARENA, 0);
+      }, { label: "vl.embed" });
+    });
+
+    // Pass 2 (host): inject tower embeddings between the two command buffers.
+    lfm2.engine.device.queue.writeBuffer(
+      lfm2.resources.arena.gpu,
+      (LFM2_ARENA.hiddenA + imageStart * h) * 4,
+      embeddings,
+    );
+
+    // Pass 3: full layer stack over the combined sequence + decode loop.
+    this.executor.submit((encoder) => {
+      encoder.compute((pass) => {
+        this.layers(pass, 0, this.model.config.blockCount, prompt.length, {
+          mode: "prefill",
+          work: LFM2_ARENA,
+        });
+        this.projectLogits(pass, prompt.length, "prefill", LFM2_ARENA);
+        this.commitArgmax(pass, "prefill", sampling);
+        for (let step = 1; step < maxNewTokens; step++) {
+          this.forwardAndSample(pass, 1, "decode", LFM2_ARENA, 0, sampling);
+        }
+      }, { label: "vl.generate" });
+    });
+
+    return await this.readGenerationResult({
+      prefillTokens: prompt.length,
+      restoredCheckpointBytes: 0,
+      checkpointRestoreUs: 0,
+    });
+  }
+
+  /**
    * Full greedy inference in one GPU submission: prompt prefill followed by up
    * to maxNewTokens-1 decode iterations. Runtime.status gates token commits
    * after EOS/done exactly like the legacy monolithic scheduler.

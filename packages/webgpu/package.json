@@ -5,6 +5,7 @@
   "exports": "./src/index.ts",
   "scripts": {
     "artifact:build": "bun run ./scripts/build-lfm2-artifact.ts",
+    "shaders:build": "bun run ./scripts/build-vision-shaders.ts",
     "build:shaders": "deno run --allow-read --sloppy-imports scripts/validate-lfm2-shaders.ts",
     "build:shaders:full": "deno run --allow-read --sloppy-imports scripts/validate-lfm2-shaders.ts --full",
     "dev": "bun run artifact:build && vite --config vite.config.ts",

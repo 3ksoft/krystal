@@ -7,3 +7,6 @@
  */
 export * from "./gguf/index.ts";
 export * from "./wq4/reader.ts";
+export * from "./vision/config.ts";
+export * from "./vision/weights.ts";
+export * from "./vision/reference.ts";

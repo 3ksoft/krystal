@@ -730,6 +730,18 @@ a:hover {
   color: var(--accent-fg);
 }
 
+/* ------------------------------------------------------------------- VL chat */
+
+.vl-thumb {
+  display: inline-block;
+  max-width: 96px;
+  max-height: 72px;
+  image-rendering: auto;
+  border: 1px solid var(--fg);
+  background: var(--fg);
+  vertical-align: middle;
+}
+
 /* --------------------------------------------------------------- status bar */
 
 .statusbar {

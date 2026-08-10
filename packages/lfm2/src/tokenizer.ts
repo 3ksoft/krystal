@@ -26,6 +26,20 @@ function asNumber(value: GgufValue, key: string): number {
   throw new Error(`${key} must be numeric`);
 }
 
+/**
+ * `tokenizer.ggml.add_bos_token` / `add_eos_token` are optional GGUF keys: a
+ * missing key means "do not append", which is what `Boolean(undefined)` yields
+ * anyway. The strict WQ4 metadata accessor throws for missing keys, so read
+ * them tolerantly — a conversion that omits the flag must not kill the boot.
+ */
+function optionalFlag(reader: GgufReader, key: string): boolean {
+  try {
+    return Boolean(reader.metadata(key));
+  } catch {
+    return false;
+  }
+}
+
 function byteToUnicode(): string[] {
   const table = new Array<string>(256);
   const used = new Array<boolean>(256).fill(false);
@@ -186,8 +200,8 @@ export class Lfm2Tokenizer {
 
     this.bos = asNumber(reader.metadata("tokenizer.ggml.bos_token_id"), "tokenizer.ggml.bos_token_id");
     this.eos = asNumber(reader.metadata("tokenizer.ggml.eos_token_id"), "tokenizer.ggml.eos_token_id");
-    this.addBosByDefault = Boolean(reader.metadata("tokenizer.ggml.add_bos_token"));
-    this.addEosByDefault = Boolean(reader.metadata("tokenizer.ggml.add_eos_token"));
+    this.addBosByDefault = optionalFlag(reader, "tokenizer.ggml.add_bos_token");
+    this.addEosByDefault = optionalFlag(reader, "tokenizer.ggml.add_eos_token");
 
     this.byteEncoder.forEach((char, byte) => this.byteDecoder.set(char, byte));
   }

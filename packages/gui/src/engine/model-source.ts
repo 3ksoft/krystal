@@ -28,3 +28,27 @@ export const DEFAULT_MODEL_URL = import.meta.env.VITE_MODEL_URL
 
 /** True when loading the default would mean a large cross-origin download. */
 export const DEFAULT_IS_REMOTE = !import.meta.env.DEV;
+
+// ------------------------------------------------------------------ VL (M3)
+// The VL CHAT window loads its own text backbone plus the vision mmproj, both
+// served the same way as the text model above. The mmproj is the exact-F32
+// GGUF load (the differential-verified path); the WQ4 sidecar vision path is a
+// later milestone.
+
+const VL_TEXT_FILE = "LFM2.5-VL-1.6B-WQ4.wq4";
+const VL_VISION_FILE = "LFM2.5-VL-mmproj-WQ4.wq4";
+
+// Unlike DEFAULT_MODEL_URL there is no HuggingFace fallback: these are only
+// used by the VL CHAT window, which is a dev instrument (a static build has no
+// published models to fetch, so it 404s — same as every other dev-only path).
+
+/** VL text backbone, read in ranges by HttpRangeSource. */
+export const VL_TEXT_MODEL_URL = import.meta.env.VITE_VL_MODEL_URL
+  ?? `${import.meta.env.BASE_URL}models/${VL_TEXT_FILE}`;
+
+/** Vision tower + projector GGUF, read in ranges by HttpRangeSource. */
+export const VL_VISION_MODEL_URL = import.meta.env.VITE_VL_VISION_URL
+  ?? `${import.meta.env.BASE_URL}models/${VL_VISION_FILE}`;
+
+export const VL_VISION_F16_URL = import.meta.env.VITE_VL_VISION_F16_URL
+  ?? `${import.meta.env.BASE_URL}models/mmproj-LFM2.5-VL-1.6b-F16.gguf`;

@@ -109,11 +109,15 @@ export default defineComponent({
 
     async function raw(): Promise<void> {
       try {
-        await api.generateTokens(
-          Math.max(1, Math.floor(maxTokens.value)),
-          selection.value,
-          sampling.value,
-        );
+        if (api.state.modelKind === "vl") {
+          await api.generateVision(Math.max(1, Math.floor(maxTokens.value)), selection.value);
+        } else {
+          await api.generateTokens(
+            Math.max(1, Math.floor(maxTokens.value)),
+            selection.value,
+            sampling.value,
+          );
+        }
       } catch {
         // Surfaced through state.error.
       }
@@ -190,7 +194,7 @@ export default defineComponent({
             :disabled="!canRun"
             :title="hasContext ? 'Decode without a schema' : 'Select a context above first'"
             @click="raw"
-          >GENERATE TOKENS</button>
+          >{{ api.state.modelKind === 'vl' ? 'QUERY IMAGE' : 'GENERATE TOKENS' }}</button>
         </div>
 
         <div class="row row--tight">
