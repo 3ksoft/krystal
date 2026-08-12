@@ -1,6 +1,11 @@
 # Chomato
 
+![Chomato web gui](./Chomato.png)
+
+
 Experimental local LFM2.5 inference runtime built on WebGPU with exact reusable checkpoints and GPU-resident typed structured generation.
+
+View the [Online demo](https://3ksoft.github.io/chomato/) (WebGPU capable browser required, chrome/webkit only currently)
 
 ```ts
 const result = await engine.generate(
