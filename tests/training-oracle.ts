@@ -133,6 +133,165 @@ export function matmulForward(x: Float32Array, w: Float32Array, m: number, k: nu
   return y;
 }
 
+// ---------------------------------------------------------------------------
+// Attention (§17 item 6) — Krystal encoder semantics: bidirectional,
+// host-masked, multi-head, no KV cache. All tensors are f32, row-major.
+//
+// Layouts (mirror attention_*.wgsl):
+//   Q, K, V, out, dOut, dQ, dK, dV  [M, H]; head h owns columns
+//     [h*headDim, (h+1)*headDim)
+//   P, dScores  [headCount, M, M]; index (h*M + i)*M + j
+//   mask        [M, M]; 0.0 = allowed, -1e30 = blocked
+// ---------------------------------------------------------------------------
+
+export interface AttentionForwardResult {
+  /** P [headCount, M, M] softmax probabilities (persisted for backward). */
+  P: Float32Array;
+  /** out [M, H] context vectors. */
+  out: Float32Array;
+}
+
+/**
+ * Masked multi-head attention forward. Mirrors attention_forward.wgsl.
+ * scale = 1/sqrt(headDim); the mask is added to raw scores before softmax.
+ */
+export function attentionForward(
+  q: Float32Array,
+  k: Float32Array,
+  v: Float32Array,
+  mask: Float32Array,
+  headCount: number,
+  headDim: number,
+): AttentionForwardResult {
+  const m = q.length / (headCount * headDim);
+  const h = headCount * headDim;
+  const scale = 1 / Math.sqrt(headDim);
+  const P = new Float32Array(headCount * m * m);
+  const out = new Float32Array(m * h);
+  for (let head = 0; head < headCount; head++) {
+    for (let i = 0; i < m; i++) {
+      // Raw scores.
+      const scores = new Float32Array(m);
+      for (let j = 0; j < m; j++) {
+        let s = 0;
+        for (let d = 0; d < headDim; d++) {
+          s += q[i * h + head * headDim + d]! * k[j * h + head * headDim + d]!;
+        }
+        scores[j] = s * scale + mask[i * m + j]!;
+      }
+      // Row softmax (masked entries collapse to exp(-1e30) ~ 0).
+      let rowMax = -Infinity;
+      for (let j = 0; j < m; j++) rowMax = Math.max(rowMax, scores[j]!);
+      let sumExp = 0;
+      for (let j = 0; j < m; j++) sumExp += Math.exp(scores[j]! - rowMax);
+      const inv = 1 / Math.max(sumExp, 1e-20);
+      for (let j = 0; j < m; j++) {
+        const p = Math.exp(scores[j]! - rowMax) * inv;
+        P[(head * m + i) * m + j] = p;
+      }
+      // Context vector.
+      for (let d = 0; d < headDim; d++) {
+        let value = 0;
+        for (let j = 0; j < m; j++) {
+          value += P[(head * m + i) * m + j]! * v[j * h + head * headDim + d]!;
+        }
+        out[i * h + head * headDim + d] = value;
+      }
+    }
+  }
+  return { P, out };
+}
+
+/**
+ * Softmax-score gradient. Mirrors attention_backward_scores.wgsl:
+ *   dScores[h][i][j] = P[h][i][j] * (dP[h][i][j] - rowSum[h][i])
+ * with dP[h][i][j] = dot(dOut[i][h], V[j][h]) and
+ * rowSum[h][i] = sum_j P[h][i][j] * dP[h][i][j].
+ */
+export function attentionBackwardScores(
+  dOut: Float32Array,
+  v: Float32Array,
+  p: Float32Array,
+  headCount: number,
+  headDim: number,
+): Float32Array {
+  const m = dOut.length / (headCount * headDim);
+  const h = headCount * headDim;
+  const dScores = new Float32Array(headCount * m * m);
+  for (let head = 0; head < headCount; head++) {
+    for (let i = 0; i < m; i++) {
+      const dP = new Float32Array(m);
+      for (let j = 0; j < m; j++) {
+        let dp = 0;
+        for (let d = 0; d < headDim; d++) {
+          dp += dOut[i * h + head * headDim + d]! * v[j * h + head * headDim + d]!;
+        }
+        dP[j] = dp;
+      }
+      let rowSum = 0;
+      for (let j = 0; j < m; j++) rowSum += p[(head * m + i) * m + j]! * dP[j]!;
+      for (let j = 0; j < m; j++) {
+        dScores[(head * m + i) * m + j] = p[(head * m + i) * m + j]! * (dP[j]! - rowSum);
+      }
+    }
+  }
+  return dScores;
+}
+
+/**
+ * Q/K/V gradients. Mirrors attention_backward_qkv.wgsl:
+ *   dQ[i,h,d] = scale * sum_j dScores[h,i,j] * K[j,h,d]
+ *   dK[j,h,d] = scale * sum_i dScores[h,i,j] * Q[i,h,d]
+ *   dV[j,h,d] =        sum_i P[h,i,j]       * dOut[i,h,d]
+ */
+export function attentionBackwardQkv(
+  dScores: Float32Array,
+  q: Float32Array,
+  k: Float32Array,
+  p: Float32Array,
+  dOut: Float32Array,
+  headCount: number,
+  headDim: number,
+): { dQ: Float32Array; dK: Float32Array; dV: Float32Array } {
+  const m = q.length / (headCount * headDim);
+  const h = headCount * headDim;
+  const scale = 1 / Math.sqrt(headDim);
+  const dQ = new Float32Array(m * h);
+  const dK = new Float32Array(m * h);
+  const dV = new Float32Array(m * h);
+  for (let i = 0; i < m; i++) {
+    for (let col = 0; col < h; col++) {
+      const head = Math.floor(col / headDim);
+      let acc = 0;
+      for (let j = 0; j < m; j++) {
+        acc += dScores[(head * m + i) * m + j]! * k[j * h + col]!;
+      }
+      dQ[i * h + col] = acc * scale;
+    }
+  }
+  for (let j = 0; j < m; j++) {
+    for (let col = 0; col < h; col++) {
+      const head = Math.floor(col / headDim);
+      let acc = 0;
+      for (let i = 0; i < m; i++) {
+        acc += dScores[(head * m + i) * m + j]! * q[i * h + col]!;
+      }
+      dK[j * h + col] = acc * scale;
+    }
+  }
+  for (let j = 0; j < m; j++) {
+    for (let col = 0; col < h; col++) {
+      const head = Math.floor(col / headDim);
+      let acc = 0;
+      for (let i = 0; i < m; i++) {
+        acc += p[(head * m + i) * m + j]! * dOut[i * h + col]!;
+      }
+      dV[j * h + col] = acc;
+    }
+  }
+  return { dQ, dK, dV };
+}
+
 /** Full toy-graph forward: hidden -> logits -> loss rows + dLogits. */
 export function forwardGraph(
   embedding: Float32Array,

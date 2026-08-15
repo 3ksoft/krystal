@@ -1,6 +1,6 @@
 // THIS FILE IS AUTO-GENERATED - DO NOT CHANGE
 
-// THIS FILE IS FOR REFERENCE ONLY!! DO NOT INCCLUDE IT DIRECTLY!!
+// THIS FILE IS FOR REFERENCE ONLY!! DO NOT INCLUDE IT DIRECTLY!!
 const SMB_literal: u32 = 0u;
 const SMB_switch: u32 = 1u;
 const SMB_string: u32 = 2u;
@@ -115,6 +115,10 @@ struct OpParams {
 	outputOffset: u32,
 	auxOffset: u32,
 	aux2Offset: u32,
+	aux3Offset: u32,
+	aux4Offset: u32,
+	aux5Offset: u32,
+	aux6Offset: u32,
 	tokenCount: u32,
 	inputDim: u32,
 	outputDim: u32,
@@ -462,54 +466,62 @@ fn pack_constraint_decoder_state(unpacked: ConstraintDecoderState) -> array<u32,
 	return pack_constraint_decoder_state_to_words(unpacked);
 }
 
-fn unpack_words_to_op_params(raw: array<u32, 16>) -> OpParams {
+fn unpack_words_to_op_params(raw: array<u32, 20>) -> OpParams {
 	var out: OpParams;
 	out.inputOffset = bitcast<u32>(raw[0u]);
 	out.outputOffset = bitcast<u32>(raw[1u]);
 	out.auxOffset = bitcast<u32>(raw[2u]);
 	out.aux2Offset = bitcast<u32>(raw[3u]);
-	out.tokenCount = bitcast<u32>(raw[4u]);
-	out.inputDim = bitcast<u32>(raw[5u]);
-	out.outputDim = bitcast<u32>(raw[6u]);
-	out.rowStart = bitcast<u32>(raw[7u]);
-	out.rowCount = bitcast<u32>(raw[8u]);
-	out.layerIndex = bitcast<u32>(raw[9u]);
-	out.attentionSlot = bitcast<u32>(raw[10u]);
-	out.mode = Lfm2Mode(extractBits(raw[11u], 0u, 8u));
-	out.f0 = bitcast<f32>(raw[12u]);
-	out.f1 = bitcast<f32>(raw[13u]);
-	out.u0 = bitcast<u32>(raw[14u]);
-	out.u1 = bitcast<u32>(raw[15u]);
+	out.aux3Offset = bitcast<u32>(raw[4u]);
+	out.aux4Offset = bitcast<u32>(raw[5u]);
+	out.aux5Offset = bitcast<u32>(raw[6u]);
+	out.aux6Offset = bitcast<u32>(raw[7u]);
+	out.tokenCount = bitcast<u32>(raw[8u]);
+	out.inputDim = bitcast<u32>(raw[9u]);
+	out.outputDim = bitcast<u32>(raw[10u]);
+	out.rowStart = bitcast<u32>(raw[11u]);
+	out.rowCount = bitcast<u32>(raw[12u]);
+	out.layerIndex = bitcast<u32>(raw[13u]);
+	out.attentionSlot = bitcast<u32>(raw[14u]);
+	out.mode = Lfm2Mode(extractBits(raw[15u], 0u, 8u));
+	out.f0 = bitcast<f32>(raw[16u]);
+	out.f1 = bitcast<f32>(raw[17u]);
+	out.u0 = bitcast<u32>(raw[18u]);
+	out.u1 = bitcast<u32>(raw[19u]);
 	return out;
 }
 
-fn unpack_op_params(raw: array<u32, 16>) -> OpParams {
+fn unpack_op_params(raw: array<u32, 20>) -> OpParams {
 	return unpack_words_to_op_params(raw);
 }
 
-fn pack_op_params_to_words(unpacked: OpParams) -> array<u32, 16> {
-	var out: array<u32, 16>;
-	for (var w = 0u; w < 16u; w++) { out[w] = 0u; }
+fn pack_op_params_to_words(unpacked: OpParams) -> array<u32, 20> {
+	var out: array<u32, 20>;
+	for (var w = 0u; w < 20u; w++) { out[w] = 0u; }
 	out[0u] = bitcast<u32>(unpacked.inputOffset);
 	out[1u] = bitcast<u32>(unpacked.outputOffset);
 	out[2u] = bitcast<u32>(unpacked.auxOffset);
 	out[3u] = bitcast<u32>(unpacked.aux2Offset);
-	out[4u] = bitcast<u32>(unpacked.tokenCount);
-	out[5u] = bitcast<u32>(unpacked.inputDim);
-	out[6u] = bitcast<u32>(unpacked.outputDim);
-	out[7u] = bitcast<u32>(unpacked.rowStart);
-	out[8u] = bitcast<u32>(unpacked.rowCount);
-	out[9u] = bitcast<u32>(unpacked.layerIndex);
-	out[10u] = bitcast<u32>(unpacked.attentionSlot);
-	out[11u] = insertBits(out[11u], u32(unpacked.mode), 0u, 8u);
-	out[12u] = bitcast<u32>(unpacked.f0);
-	out[13u] = bitcast<u32>(unpacked.f1);
-	out[14u] = bitcast<u32>(unpacked.u0);
-	out[15u] = bitcast<u32>(unpacked.u1);
+	out[4u] = bitcast<u32>(unpacked.aux3Offset);
+	out[5u] = bitcast<u32>(unpacked.aux4Offset);
+	out[6u] = bitcast<u32>(unpacked.aux5Offset);
+	out[7u] = bitcast<u32>(unpacked.aux6Offset);
+	out[8u] = bitcast<u32>(unpacked.tokenCount);
+	out[9u] = bitcast<u32>(unpacked.inputDim);
+	out[10u] = bitcast<u32>(unpacked.outputDim);
+	out[11u] = bitcast<u32>(unpacked.rowStart);
+	out[12u] = bitcast<u32>(unpacked.rowCount);
+	out[13u] = bitcast<u32>(unpacked.layerIndex);
+	out[14u] = bitcast<u32>(unpacked.attentionSlot);
+	out[15u] = insertBits(out[15u], u32(unpacked.mode), 0u, 8u);
+	out[16u] = bitcast<u32>(unpacked.f0);
+	out[17u] = bitcast<u32>(unpacked.f1);
+	out[18u] = bitcast<u32>(unpacked.u0);
+	out[19u] = bitcast<u32>(unpacked.u1);
 	return out;
 }
 
-fn pack_op_params(unpacked: OpParams) -> array<u32, 16> {
+fn pack_op_params(unpacked: OpParams) -> array<u32, 20> {
 	return pack_op_params_to_words(unpacked);
 }
 
@@ -872,7 +884,7 @@ fn pack_gpu_tensor(unpacked: GpuTensor) -> array<u32, 7> {
 	return pack_gpu_tensor_to_words(unpacked);
 }
 
-fn unpack_words_to_lfm2_runtime_model(raw: array<u32, 26>) -> Lfm2RuntimeModel {
+fn unpack_words_to_lfm2_runtime_model(raw: array<u32, 25>) -> Lfm2RuntimeModel {
 	var out: Lfm2RuntimeModel;
 	out.device = unpack_words_to_gpu_device(extractBits(raw[0u], 0u, 0u));
 	{
@@ -880,27 +892,27 @@ fn unpack_words_to_lfm2_runtime_model(raw: array<u32, 26>) -> Lfm2RuntimeModel {
 		for (var j_0 = 0u; j_0 < 25u; j_0++) { tmp[j_0] = raw[0u + j_0]; }
 		out.config = unpack_words_to_lfm2_runtime_config(tmp);
 	}
-	out.tensor = u32(extractBits(raw[25u], 0u, 8u));
+	out.tensor = u32(extractBits(raw[25u], 0u, 0u));
 	return out;
 }
 
-fn unpack_lfm2_runtime_model(raw: array<u32, 26>) -> Lfm2RuntimeModel {
+fn unpack_lfm2_runtime_model(raw: array<u32, 25>) -> Lfm2RuntimeModel {
 	return unpack_words_to_lfm2_runtime_model(raw);
 }
 
-fn pack_lfm2_runtime_model_to_words(unpacked: Lfm2RuntimeModel) -> array<u32, 26> {
-	var out: array<u32, 26>;
-	for (var w = 0u; w < 26u; w++) { out[w] = 0u; }
+fn pack_lfm2_runtime_model_to_words(unpacked: Lfm2RuntimeModel) -> array<u32, 25> {
+	var out: array<u32, 25>;
+	for (var w = 0u; w < 25u; w++) { out[w] = 0u; }
 	out[0u] = insertBits(out[0u], pack_gpu_device_to_words(unpacked.device), 0u, 0u);
 	{
 		let tmp = pack_lfm2_runtime_config_to_words(unpacked.config);
 		for (var j_0 = 0u; j_0 < 25u; j_0++) { out[0u + j_0] = tmp[j_0]; }
 	}
-	out[25u] = insertBits(out[25u], u32(unpacked.tensor), 0u, 8u);
+	out[25u] = insertBits(out[25u], u32(unpacked.tensor), 0u, 0u);
 	return out;
 }
 
-fn pack_lfm2_runtime_model(unpacked: Lfm2RuntimeModel) -> array<u32, 26> {
+fn pack_lfm2_runtime_model(unpacked: Lfm2RuntimeModel) -> array<u32, 25> {
 	return pack_lfm2_runtime_model_to_words(unpacked);
 }
 

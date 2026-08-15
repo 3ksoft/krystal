@@ -173,10 +173,10 @@ export function defineLfm2(bundle: Lfm2ShaderBundle = emptyLfm2ShaderBundle()) {
         buffer: {
           type: "uniform",
           hasDynamicOffset: true,
-          minBindingSize: 64,
+          minBindingSize: 80,
         },
         offset: 0,
-        size: 64,
+        size: 80,
         representation: "native",
       } satisfies BufferResourceUse,
       runtime: nativeWrite(runtime),
@@ -488,6 +488,38 @@ export function defineLfm2(bundle: Lfm2ShaderBundle = emptyLfm2ShaderBundle()) {
       },
       includes: commonIncludes,
       compute: { entryPoint: "sgd_step", params: gid, workgroupSize: 256, code: sources.sgd_step },
+    }),
+
+    // --- Attention (§17 item 6) ---
+    // Krystal encoder semantics: bidirectional, host-masked, multi-head, no
+    // KV cache, no GQA. All tensor regions live in the shared f32 arena; no
+    // weight pages. attention_forward persists the softmax probs P so the two
+    // backward shaders can reuse them (the mask never needs re-reading: masked
+    // positions carry P == 0).
+    attention_forward: engine.compute({
+      label: "attention_forward",
+      resources: { op: r.op, arena: r.arena },
+      includes: [...commonIncludes, include("attention-scores")],
+      compute: { entryPoint: "attention_forward", params: widLid, workgroupSize: 64, code: sources.attention_forward },
+    }),
+
+    attention_backward_scores: engine.compute({
+      label: "attention_backward_scores",
+      resources: { op: r.op, arena: r.arena },
+      includes: [...commonIncludes, include("attention-scores"), include("reduce-f32")],
+      compute: {
+        entryPoint: "attention_backward_scores",
+        params: widLid,
+        workgroupSize: 64,
+        code: sources.attention_backward_scores,
+      },
+    }),
+
+    attention_backward_qkv: engine.compute({
+      label: "attention_backward_qkv",
+      resources: { op: r.op, arena: r.arena },
+      includes: commonIncludes,
+      compute: { entryPoint: "attention_backward_qkv", params: gid, workgroupSize: 256, code: sources.attention_backward_qkv },
     }),
   } satisfies Record<Lfm2ProgramName, AnyComputeHandle>;
 

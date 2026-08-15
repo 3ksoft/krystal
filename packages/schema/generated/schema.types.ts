@@ -93,6 +93,10 @@ export namespace v1_0_0 {
 		outputOffset: number;
 		auxOffset: number;
 		aux2Offset: number;
+		aux3Offset: number;
+		aux4Offset: number;
+		aux5Offset: number;
+		aux6Offset: number;
 		tokenCount: number;
 		inputDim: number;
 		outputDim: number;
@@ -225,7 +229,7 @@ export namespace v1_0_0 {
 	export interface Lfm2RuntimeModel {
 		device: GPUDevice;
 		config: Lfm2RuntimeConfig;
-		tensor?: unknown;
+		tensor: unknown;
 	}
 	
 	export interface MatmulKernelSpec {

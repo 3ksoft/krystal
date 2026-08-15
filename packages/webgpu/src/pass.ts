@@ -41,7 +41,7 @@ export function lfm2Pass(
   };
 }
 
-const OP_PARAM_BYTES = 64;
+const OP_PARAM_BYTES = 80;
 
 function align(value: number, alignment: number): number {
   return Math.ceil(value / alignment) * alignment;
@@ -53,11 +53,12 @@ class Lfm2ParamWriter {
   private cursor = 0;
   private readonly value = {
     inputOffset: 0, outputOffset: 0, auxOffset: 0, aux2Offset: 0,
+    aux3Offset: 0, aux4Offset: 0, aux5Offset: 0, aux6Offset: 0,
     tokenCount: 0, inputDim: 0, outputDim: 0, rowStart: 0,
     rowCount: 0, layerIndex: 0, attentionSlot: 0,
     mode: "prefill" as "prefill" | "decode" | "continuation",
     f0: 0, f1: 0, u0: 0, u1: 0,
-    reserved: new Array<number>(48).fill(0),
+    reserved: new Array<number>(44).fill(0),
   };
 
   constructor(
@@ -89,6 +90,10 @@ class Lfm2ParamWriter {
     value.outputOffset = params.outputOffset ?? 0;
     value.auxOffset = params.auxOffset ?? 0;
     value.aux2Offset = params.aux2Offset ?? 0;
+    value.aux3Offset = params.aux3Offset ?? 0;
+    value.aux4Offset = params.aux4Offset ?? 0;
+    value.aux5Offset = params.aux5Offset ?? 0;
+    value.aux6Offset = params.aux6Offset ?? 0;
     value.tokenCount = params.tokenCount ?? 0;
     value.inputDim = params.inputDim ?? 0;
     value.outputDim = params.outputDim ?? 0;

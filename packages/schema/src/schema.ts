@@ -177,6 +177,13 @@ export const schema = scope({
     auxOffset: "u32 = 0",
     aux2Offset: "u32 = 0",
 
+    // Extended offsets for ops that move more than four tensor regions
+    // (training attention reads Q/K/V/mask and writes out/P/dQ/dK/dV).
+    aux3Offset: "u32 = 0",
+    aux4Offset: "u32 = 0",
+    aux5Offset: "u32 = 0",
+    aux6Offset: "u32 = 0",
+
     tokenCount: "u32 = 0",
     inputDim: "u32 = 0",
     outputDim: "u32 = 0",

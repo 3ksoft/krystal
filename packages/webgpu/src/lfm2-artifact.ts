@@ -104,6 +104,9 @@ export function defineLfm2FromArtifact() {
     matmul_backward_weight: engine.computeProgram("matmul_backward_weight"),
     embedding_backward: engine.computeProgram("embedding_backward"),
     sgd_step: engine.computeProgram("sgd_step"),
+    attention_forward: engine.computeProgram("attention_forward"),
+    attention_backward_scores: engine.computeProgram("attention_backward_scores"),
+    attention_backward_qkv: engine.computeProgram("attention_backward_qkv"),
   } satisfies Record<Lfm2ProgramName, ReturnType<typeof engine.computeProgram>>;
 
   const passes = defineLfm2Passes(programs);

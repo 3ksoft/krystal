@@ -41,7 +41,7 @@ export const SIZEOF_ConstraintTokenizerHeader = 32;
 export const SIZEOF_ConstraintTokenByteEntry = 8;
 export const SIZEOF_ConstraintDecoderState = 96;
 export const CONSTRAINT_DECODER_STATE_NUMBERTEXT_LEN = 16;
-export const SIZEOF_OpParams = 64;
+export const SIZEOF_OpParams = 80;
 export const SIZEOF_LlmRuntime = 48;
 export const SIZEOF_DecodeTelemetryEntry = 4;
 export const SIZEOF_GenerateOptions = 20;
@@ -52,7 +52,7 @@ export const SIZEOF_Lfm2RuntimeConfig = 100;
 export const SIZEOF_MatmulDispatchArgs = 32;
 export const SIZEOF_GpuTensorPage = 24;
 export const SIZEOF_GpuTensor = 28;
-export const SIZEOF_Lfm2RuntimeModel = 104;
+export const SIZEOF_Lfm2RuntimeModel = 100;
 export const SIZEOF_MatmulKernelSpec = 16;
 export const SIZEOF_Lfm2RuntimeOptions = 88;
 
@@ -325,36 +325,44 @@ export function deserializeOpParams(view: DataView, offset: number, outObj?: any
 			outputOffset: view.getUint32(offset + 4, true),
 			auxOffset: view.getUint32(offset + 8, true),
 			aux2Offset: view.getUint32(offset + 12, true),
-			tokenCount: view.getUint32(offset + 16, true),
-			inputDim: view.getUint32(offset + 20, true),
-			outputDim: view.getUint32(offset + 24, true),
-			rowStart: view.getUint32(offset + 28, true),
-			rowCount: view.getUint32(offset + 32, true),
-			layerIndex: view.getUint32(offset + 36, true),
-			attentionSlot: view.getUint32(offset + 40, true),
-			mode: deserializeLfm2Mode(view, offset + 44),
-			f0: view.getFloat32(offset + 48, true),
-			f1: view.getFloat32(offset + 52, true),
-			u0: view.getUint32(offset + 56, true),
-			u1: view.getUint32(offset + 60, true),
+			aux3Offset: view.getUint32(offset + 16, true),
+			aux4Offset: view.getUint32(offset + 20, true),
+			aux5Offset: view.getUint32(offset + 24, true),
+			aux6Offset: view.getUint32(offset + 28, true),
+			tokenCount: view.getUint32(offset + 32, true),
+			inputDim: view.getUint32(offset + 36, true),
+			outputDim: view.getUint32(offset + 40, true),
+			rowStart: view.getUint32(offset + 44, true),
+			rowCount: view.getUint32(offset + 48, true),
+			layerIndex: view.getUint32(offset + 52, true),
+			attentionSlot: view.getUint32(offset + 56, true),
+			mode: deserializeLfm2Mode(view, offset + 60),
+			f0: view.getFloat32(offset + 64, true),
+			f1: view.getFloat32(offset + 68, true),
+			u0: view.getUint32(offset + 72, true),
+			u1: view.getUint32(offset + 76, true),
 		} as any;
 	}
 	outObj.inputOffset = view.getUint32(offset, true);
 	outObj.outputOffset = view.getUint32(offset + 4, true);
 	outObj.auxOffset = view.getUint32(offset + 8, true);
 	outObj.aux2Offset = view.getUint32(offset + 12, true);
-	outObj.tokenCount = view.getUint32(offset + 16, true);
-	outObj.inputDim = view.getUint32(offset + 20, true);
-	outObj.outputDim = view.getUint32(offset + 24, true);
-	outObj.rowStart = view.getUint32(offset + 28, true);
-	outObj.rowCount = view.getUint32(offset + 32, true);
-	outObj.layerIndex = view.getUint32(offset + 36, true);
-	outObj.attentionSlot = view.getUint32(offset + 40, true);
-	outObj.mode = deserializeLfm2Mode(view, offset + 44);
-	outObj.f0 = view.getFloat32(offset + 48, true);
-	outObj.f1 = view.getFloat32(offset + 52, true);
-	outObj.u0 = view.getUint32(offset + 56, true);
-	outObj.u1 = view.getUint32(offset + 60, true);
+	outObj.aux3Offset = view.getUint32(offset + 16, true);
+	outObj.aux4Offset = view.getUint32(offset + 20, true);
+	outObj.aux5Offset = view.getUint32(offset + 24, true);
+	outObj.aux6Offset = view.getUint32(offset + 28, true);
+	outObj.tokenCount = view.getUint32(offset + 32, true);
+	outObj.inputDim = view.getUint32(offset + 36, true);
+	outObj.outputDim = view.getUint32(offset + 40, true);
+	outObj.rowStart = view.getUint32(offset + 44, true);
+	outObj.rowCount = view.getUint32(offset + 48, true);
+	outObj.layerIndex = view.getUint32(offset + 52, true);
+	outObj.attentionSlot = view.getUint32(offset + 56, true);
+	outObj.mode = deserializeLfm2Mode(view, offset + 60);
+	outObj.f0 = view.getFloat32(offset + 64, true);
+	outObj.f1 = view.getFloat32(offset + 68, true);
+	outObj.u0 = view.getUint32(offset + 72, true);
+	outObj.u1 = view.getUint32(offset + 76, true);
 	return outObj;
 }
 
@@ -363,18 +371,22 @@ export function serializeOpParams(val: OpParams, view: DataView, offset: number)
 	view.setUint32(offset + 4, val.outputOffset, true);
 	view.setUint32(offset + 8, val.auxOffset, true);
 	view.setUint32(offset + 12, val.aux2Offset, true);
-	view.setUint32(offset + 16, val.tokenCount, true);
-	view.setUint32(offset + 20, val.inputDim, true);
-	view.setUint32(offset + 24, val.outputDim, true);
-	view.setUint32(offset + 28, val.rowStart, true);
-	view.setUint32(offset + 32, val.rowCount, true);
-	view.setUint32(offset + 36, val.layerIndex, true);
-	view.setUint32(offset + 40, val.attentionSlot, true);
-	serializeLfm2Mode(val.mode, view, offset + 44);
-	view.setFloat32(offset + 48, val.f0, true);
-	view.setFloat32(offset + 52, val.f1, true);
-	view.setUint32(offset + 56, val.u0, true);
-	view.setUint32(offset + 60, val.u1, true);
+	view.setUint32(offset + 16, val.aux3Offset, true);
+	view.setUint32(offset + 20, val.aux4Offset, true);
+	view.setUint32(offset + 24, val.aux5Offset, true);
+	view.setUint32(offset + 28, val.aux6Offset, true);
+	view.setUint32(offset + 32, val.tokenCount, true);
+	view.setUint32(offset + 36, val.inputDim, true);
+	view.setUint32(offset + 40, val.outputDim, true);
+	view.setUint32(offset + 44, val.rowStart, true);
+	view.setUint32(offset + 48, val.rowCount, true);
+	view.setUint32(offset + 52, val.layerIndex, true);
+	view.setUint32(offset + 56, val.attentionSlot, true);
+	serializeLfm2Mode(val.mode, view, offset + 60);
+	view.setFloat32(offset + 64, val.f0, true);
+	view.setFloat32(offset + 68, val.f1, true);
+	view.setUint32(offset + 72, val.u0, true);
+	view.setUint32(offset + 76, val.u1, true);
 }
 
 export function deserializeLlmRuntimeStatus(view: DataView, offset: number): LlmRuntimeStatus {
@@ -735,19 +747,19 @@ export function deserializeLfm2RuntimeModel(view: DataView, offset: number, outO
 		return {
 			device: deserializeGPUDevice(view, offset),
 			config: deserializeLfm2RuntimeConfig(view, offset),
-			tensor: (view.getUint8(offset + 100) === 1 ? undefined : undefined),
+			tensor: undefined,
 		} as any;
 	}
 	outObj.device = deserializeGPUDevice(view, offset);
 	outObj.config = deserializeLfm2RuntimeConfig(view, offset);
-	outObj.tensor = (view.getUint8(offset + 100) === 1 ? undefined : undefined);
+	outObj.tensor = undefined;
 	return outObj;
 }
 
 export function serializeLfm2RuntimeModel(val: Lfm2RuntimeModel, view: DataView, offset: number): void {
 	serializeGPUDevice(val.device, view, offset);
 	serializeLfm2RuntimeConfig(val.config, view, offset);
-	if (val.tensor !== undefined) { view.setUint8(offset + 100, 1);  } else { view.setUint8(offset + 100, 0); }
+	
 }
 
 export function deserializeMatmulKernelSpec(view: DataView, offset: number, outObj?: any): MatmulKernelSpec {

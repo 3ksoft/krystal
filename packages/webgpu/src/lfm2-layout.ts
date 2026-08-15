@@ -238,6 +238,11 @@ export const TRAINING_SHADER_NAMES = [
   "matmul_backward_weight",
   "embedding_backward",
   "sgd_step",
+  // Attention (§17 item 6): forward saves probs, backward splits into the
+  // softmax-score gradient and the Q/K/V gradients.
+  "attention_forward",
+  "attention_backward_scores",
+  "attention_backward_qkv",
 ] as const;
 
 export type TrainingShaderName = (typeof TRAINING_SHADER_NAMES)[number];
@@ -265,6 +270,10 @@ export interface Lfm2OpParams {
   outputOffset?: number;
   auxOffset?: number;
   aux2Offset?: number;
+  aux3Offset?: number;
+  aux4Offset?: number;
+  aux5Offset?: number;
+  aux6Offset?: number;
   tokenCount?: number;
   inputDim?: number;
   outputDim?: number;
@@ -446,5 +455,14 @@ export function defineLfm2Passes(
 
     sgd_step: definePass(programs.sgd_step, "f32", (op) =>
       linear(required(op.tokenCount, "tokenCount"), 256)),
+
+    attention_forward: definePass(programs.attention_forward, "none", (op) =>
+      [required(op.u0, "u0"), required(op.tokenCount, "tokenCount"), 1]),
+
+    attention_backward_scores: definePass(programs.attention_backward_scores, "none", (op) =>
+      [required(op.u0, "u0"), required(op.tokenCount, "tokenCount"), 1]),
+
+    attention_backward_qkv: definePass(programs.attention_backward_qkv, "none", (op) =>
+      linear(3 * required(op.tokenCount, "tokenCount") * required(op.inputDim, "inputDim"), 256)),
   } satisfies Record<Lfm2PassName, Lfm2PassSpec>;
 }

@@ -95,6 +95,10 @@ namespace v1_0_0 {
 		uint32_t outputOffset;
 		uint32_t auxOffset;
 		uint32_t aux2Offset;
+		uint32_t aux3Offset;
+		uint32_t aux4Offset;
+		uint32_t aux5Offset;
+		uint32_t aux6Offset;
 		uint32_t tokenCount;
 		uint32_t inputDim;
 		uint32_t outputDim;
