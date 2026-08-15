@@ -99,6 +99,8 @@ export const LFM2_ARENA = createArenaLayout();
 export const TRAINING_MAX_M = 64;
 export const TRAINING_MAX_V = 4096;
 export const TRAINING_MAX_H = 128;
+/** Krystal first profile: 4 full attention heads × 32 dims (answer 11). */
+export const TRAINING_MAX_HEADS = 4;
 
 export interface Lfm2TrainingArenaLayout {
   hidden: number;      // [M,H]
@@ -109,6 +111,27 @@ export interface Lfm2TrainingArenaLayout {
   dHidden: number;     // [M,H]
   dClassifier: number; // [V,H]
   dEmbedding: number;  // [V,H]
+
+  // Attention encoder block (§17 item 6 wiring). Q/K/V and the attention
+  // output are [M,H] (head h at columns [h*headDim, (h+1)*headDim)); P and
+  // dScores are [heads, M, M]; mask is a host-compiled [M,M].
+  q: number;           // [M,H]
+  k: number;           // [M,H]
+  v: number;           // [M,H]
+  out: number;         // [M,H]
+  p: number;           // [heads,M,M]
+  mask: number;        // [M,M]
+  dOut: number;        // [M,H]
+  dScores: number;     // [heads,M,M]
+  dQ: number;          // [M,H]
+  dK: number;          // [M,H]
+  dV: number;          // [M,H]
+  dHiddenQ: number;    // [M,H] (accumulated into dHidden via residual_add)
+  dHiddenK: number;    // [M,H]
+  dHiddenV: number;    // [M,H]
+  dWq: number;         // [H,H]
+  dWk: number;         // [H,H]
+  dWv: number;         // [H,H]
   elements: number;
 }
 
@@ -119,15 +142,36 @@ function createTrainingArenaLayout(): Lfm2TrainingArenaLayout {
     cursor += elements;
     return offset;
   };
+  const mh = TRAINING_MAX_M * TRAINING_MAX_H;
+  const hh = TRAINING_MAX_H * TRAINING_MAX_H;
+  const hm = TRAINING_MAX_HEADS * TRAINING_MAX_M * TRAINING_MAX_M;
   return {
-    hidden: take(TRAINING_MAX_M * TRAINING_MAX_H),
+    hidden: take(mh),
     logits: take(TRAINING_MAX_M * TRAINING_MAX_V),
     lossRows: take(TRAINING_MAX_M),
     scalarLoss: take(1),
     dLogits: take(TRAINING_MAX_M * TRAINING_MAX_V),
-    dHidden: take(TRAINING_MAX_M * TRAINING_MAX_H),
+    dHidden: take(mh),
     dClassifier: take(TRAINING_MAX_V * TRAINING_MAX_H),
     dEmbedding: take(TRAINING_MAX_V * TRAINING_MAX_H),
+
+    q: take(mh),
+    k: take(mh),
+    v: take(mh),
+    out: take(mh),
+    p: take(hm),
+    mask: take(TRAINING_MAX_M * TRAINING_MAX_M),
+    dOut: take(mh),
+    dScores: take(hm),
+    dQ: take(mh),
+    dK: take(mh),
+    dV: take(mh),
+    dHiddenQ: take(mh),
+    dHiddenK: take(mh),
+    dHiddenV: take(mh),
+    dWq: take(hh),
+    dWk: take(hh),
+    dWv: take(hh),
     elements: cursor,
   };
 }

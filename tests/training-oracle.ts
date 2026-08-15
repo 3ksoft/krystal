@@ -313,3 +313,99 @@ export function forwardGraph(
   const ce = crossEntropyForwardBackward(logits, targets, v);
   return { hidden, logits, lossRows: ce.lossRows, dLogits: ce.dLogits, loss: lossReduce(ce.lossRows) };
 }
+
+// ---------------------------------------------------------------------------
+// Full attention encoder block (TrainingTrainer encoder path) — CPU reference
+// composing the per-op oracles in the exact trainStep dispatch order.
+//
+//   forward:  hidden = E[tokens]
+//             q = hidden@Wq^T, k = hidden@Wk^T, v = hidden@Wv^T
+//             out, P = attention(q, k, v, mask)
+//             logits = out@classifier^T
+//   backward: dOut = dLogits@classifier
+//             dScores = attention_backward_scores(dOut, v, P)
+//             dQ, dK, dV = attention_backward_qkv(dScores, q, k, P, dOut)
+//             dHidden = dQ@Wq + dK@Wk + dV@Wv
+//             dWq = dQ^T@hidden, dWk = dK^T@hidden, dWv = dV^T@hidden
+//             dClassifier = dLogits^T@out, dEmbedding = scatter(dHidden)
+// ---------------------------------------------------------------------------
+
+export interface EncoderBlockResult {
+  hidden: Float32Array;
+  q: Float32Array;
+  k: Float32Array;
+  v: Float32Array;
+  out: Float32Array;
+  P: Float32Array;
+  logits: Float32Array;
+  lossRows: Float32Array;
+  dLogits: Float32Array;
+  dHidden: Float32Array;
+  dOut: Float32Array;
+  dScores: Float32Array;
+  dQ: Float32Array;
+  dK: Float32Array;
+  dV: Float32Array;
+  dWq: Float32Array;
+  dWk: Float32Array;
+  dWv: Float32Array;
+  dClassifier: Float32Array;
+  dEmbedding: Float32Array;
+  loss: number;
+}
+
+/** Full encoder-block forward+backward in plain TS. Mirrors TrainingTrainer. */
+export function encoderBlockForwardBackward(
+  embedding: Float32Array,
+  classifier: Float32Array,
+  wq: Float32Array,
+  wk: Float32Array,
+  wv: Float32Array,
+  tokens: readonly number[],
+  targets: readonly number[],
+  mask: Float32Array,
+  headCount: number,
+  headDim: number,
+  v: number,
+  h: number,
+): EncoderBlockResult {
+  const m = tokens.length;
+  // embedding forward
+  const hidden = new Float32Array(m * h);
+  for (let row = 0; row < m; row++) {
+    const token = tokens[row]!;
+    for (let col = 0; col < h; col++) hidden[row * h + col] = embedding[token * h + col]!;
+  }
+  // QKV projections
+  const q = matmulForward(hidden, wq, m, h, h);
+  const k = matmulForward(hidden, wk, m, h, h);
+  const vv = matmulForward(hidden, wv, m, h, h);
+  // attention forward
+  const attn = attentionForward(q, k, vv, mask, headCount, headDim);
+  const out = attn.out;
+  const P = attn.P;
+  // classifier forward + CE
+  const logits = matmulForward(out, classifier, m, h, v);
+  const ce = crossEntropyForwardBackward(logits, targets, v);
+  // backward
+  const dOut = matmulBackwardInput(ce.dLogits, classifier, m, v, h);
+  const dScores = attentionBackwardScores(dOut, vv, P, headCount, headDim);
+  const { dQ, dK, dV } = attentionBackwardQkv(dScores, q, k, P, dOut, headCount, headDim);
+  const dHiddenQ = matmulBackwardInput(dQ, wq, m, h, h);
+  const dHiddenK = matmulBackwardInput(dK, wk, m, h, h);
+  const dHiddenV = matmulBackwardInput(dV, wv, m, h, h);
+  const dHidden = new Float32Array(m * h);
+  for (let i = 0; i < dHidden.length; i++) {
+    dHidden[i] = dHiddenQ[i]! + dHiddenK[i]! + dHiddenV[i]!;
+  }
+  const dWq = matmulBackwardWeight(dQ, hidden, m, h, h);
+  const dWk = matmulBackwardWeight(dK, hidden, m, h, h);
+  const dWv = matmulBackwardWeight(dV, hidden, m, h, h);
+  const dClassifier = matmulBackwardWeight(ce.dLogits, out, m, v, h);
+  const dEmbedding = embeddingBackward(dHidden, tokens, m, v, h);
+  return {
+    hidden, q, k, v: vv, out, P, logits,
+    lossRows: ce.lossRows, dLogits: ce.dLogits, loss: lossReduce(ce.lossRows),
+    dHidden, dOut, dScores, dQ, dK, dV, dWq, dWk, dWv, dClassifier, dEmbedding,
+  };
+}
