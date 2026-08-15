@@ -199,7 +199,13 @@ export class Lfm2Executor {
     // lfm2-definition.ts). If Sandblaster's linker ever emits a fixed-length
     // type here, weight reads past it become out-of-bounds and inference
     // silently degrades to garbage/NaN instead of failing loudly.
-    for (const programName of ["embedding_wq4", "matmul_wq4", "rms_norm"] as const) {
+    //
+    // Training programs that bind weight32 (embedding_f32, matmul_backward_input,
+    // sgd_step) share the same placeholder contract, so they are guarded too.
+    for (const programName of [
+      "embedding_wq4", "matmul_wq4", "rms_norm",
+      "embedding_f32", "matmul_backward_input", "sgd_step",
+    ] as const) {
       const manifest = lfm2.programs[programName].manifest;
       for (const binding of manifest.bindings) {
         if (binding.name !== "weightRaw" && binding.name !== "weight32") continue;

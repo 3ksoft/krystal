@@ -38,6 +38,9 @@ const ARTIFACT_BUFFER_OPTIONS = {
   "lfm2.runtime": { readback: true },
   "lfm2.tokens": { readback: true },
   "lfm2.arena": { readback: true },
+  "lfm2.targets": {},
+  "lfm2.loss-telemetry": { readback: true },
+  "lfm2.training-readback": { readback: true },
   "lfm2.kv-cache": { readback: true },
   "lfm2.conv-cache": { readback: true },
   "lfm2.constraint-mask": { readback: true },
@@ -55,6 +58,9 @@ export function defineLfm2FromArtifact() {
     op: engine.resource<Lfm2OpParams>("lfm2.op"),
     runtime: engine.resource("lfm2.runtime"),
     tokens: engine.resource("lfm2.tokens"),
+    targets: engine.resource("lfm2.targets"),
+    lossTelemetry: engine.resource("lfm2.loss-telemetry"),
+    trainingReadback: engine.resource("lfm2.training-readback"),
     arena: engine.resource("lfm2.arena"),
     kvCache: engine.resource("lfm2.kv-cache"),
     convCache: engine.resource("lfm2.conv-cache"),
@@ -89,6 +95,15 @@ export function defineLfm2FromArtifact() {
     argmax: engine.computeProgram("argmax"),
     constraint_mask: engine.computeProgram("constraint_mask"),
     constraint_argmax: engine.computeProgram("constraint_argmax"),
+    // M1 training programs (same names as the shader files).
+    embedding_f32: engine.computeProgram("embedding_f32"),
+    zero_f32: engine.computeProgram("zero_f32"),
+    cross_entropy_forward_backward: engine.computeProgram("cross_entropy_forward_backward"),
+    loss_reduce: engine.computeProgram("loss_reduce"),
+    matmul_backward_input: engine.computeProgram("matmul_backward_input"),
+    matmul_backward_weight: engine.computeProgram("matmul_backward_weight"),
+    embedding_backward: engine.computeProgram("embedding_backward"),
+    sgd_step: engine.computeProgram("sgd_step"),
   } satisfies Record<Lfm2ProgramName, ReturnType<typeof engine.computeProgram>>;
 
   const passes = defineLfm2Passes(programs);

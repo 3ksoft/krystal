@@ -30,14 +30,17 @@ import {
   defineLfm2,
   LFM2_INCLUDE_NAMES,
   LFM2_SHADER_NAMES,
+  TRAINING_SHADER_NAMES,
   type Lfm2IncludeName,
   type Lfm2ShaderName,
+  type TrainingShaderName,
 } from "../src/lfm2-definition";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "..");
 const shaderDir = resolve(root, "src/shaders");
 const includeDir = resolve(shaderDir, "includes");
+const trainingDir = resolve(shaderDir, "training");
 
 async function readNamed<K extends string>(
   dir: string,
@@ -65,11 +68,13 @@ interface LinkedLfm2 {
 
 /** Same input set and link flow as scripts/build-lfm2-artifact.ts. */
 async function linkCurrentSources(): Promise<LinkedLfm2> {
-  const sources = await readNamed<Lfm2ShaderName>(shaderDir, LFM2_SHADER_NAMES);
+  const core = await readNamed<Lfm2ShaderName>(shaderDir, LFM2_SHADER_NAMES);
+  const training = await readNamed<TrainingShaderName>(trainingDir, TRAINING_SHADER_NAMES);
+  const sources = { ...core, ...training };
   const includes = await readNamed<Lfm2IncludeName>(includeDir, LFM2_INCLUDE_NAMES);
   const definition = defineLfm2({ sources, includes });
   definition.engine.link();
-  const programs = LFM2_SHADER_NAMES.map((name) => ({
+  const programs = [...LFM2_SHADER_NAMES, ...TRAINING_SHADER_NAMES].map((name) => ({
     label: name,
     code: definition.programs[name].source,
   }));

@@ -89,7 +89,61 @@ function createArenaLayout(): Lfm2ArenaLayout {
 
 /** Canonical activation offsets shared by all runtime scheduling code. */
 export const LFM2_ARENA = createArenaLayout();
-export const ARENA_ELEMENTS = LFM2_ARENA.elements;
+
+// --- Training arena (M1 tiny f32 training vertical slice) --------------------
+//
+// Fixed capacity constants, not ABI limits: shaders read actual dims from
+// OpParams. The host packs regions for the concrete (M, V, H) of each
+// trainStep and validates against these capacities before dispatching.
+
+export const TRAINING_MAX_M = 64;
+export const TRAINING_MAX_V = 4096;
+export const TRAINING_MAX_H = 128;
+
+export interface Lfm2TrainingArenaLayout {
+  hidden: number;      // [M,H]
+  logits: number;      // [M,V]
+  lossRows: number;    // [M]
+  scalarLoss: number;  // [1]
+  dLogits: number;     // [M,V]
+  dHidden: number;     // [M,H]
+  dClassifier: number; // [V,H]
+  dEmbedding: number;  // [V,H]
+  elements: number;
+}
+
+function createTrainingArenaLayout(): Lfm2TrainingArenaLayout {
+  let cursor = 0;
+  const take = (elements: number) => {
+    const offset = cursor;
+    cursor += elements;
+    return offset;
+  };
+  return {
+    hidden: take(TRAINING_MAX_M * TRAINING_MAX_H),
+    logits: take(TRAINING_MAX_M * TRAINING_MAX_V),
+    lossRows: take(TRAINING_MAX_M),
+    scalarLoss: take(1),
+    dLogits: take(TRAINING_MAX_M * TRAINING_MAX_V),
+    dHidden: take(TRAINING_MAX_M * TRAINING_MAX_H),
+    dClassifier: take(TRAINING_MAX_V * TRAINING_MAX_H),
+    dEmbedding: take(TRAINING_MAX_V * TRAINING_MAX_H),
+    elements: cursor,
+  };
+}
+
+/** Training regions are appended after the LFM2 regions inside the one arena. */
+export const TRAINING_ARENA_BASE = LFM2_ARENA.elements;
+export const LFM2_TRAINING_ARENA = createTrainingArenaLayout();
+export const TRAINING_ARENA_ELEMENTS = LFM2_TRAINING_ARENA.elements;
+
+/**
+ * Debug readback staging capacity: enough for the largest training region
+ * (a full V*H parameter page at TRAINING_MAX_V * TRAINING_MAX_H).
+ */
+export const TRAINING_READBACK_ELEMENTS = TRAINING_MAX_V * TRAINING_MAX_H;
+
+export const ARENA_ELEMENTS = LFM2_ARENA.elements + TRAINING_ARENA_ELEMENTS;
 
 // Generalniejsze niż attentionLayerCount * 8:
 // obsłuży też ewentualnie różną liczbę KV heads per layer.
@@ -171,11 +225,34 @@ export const LFM2_SHADER_NAMES = [
 export type Lfm2ShaderName = (typeof LFM2_SHADER_NAMES)[number];
 
 /**
+ * M1 training shaders, one file per entry point under src/shaders/training/.
+ * They share the LFM2 OpParams/arena conventions and link into the same
+ * artifact so trainStep reuses the existing pass.run orchestration.
+ */
+export const TRAINING_SHADER_NAMES = [
+  "embedding_f32",
+  "zero_f32",
+  "cross_entropy_forward_backward",
+  "loss_reduce",
+  "matmul_backward_input",
+  "matmul_backward_weight",
+  "embedding_backward",
+  "sgd_step",
+] as const;
+
+export type TrainingShaderName = (typeof TRAINING_SHADER_NAMES)[number];
+export type TrainingPassName = TrainingShaderName;
+
+/**
  * Programs are no longer 1:1 with shader files: matmul_wq4 is compiled twice
  * from one body, once per row tiling. Names above index the .wgsl files on
  * disk; names here index the linked programs.
  */
-export const LFM2_PROGRAM_NAMES = [...LFM2_SHADER_NAMES, "matmul_wq4_wide"] as const;
+export const LFM2_PROGRAM_NAMES = [
+  ...LFM2_SHADER_NAMES,
+  "matmul_wq4_wide",
+  ...TRAINING_SHADER_NAMES,
+] as const;
 export type Lfm2ProgramName = (typeof LFM2_PROGRAM_NAMES)[number];
 
 export type Lfm2PassName = Exclude<Lfm2ProgramName, "constraint_mask">;
@@ -232,8 +309,16 @@ export const LFM2_DEFINITION_PLAIN = {
     kv: KV_ELEMENTS,
     conv: CONV_ELEMENTS,
     telemetry: TELEMETRY_CAPACITY,
+    training: {
+      maxM: TRAINING_MAX_M,
+      maxV: TRAINING_MAX_V,
+      maxH: TRAINING_MAX_H,
+      arena: TRAINING_ARENA_ELEMENTS,
+      readback: TRAINING_READBACK_ELEMENTS,
+    },
   },
   arena: LFM2_ARENA,
+  trainingArena: LFM2_TRAINING_ARENA,
   constraint: {
     programWordCapacity: CONSTRAINT_PROGRAM_WORD_CAPACITY,
     tokenizerWordCapacity: CONSTRAINT_TOKENIZER_WORD_CAPACITY,
@@ -334,5 +419,32 @@ export function defineLfm2Passes(
     argmax_candidates: definePass(programs.argmax_candidates, "none", () => [1, 1, 1]),
     argmax: definePass(programs.argmax, "none", () => [1, 1, 1]),
     constraint_argmax: definePass(programs.constraint_argmax, "none", () => [1, 1, 1]),
+
+    // --- M1 training passes ---
+    // Shader contracts are documented in each training/*.wgsl file; workgroup
+    // geometry mirrors the existing per-op conventions (gid-linear for
+    // elementwise, one workgroup per row for reductions).
+    embedding_f32: definePass(programs.embedding_f32, "f32", (op) =>
+      linear(required(op.tokenCount, "tokenCount") * required(op.outputDim, "outputDim"), 256)),
+
+    zero_f32: definePass(programs.zero_f32, "none", (op) =>
+      linear(required(op.tokenCount, "tokenCount"), 256)),
+
+    cross_entropy_forward_backward: definePass(programs.cross_entropy_forward_backward, "none", (op) =>
+      [required(op.tokenCount, "tokenCount"), 1, 1]),
+
+    loss_reduce: definePass(programs.loss_reduce, "none", () => [1, 1, 1]),
+
+    matmul_backward_input: definePass(programs.matmul_backward_input, "f32", (op) =>
+      linear(required(op.tokenCount, "tokenCount") * required(op.outputDim, "outputDim"), 256)),
+
+    matmul_backward_weight: definePass(programs.matmul_backward_weight, "none", (op) =>
+      linear(required(op.inputDim, "inputDim") * required(op.outputDim, "outputDim"), 256)),
+
+    embedding_backward: definePass(programs.embedding_backward, "none", (op) =>
+      linear(required(op.inputDim, "inputDim") * required(op.outputDim, "outputDim"), 256)),
+
+    sgd_step: definePass(programs.sgd_step, "f32", (op) =>
+      linear(required(op.tokenCount, "tokenCount"), 256)),
   } satisfies Record<Lfm2PassName, Lfm2PassSpec>;
 }

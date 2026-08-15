@@ -5,4 +5,5 @@ export * from "./model";
 export * from "./forward";
 export * from "./engine-transport";
 export * from "./constraint";
+export * from "./training";
 export * from "./vision/integration";

@@ -6,14 +6,17 @@ import {
   defineLfm2,
   LFM2_INCLUDE_NAMES,
   LFM2_SHADER_NAMES,
+  TRAINING_SHADER_NAMES,
   type Lfm2IncludeName,
   type Lfm2ShaderName,
+  type TrainingShaderName,
 } from "../src/lfm2-definition";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "..");
 const shaderDir = resolve(root, "src/shaders");
 const includeDir = resolve(shaderDir, "includes");
+const trainingDir = resolve(shaderDir, "training");
 const output = resolve(root, "src/lfm2.artifact.generated.ts");
 const reportOutput = resolve(root, "lfm2.report.html");
 
@@ -31,7 +34,9 @@ async function readNamed<K extends string>(
   ) as Record<K, string>;
 }
 
-const sources = await readNamed<Lfm2ShaderName>(shaderDir, LFM2_SHADER_NAMES);
+const core = await readNamed<Lfm2ShaderName>(shaderDir, LFM2_SHADER_NAMES);
+const training = await readNamed<TrainingShaderName>(trainingDir, TRAINING_SHADER_NAMES);
+const sources = { ...core, ...training };
 const includes = await readNamed<Lfm2IncludeName>(includeDir, LFM2_INCLUDE_NAMES);
 const definition = defineLfm2({ sources, includes });
 const artifact = definition.engine.serialize(definition.engine.link());

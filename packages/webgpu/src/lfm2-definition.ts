@@ -29,8 +29,11 @@ import {
   CONSTRAINT_MASK_WORKGROUP_SIZE,
   LFM2_DEFINITION_PLAIN,
   LFM2_SHADER_NAMES,
+  TRAINING_READBACK_ELEMENTS,
+  TRAINING_SHADER_NAMES,
   type Lfm2ProgramName,
   type Lfm2ShaderName,
+  type TrainingShaderName,
   defineLfm2Passes,
 } from "./lfm2-layout";
 
@@ -55,7 +58,7 @@ export const LFM2_INCLUDE_NAMES = [
 export type Lfm2IncludeName = (typeof LFM2_INCLUDE_NAMES)[number];
 
 export interface Lfm2ShaderBundle {
-  readonly sources: Record<Lfm2ShaderName, string>;
+  readonly sources: Record<Lfm2ShaderName | TrainingShaderName, string>;
   readonly includes: Record<Lfm2IncludeName, string>;
 }
 
@@ -65,7 +68,7 @@ function emptyRecord<const K extends readonly string[]>(keys: K): Record<K[numbe
 
 export function emptyLfm2ShaderBundle(): Lfm2ShaderBundle {
   return {
-    sources: emptyRecord(LFM2_SHADER_NAMES),
+    sources: emptyRecord([...LFM2_SHADER_NAMES, ...TRAINING_SHADER_NAMES]),
     includes: emptyRecord(LFM2_INCLUDE_NAMES),
   };
 }
@@ -94,6 +97,20 @@ export function defineLfm2(bundle: Lfm2ShaderBundle = emptyLfm2ShaderBundle()) {
   });
   const runtime = engine.buffer(LlmRuntime, { label: "lfm2.runtime", value: LlmRuntime.assert({}), readback: true });
   const tokens = engine.buffer(engine.type(`u32[] == ${TOKEN_CAPACITY}`), { label: "lfm2.tokens", readback: true });
+  // Training targets (cross-entropy ground truth), same capacity convention as
+  // the token-id buffer. Only written by trainStep before a submit; no readback.
+  const targets = engine.buffer(engine.type(`u32[] == ${TOKEN_CAPACITY}`), { label: "lfm2.targets" });
+  // Compact loss telemetry: loss_reduce writes the mean scalar here (in
+  // addition to the arena region) so trainStep can read back 4 bytes instead of
+  // the whole arena. Debug/test-only readback, absent from the normal path.
+  const lossTelemetry = engine.buffer(engine.type("f32[] == 1"), { label: "lfm2.loss-telemetry", readback: true });
+  // Debug readback staging: tests copy one arena region (logits, a parameter
+  // page) here with copyBufferToBuffer and read back a small slice. Sized for
+  // the largest training region (a full V*H parameter page).
+  const trainingReadback = engine.buffer(engine.type(`f32[] == ${TRAINING_READBACK_ELEMENTS}`), {
+    label: "lfm2.training-readback",
+    readback: true,
+  });
   const arena = engine.buffer(engine.type(`f32[] == ${ARENA_ELEMENTS}`), { label: "lfm2.arena", readback: true });
   // Checkpoints snapshot these buffers with copyBufferToBuffer. readback=true
   // adds COPY_SRC without forcing any staging allocation until readback() is used.
@@ -164,6 +181,9 @@ export function defineLfm2(bundle: Lfm2ShaderBundle = emptyLfm2ShaderBundle()) {
       } satisfies BufferResourceUse,
       runtime: nativeWrite(runtime),
       tokens: nativeWrite(tokens),
+      targets: nativeWrite(targets),
+      lossTelemetry: nativeWrite(lossTelemetry),
+      trainingReadback: nativeWrite(trainingReadback),
       arena: nativeWrite(arena),
       kvCache: nativeWrite(kvCache),
       convCache: nativeWrite(convCache),
@@ -398,6 +418,77 @@ export function defineLfm2(bundle: Lfm2ShaderBundle = emptyLfm2ShaderBundle()) {
         code: sources.constraint_argmax,
       },
     }),
+
+    // --- M1 training programs ---
+    // Reuse the shared OpParams/arena conventions. Gradient and optimizer
+    // dispatches are separate: no training shader updates parameters except
+    // sgd_step, which binds weight32 as writable storage.
+    embedding_f32: engine.compute({
+      label: "embedding_f32",
+      resources: { op: r.op, tokens: r.tokens, arena: r.arena, weight32: r.weight32 },
+      includes: commonIncludes,
+      compute: { entryPoint: "embedding_f32", params: gid, workgroupSize: 256, code: sources.embedding_f32 },
+    }),
+
+    zero_f32: engine.compute({
+      label: "zero_f32",
+      resources: { op: r.op, arena: r.arena },
+      includes: commonIncludes,
+      compute: { entryPoint: "zero_f32", params: gid, workgroupSize: 256, code: sources.zero_f32 },
+    }),
+
+    cross_entropy_forward_backward: engine.compute({
+      label: "cross_entropy_forward_backward",
+      resources: { op: r.op, targets: r.targets, arena: r.arena },
+      includes: reduceF32Includes,
+      compute: {
+        entryPoint: "cross_entropy_forward_backward",
+        params: widLid,
+        workgroupSize: 64,
+        code: sources.cross_entropy_forward_backward,
+      },
+    }),
+
+    loss_reduce: engine.compute({
+      label: "loss_reduce",
+      resources: { op: r.op, arena: r.arena, lossTelemetry: r.lossTelemetry },
+      includes: reduceF32Includes,
+      compute: { entryPoint: "loss_reduce", params: lid, workgroupSize: 64, code: sources.loss_reduce },
+    }),
+
+    matmul_backward_input: engine.compute({
+      label: "matmul_backward_input",
+      resources: { op: r.op, arena: r.arena, weight32: r.weight32 },
+      includes: commonIncludes,
+      compute: { entryPoint: "matmul_backward_input", params: gid, workgroupSize: 256, code: sources.matmul_backward_input },
+    }),
+
+    matmul_backward_weight: engine.compute({
+      label: "matmul_backward_weight",
+      resources: { op: r.op, arena: r.arena },
+      includes: commonIncludes,
+      compute: { entryPoint: "matmul_backward_weight", params: gid, workgroupSize: 256, code: sources.matmul_backward_weight },
+    }),
+
+    embedding_backward: engine.compute({
+      label: "embedding_backward",
+      resources: { op: r.op, tokens: r.tokens, arena: r.arena },
+      includes: commonIncludes,
+      compute: { entryPoint: "embedding_backward", params: gid, workgroupSize: 256, code: sources.embedding_backward },
+    }),
+
+    // SGD writes the trainable parameter page in place, so weight32 is bound
+    // as storage (read-write) here, unlike the read-only weight32 views above.
+    sgd_step: engine.compute({
+      label: "sgd_step",
+      resources: {
+        op: r.op,
+        arena: r.arena,
+        weight32: { resource: weight32, group: 1, buffer: { type: "storage" }, representation: "native" },
+      },
+      includes: commonIncludes,
+      compute: { entryPoint: "sgd_step", params: gid, workgroupSize: 256, code: sources.sgd_step },
+    }),
   } satisfies Record<Lfm2ProgramName, AnyComputeHandle>;
 
   const passes = defineLfm2Passes(programs);
@@ -406,6 +497,7 @@ export function defineLfm2(bundle: Lfm2ShaderBundle = emptyLfm2ShaderBundle()) {
     op,
     runtime,
     tokens,
+    targets,
     arena,
     kvCache,
     convCache,
@@ -417,6 +509,8 @@ export function defineLfm2(bundle: Lfm2ShaderBundle = emptyLfm2ShaderBundle()) {
     constraintMask,
     weightRaw,
     weight32,
+    lossTelemetry,
+    trainingReadback,
   } as const;
 
 

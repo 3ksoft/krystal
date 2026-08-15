@@ -13,7 +13,7 @@
     "build:native": "cd packages/backend && bun run compile:native-exe",
     "build": "bun run build:schema && bun run build:bridge && bun run build:webgpu",
     "deploy:pages": "bash scripts/deploy-pages.sh",
-    "test": "deno test tests",
+    "test": "bun test tests",
     "node:cleanup": "rm -rf $(fd --no-ignore tsconfig.tsbuildinfo) && rm -rf $(fd --no-ignore bun.lock) && rm -rf $(fd --no-ignore node_modules) && bun pm cache rm && bun i"
   },
   "devDependencies": {
