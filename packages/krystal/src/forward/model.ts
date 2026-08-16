@@ -106,6 +106,12 @@ export interface BlockWeights {
   readonly w2: Float32Array; // [H,FFN]
 }
 
+export interface SelectorWeights {
+  /** Query projection [H,H] and key projection [H,H] (answer 26 scoring). */
+  readonly wq: Float32Array;
+  readonly wk: Float32Array;
+}
+
 export interface BrainForwardWeights {
   /** Concatenated embedding tables (see EMBEDDING_TABLES + embeddingTableBases). */
   readonly embeddings: Float32Array;
@@ -113,6 +119,12 @@ export interface BrainForwardWeights {
   /** Pool queries [2, H]: key row 0, value row 1. */
   readonly pool: Float32Array;
   readonly mixer: readonly BlockWeights[];
+  /**
+   * Shared selector projections for catalog selection (concerns answer 26:
+   * score = dot(Wq*query, Wk*key)/sqrt(H)). The first forward shares one pair
+   * across selector slots; per-slot projections are a later ablation.
+   */
+  readonly selector: SelectorWeights;
 }
 
 /** Deterministic mulberry32 PRNG (same helper as the training tests). */
@@ -186,7 +198,13 @@ export function createBrainForwardWeights(
   const mixer: BlockWeights[] = [];
   for (let b = 0; b < mixerBlocks; b++) mixer.push(createBlockWeights(h, ffn, rand));
 
-  return { embeddings, enc, pool, mixer };
+  return {
+    embeddings,
+    enc,
+    pool,
+    mixer,
+    selector: { wq: xavierUniform(h, h, rand), wk: xavierUniform(h, h, rand) },
+  };
 }
 
 /** Query stream id (E_stream distinguishes record vs query encoder roles). */
@@ -230,6 +248,8 @@ export function validateBrainForwardWeights(
       require(block.w2.length === h * ffn, `${label}.w2 size`);
     }
   }
+  require(weights.selector.wq.length === h * h, "selector.wq size");
+  require(weights.selector.wk.length === h * h, "selector.wk size");
 }
 
 /** Typed brain-stream id list per record slot (from band id). */

@@ -234,6 +234,18 @@ export interface KrystalForwardArenaLayout {
   mixerH1: number; // [maxQueries, FFN]
   mixed: number; // [maxQueries, H]
   mixerMask: number; // [maxQueries, maxRecords]
+
+  // Catalog selection + soft gather (architecture v2 §7, answer 26).
+  selectorQ: number; // [maxQueries, H]  shared query/key projections
+  selectorK: number; // [maxRecords, H]
+  intentMask: number; // [maxQueries, maxRecords]
+  argMask: number; // [maxQueries, maxRecords]
+  intentP: number; // [maxQueries, maxRecords]
+  intentGather: number; // [maxQueries, H]
+  intentIndices: number; // [maxQueries]
+  argP: number; // [maxQueries, maxRecords]
+  argGather: number; // [maxQueries, H]
+  argIndices: number; // [maxQueries]
   elements: number;
 }
 
@@ -279,6 +291,17 @@ function createKrystalForwardArenaLayout(): KrystalForwardArenaLayout {
     mixerH1: take(KRYSTAL_MAX_QUERIES * KRYSTAL_MAX_FFN),
     mixed: take(qh),
     mixerMask: take(KRYSTAL_MAX_QUERIES * KRYSTAL_MAX_RECORDS),
+
+    selectorQ: take(qh),
+    selectorK: take(rh),
+    intentMask: take(KRYSTAL_MAX_QUERIES * KRYSTAL_MAX_RECORDS),
+    argMask: take(KRYSTAL_MAX_QUERIES * KRYSTAL_MAX_RECORDS),
+    intentP: take(KRYSTAL_MAX_QUERIES * KRYSTAL_MAX_RECORDS),
+    intentGather: take(qh),
+    intentIndices: take(KRYSTAL_MAX_QUERIES),
+    argP: take(KRYSTAL_MAX_QUERIES * KRYSTAL_MAX_RECORDS),
+    argGather: take(qh),
+    argIndices: take(KRYSTAL_MAX_QUERIES),
     elements: cursor,
   };
 }
@@ -404,6 +427,7 @@ export const KRYSTAL_FORWARD_SHADER_NAMES = [
   "krystal_attention_forward",
   "relu",
   "krystal_pool",
+  "krystal_selector",
 ] as const;
 
 export type KrystalForwardShaderName = (typeof KRYSTAL_FORWARD_SHADER_NAMES)[number];
@@ -643,5 +667,8 @@ export function defineLfm2Passes(
 
     krystal_pool: definePass(programs.krystal_pool, "f32", (op) =>
       [required(op.tokenCount, "tokenCount"), 1, 1]),
+
+    krystal_selector: definePass(programs.krystal_selector, "none", (op) =>
+      [1, required(op.tokenCount, "tokenCount"), 1]),
   } satisfies Record<Lfm2PassName, Lfm2PassSpec>;
 }

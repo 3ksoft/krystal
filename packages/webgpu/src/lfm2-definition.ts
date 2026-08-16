@@ -576,6 +576,20 @@ export function defineLfm2(bundle: Lfm2ShaderBundle = emptyLfm2ShaderBundle()) {
         code: sources.krystal_pool,
       },
     }),
+
+    // Catalog selection + soft gather (§7, answer 26): masked scoring,
+    // softmax distribution, gathered value vector and first-max argmax index.
+    krystal_selector: engine.compute({
+      label: "krystal_selector",
+      resources: { op: r.op, arena: r.arena },
+      includes: [...commonIncludes, include("attention-scores")],
+      compute: {
+        entryPoint: "krystal_selector",
+        params: widLid,
+        workgroupSize: 64,
+        code: sources.krystal_selector,
+      },
+    }),
   } satisfies Record<Lfm2ProgramName, AnyComputeHandle>;
 
   const passes = defineLfm2Passes(programs);

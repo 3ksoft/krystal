@@ -266,4 +266,87 @@ export function brainForwardOracle(
   return { fieldStates: x, bankKeys, bankValues, queryKeys, queryValues, queryOutput: query };
 }
 
+// ---------------------------------------------------------------------------
+// Catalog selection + soft gather (architecture v2 §7, concerns answer 26)
+// ---------------------------------------------------------------------------
+
+export interface SelectionSlotResult {
+  /** [Q, R] softmax distribution over bank records. */
+  readonly p: Float32Array;
+  /** [Q, H] soft-gathered value vectors. */
+  readonly gather: Float32Array;
+  /** [Q] argmax record index into the bank (first max on ties). */
+  readonly index: Uint32Array;
+}
+
+export interface BrainSelectionResult {
+  readonly intent: SelectionSlotResult;
+  readonly argument: SelectionSlotResult;
+}
+
+/**
+ * One typed selector slot: score = dot(Wq*query, Wk*key)/sqrt(H) + mask,
+ * softmax, then gather g = sum p_i * value_i and take argmax (first max).
+ */
+export function selectorOracle(
+  query: Float32Array, // [Q, H] mixed query output
+  bankKeys: Float32Array, // [R, H]
+  bankValues: Float32Array, // [R, H]
+  mask: Float32Array, // [Q, R]
+  selector: { readonly wq: Float32Array; readonly wk: Float32Array },
+  h: number,
+): SelectionSlotResult {
+  const q = query.length / h;
+  const r = bankKeys.length / h;
+  const qProj = matmulOracle(query, selector.wq, h, h); // [Q, H]
+  const kProj = matmulOracle(bankKeys, selector.wk, h, h); // [R, H]
+  const p = new Float32Array(q * r);
+  const gather = new Float32Array(q * h);
+  const index = new Uint32Array(q);
+  const scale = 1 / Math.sqrt(h);
+  const scores = new Float32Array(r);
+  for (let i = 0; i < q; i++) {
+    for (let j = 0; j < r; j++) {
+      let s = 0;
+      for (let d = 0; d < h; d++) s += qProj[i * h + d]! * kProj[j * h + d]!;
+      scores[j] = s * scale + mask[i * r + j]!;
+    }
+    softmaxRow(scores, 0, r);
+    let best = 0;
+    for (let j = 0; j < r; j++) {
+      p[i * r + j] = scores[j]!;
+      if (scores[j]! > scores[best]!) best = j;
+    }
+    index[i] = best;
+    for (let d = 0; d < h; d++) {
+      let g = 0;
+      for (let j = 0; j < r; j++) g += scores[j]! * bankValues[j * h + d]!;
+      gather[i * h + d] = g;
+    }
+  }
+  return { p, gather, index };
+}
+
+/**
+ * Catalog selection for the first fixture: one intent slot (masked to
+ * ActionIntent catalog records) and one required reference argument slot
+ * (masked to accepted schemas/bands). The IntentSet emission that consumes
+ * these comes next; the first forward may share one selector projection pair
+ * across slots (per-slot projections are a later ablation).
+ */
+export function brainSelectionOracle(
+  queryOutput: Float32Array, // [Q, H] mixed query output
+  bankKeys: Float32Array, // [R, H]
+  bankValues: Float32Array, // [R, H]
+  intentMask: Float32Array, // [Q, R]
+  argMask: Float32Array, // [Q, R]
+  selector: { readonly wq: Float32Array; readonly wk: Float32Array },
+  h: number,
+): BrainSelectionResult {
+  return {
+    intent: selectorOracle(queryOutput, bankKeys, bankValues, intentMask, selector, h),
+    argument: selectorOracle(queryOutput, bankKeys, bankValues, argMask, selector, h),
+  };
+}
+
 export { NEG_INF };

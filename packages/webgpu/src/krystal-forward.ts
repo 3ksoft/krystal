@@ -47,6 +47,16 @@ function validate(condition: boolean, message: string): void {
   if (!condition) throw new Error(`KrystalForward: ${message}`);
 }
 
+/**
+ * Host-compiled selector masks ([Q, R] each; architecture v2 §7). When both
+ * are provided, the intent and argument selectors run after the mixer;
+ * otherwise selection is skipped (encoder + mixer only).
+ */
+export interface SelectionMasks {
+  readonly intentMask: Float32Array;
+  readonly argMask: Float32Array;
+}
+
 export class KrystalForward {
   private readonly definition: Lfm2Definition;
   private readonly config: BrainForwardConfig;
@@ -56,6 +66,8 @@ export class KrystalForward {
   private readonly encPages: { wq: GPUBuffer; wk: GPUBuffer; wv: GPUBuffer; w1: GPUBuffer; w2: GPUBuffer }[];
   private readonly poolPage: GPUBuffer;
   private readonly mixerPages: { wq: GPUBuffer; wk: GPUBuffer; wv: GPUBuffer; w1: GPUBuffer; w2: GPUBuffer }[];
+  private readonly selectorWqPage: GPUBuffer;
+  private readonly selectorWkPage: GPUBuffer;
 
   constructor(
     weights: BrainForwardWeights,
@@ -89,6 +101,8 @@ export class KrystalForward {
     this.encPages = weights.enc.map((block, b) => blockPages(`krystal.enc${b}`, block));
     this.poolPage = page("krystal.pool", weights.pool);
     this.mixerPages = weights.mixer.map((block, b) => blockPages(`krystal.mixer${b}`, block));
+    this.selectorWqPage = page("krystal.selector.wq", weights.selector.wq);
+    this.selectorWkPage = page("krystal.selector.wk", weights.selector.wk);
   }
 
   private region(offset: number, elements: number): number {
@@ -102,9 +116,10 @@ export class KrystalForward {
   /**
    * Run the encoder + mixer forward for one packed frame, GPU-resident.
    * Uploads the SoA payloads, host-compiled active lists and masks, then
-   * dispatches the whole pipeline in one submit.
+   * dispatches the whole pipeline in one submit. Optional selector masks run
+   * the catalog selection + soft gather heads after the mixer.
    */
-  forward(frame: v1_0_0.BrainFrameGpu): void {
+  forward(frame: v1_0_0.BrainFrameGpu, selection?: SelectionMasks): void {
     const { hiddenSize: h, ffnSize: ffn, headCount: heads, headDim, encoderBlocks, mixerBlocks } = this.config;
     const A = KRYSTAL_FORWARD_ARENA;
     const active = compileActiveFrame(frame);
@@ -118,6 +133,12 @@ export class KrystalForward {
 
     const { mask: recordMask } = compileRecordMask(active.activeTokens);
     const mixerMask = compileMixerMask(q, r);
+    if (selection) {
+      validate(
+        selection.intentMask.length === q * r && selection.argMask.length === q * r,
+        `selector masks must be [${q}, ${r}]`,
+      );
+    }
 
     const device = this.definition.engine.device;
     const arena = this.definition.resources.arena.gpu;
@@ -141,6 +162,10 @@ export class KrystalForward {
     uploadU32(A.queryIndices, active.queryRecords);
     uploadF32(A.encMask, recordMask);
     uploadF32(A.mixerMask, mixerMask);
+    if (selection) {
+      uploadF32(A.intentMask, selection.intentMask);
+      uploadF32(A.argMask, selection.argMask);
+    }
 
     const fieldStates = this.region(A.fieldStates, t * h);
     const encQ = this.region(A.encQ, t * h);
@@ -159,6 +184,16 @@ export class KrystalForward {
     const mixerH1 = this.region(A.mixerH1, q * ffn);
     const mixed = this.region(A.mixed, q * h);
     const mixerMaskOffset = this.region(A.mixerMask, q * r);
+    const selectorQ = this.region(A.selectorQ, q * h);
+    const selectorK = this.region(A.selectorK, r * h);
+    const intentMaskOffset = this.region(A.intentMask, q * r);
+    const argMaskOffset = this.region(A.argMask, q * r);
+    const intentP = this.region(A.intentP, q * r);
+    const intentGather = this.region(A.intentGather, q * h);
+    const intentIndices = this.region(A.intentIndices, q);
+    const argP = this.region(A.argP, q * r);
+    const argGather = this.region(A.argGather, q * h);
+    const argIndices = this.region(A.argIndices, q);
     const bankIndices = this.region(A.bankIndices, r);
     const queryIndices = this.region(A.queryIndices, q);
     const recordCompactOffset = this.region(A.recordCompactOffset, 128);
@@ -276,6 +311,31 @@ export class KrystalForward {
           tokenCount: q, inputDim: h,
         }));
       }
+
+      // 5. catalog selection + soft gather (§7, answer 26): project the mixed
+      // query and the bank keys once, then one selector dispatch per slot.
+      if (selection) {
+        encoder.compute((pass) => pass.run("matmul_f32", {
+          inputOffset: queryValues, outputOffset: selectorQ,
+          tokenCount: q, inputDim: h, outputDim: h, rowStart: 0, rowCount: h,
+        }, this.selectorWqPage));
+        encoder.compute((pass) => pass.run("matmul_f32", {
+          inputOffset: bankKeys, outputOffset: selectorK,
+          tokenCount: r, inputDim: h, outputDim: h, rowStart: 0, rowCount: h,
+        }, this.selectorWkPage));
+        encoder.compute((pass) => pass.run("krystal_selector", {
+          inputOffset: selectorQ, auxOffset: selectorK, aux2Offset: bankValues,
+          aux3Offset: intentMaskOffset, outputOffset: intentGather,
+          aux4Offset: intentP, aux5Offset: intentIndices,
+          tokenCount: q, inputDim: h, u0: r,
+        }));
+        encoder.compute((pass) => pass.run("krystal_selector", {
+          inputOffset: selectorQ, auxOffset: selectorK, aux2Offset: bankValues,
+          aux3Offset: argMaskOffset, outputOffset: argGather,
+          aux4Offset: argP, aux5Offset: argIndices,
+          tokenCount: q, inputDim: h, u0: r,
+        }));
+      }
     });
   }
 
@@ -313,9 +373,43 @@ export class KrystalForward {
     return this.readbackRegion(this.region(KRYSTAL_FORWARD_ARENA.fieldStates, t * h), t * h);
   }
 
+  /** Read back the intent selector distribution [Q, R]. Test-only. */
+  async readIntentP(q: number, r: number): Promise<Float32Array> {
+    return this.readbackRegion(this.region(KRYSTAL_FORWARD_ARENA.intentP, q * r), q * r);
+  }
+
+  /** Read back the intent soft-gathered vector [Q, H]. Test-only. */
+  async readIntentGather(q: number, h: number): Promise<Float32Array> {
+    return this.readbackRegion(this.region(KRYSTAL_FORWARD_ARENA.intentGather, q * h), q * h);
+  }
+
+  /** Read back the intent selected bank indices [Q] (u32 payloads). Test-only. */
+  async readIntentIndices(q: number): Promise<Uint32Array> {
+    const raw = await this.readbackRegion(this.region(KRYSTAL_FORWARD_ARENA.intentIndices, q), q);
+    return new Uint32Array(raw.buffer, raw.byteOffset, q);
+  }
+
+  /** Read back the argument selector distribution [Q, R]. Test-only. */
+  async readArgP(q: number, r: number): Promise<Float32Array> {
+    return this.readbackRegion(this.region(KRYSTAL_FORWARD_ARENA.argP, q * r), q * r);
+  }
+
+  /** Read back the argument soft-gathered vector [Q, H]. Test-only. */
+  async readArgGather(q: number, h: number): Promise<Float32Array> {
+    return this.readbackRegion(this.region(KRYSTAL_FORWARD_ARENA.argGather, q * h), q * h);
+  }
+
+  /** Read back the argument selected bank indices [Q] (u32 payloads). Test-only. */
+  async readArgIndices(q: number): Promise<Uint32Array> {
+    const raw = await this.readbackRegion(this.region(KRYSTAL_FORWARD_ARENA.argIndices, q), q);
+    return new Uint32Array(raw.buffer, raw.byteOffset, q);
+  }
+
   destroy(): void {
     this.embeddingsPage.destroy();
     this.poolPage.destroy();
+    this.selectorWqPage.destroy();
+    this.selectorWkPage.destroy();
     for (const block of [...this.encPages, ...this.mixerPages]) {
       block.wq.destroy();
       block.wk.destroy();

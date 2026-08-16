@@ -1,12 +1,21 @@
 /**
- * Canonical fixture BrainFrame (AoS form) exercising all five record kinds
- * used by the first milestones: Self (body, fixed slot 12), Apple (vision,
- * slot 24), HomeostasisQuery (homeostasis, fixed slot 4), MemoryObject
- * (memory, slot 90) and the active query (query band, fixed slot 122, which
- * the M2b mixer cross-attends to the record bank). Token patterns follow the
- * schema's illustrative lowerings; reference bindings carry exact 0xExx
- * handles with generations.
+ * Canonical fixture BrainFrame (AoS form) exercising all record kinds used by
+ * the first milestones: Self (body, fixed slot 12), Apple (vision, slot 24),
+ * HomeostasisQuery (homeostasis, fixed slot 4), MemoryObject (memory, slot
+ * 90), the LOOK/EAT/WAIT ActionIntent catalog records (focus band, slots
+ * 116-118, which the intent selector scores against) and the active query
+ * (query band, fixed slot 122, which the M2b mixer cross-attends to the
+ * record bank). Token patterns follow the schema's illustrative lowerings;
+ * reference bindings carry exact 0xExx handles with generations.
  */
+
+/**
+ * Schema id of the ActionIntent catalog records. Not part of the record-schema
+ * manifest: the ActionIntent catalog (fixtures/action-intents.ts) is a separate
+ * device manifest, and the selector masks use this id to mark catalog records
+ * as intent candidates (first-forward fixture convention).
+ */
+export const ACTION_INTENT_SCHEMA_ID = 5;
 import {
   BRAIN_FIXED_RECORDS,
   BRAIN_FRAME_BANDS,
@@ -63,6 +72,9 @@ export function buildFixtureRecords(): readonly FixtureRecordSpec[] {
   const STICK = fixtureTokenId("STICK");
   const LAST_ACTION = fixtureTokenId("LAST_ACTION");
   const HOLD = fixtureTokenId("HOLD");
+  const LOOK = fixtureTokenId("LOOK");
+  const EAT = fixtureTokenId("EAT");
+  const WAIT = fixtureTokenId("WAIT");
 
   return [
     {
@@ -111,6 +123,36 @@ export function buildFixtureRecords(): readonly FixtureRecordSpec[] {
       roleTokens: [FEEL_BAD, NEED, SATIATED, 0, 0, 0, 0, 0],
       source: "query",
       flags: RECORD_FLAGS.occupied | RECORD_FLAGS.fixed | RECORD_FLAGS.query,
+    },
+    // ActionIntent catalog records (focus band): the intent selector scores
+    // the mixed query state against their pooled keys. The action token is the
+    // embedded family/discriminator (LOOK vs EAT vs WAIT).
+    {
+      slot: BRAIN_FIXED_RECORDS.perceptualFocus,
+      band: "focus",
+      schemaId: ACTION_INTENT_SCHEMA_ID,
+      tokens: [LOOK, PAD_TOKEN_ID, PAD_TOKEN_ID, PAD_TOKEN_ID, PAD_TOKEN_ID, PAD_TOKEN_ID, PAD_TOKEN_ID, PAD_TOKEN_ID],
+      roleTokens: [LOOK, 0, 0, 0, 0, 0, 0, 0],
+      source: "creator",
+      flags: RECORD_FLAGS.occupied | RECORD_FLAGS.fixed | RECORD_FLAGS.creatorAuthored,
+    },
+    {
+      slot: BRAIN_FIXED_RECORDS.thoughtFocus,
+      band: "focus",
+      schemaId: ACTION_INTENT_SCHEMA_ID,
+      tokens: [EAT, PAD_TOKEN_ID, PAD_TOKEN_ID, PAD_TOKEN_ID, PAD_TOKEN_ID, PAD_TOKEN_ID, PAD_TOKEN_ID, PAD_TOKEN_ID],
+      roleTokens: [EAT, 0, 0, 0, 0, 0, 0, 0],
+      source: "creator",
+      flags: RECORD_FLAGS.occupied | RECORD_FLAGS.fixed | RECORD_FLAGS.creatorAuthored,
+    },
+    {
+      slot: BRAIN_FIXED_RECORDS.speechTopic,
+      band: "focus",
+      schemaId: ACTION_INTENT_SCHEMA_ID,
+      tokens: [WAIT, PAD_TOKEN_ID, PAD_TOKEN_ID, PAD_TOKEN_ID, PAD_TOKEN_ID, PAD_TOKEN_ID, PAD_TOKEN_ID, PAD_TOKEN_ID],
+      roleTokens: [WAIT, 0, 0, 0, 0, 0, 0, 0],
+      source: "creator",
+      flags: RECORD_FLAGS.occupied | RECORD_FLAGS.fixed | RECORD_FLAGS.creatorAuthored,
     },
   ];
 }

@@ -112,6 +112,7 @@ export function defineLfm2FromArtifact() {
     krystal_attention_forward: engine.computeProgram("krystal_attention_forward"),
     relu: engine.computeProgram("relu"),
     krystal_pool: engine.computeProgram("krystal_pool"),
+    krystal_selector: engine.computeProgram("krystal_selector"),
   } satisfies Record<Lfm2ProgramName, ReturnType<typeof engine.computeProgram>>;
 
   const passes = defineLfm2Passes(programs);

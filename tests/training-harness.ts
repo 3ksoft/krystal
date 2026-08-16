@@ -92,6 +92,8 @@ export async function readArenaRegion(h: TrainingHarness, offset: number, elemen
   encoder.copyBufferToBuffer(arena.gpu, offset * 4, staging.gpu, 0, elements * 4);
   h.device.queue.submit([encoder.finish()]);
   await h.device.queue.onSubmittedWorkDone();
-  const raw = (await staging.readback()) as unknown as Float32Array;
-  return raw.slice(0, elements);
+  // Sandblaster readback() returns a plain Array for f32 buffers; normalize
+  // to a real Float32Array so callers can rely on buffer/byteOffset semantics.
+  const raw = (await staging.readback()) as unknown as ArrayLike<number>;
+  return Float32Array.from(raw as ArrayLike<number>).slice(0, elements);
 }

@@ -105,11 +105,61 @@ export function compileRecordMask(
 
 /**
  * Compile the mixer cross-attention mask [Q, R]: the query may attend to every
- * bank record in the first forward. Candidate masks per selector slot arrive
- * with catalog selection (next M2b step).
+ * bank record in the first forward (no candidate filtering at the mixer).
  */
 export function compileMixerMask(qRows: number, bankRows: number): Float32Array {
   return new Float32Array(qRows * bankRows); // zeros = all allowed
+}
+
+/**
+ * Compile the intent-selector mask [Q, R] (architecture v2 §7, answer 15):
+ * 0.0 for bank records that are ActionIntent catalog records (matching
+ * `intentSchemaId`), -1e30 otherwise. The selector must never point to
+ * padding, truncated or invalid types.
+ */
+export function compileIntentMask(
+  frame: v1_0_0.BrainFrameGpu,
+  active: ActiveFrame,
+  intentSchemaId: number,
+): Float32Array {
+  const q = active.queryRecords.length;
+  const r = active.bankRecords.length;
+  const mask = new Float32Array(q * r); // zeros by default; fill blocked cells
+  for (let i = 0; i < q; i++) {
+    for (let j = 0; j < r; j++) {
+      const slot = active.bankRecords[j]!;
+      if (frame.schemaIds[slot] !== intentSchemaId) mask[i * r + j] = -1e30;
+    }
+  }
+  return mask;
+}
+
+/**
+ * Compile the argument-selector mask [Q, R] for a typed reference slot: 0.0
+ * for bank records whose schemaId is accepted and whose band is a candidate
+ * band, -1e30 otherwise. `acceptedSchemaIds`/`candidateBandIds` come from the
+ * ActionIntent argument descriptor (host-compiled from ABI metadata).
+ */
+export function compileArgumentMask(
+  frame: v1_0_0.BrainFrameGpu,
+  active: ActiveFrame,
+  acceptedSchemaIds: readonly number[],
+  candidateBandIds: readonly number[],
+): Float32Array {
+  const q = active.queryRecords.length;
+  const r = active.bankRecords.length;
+  const accepted = new Set(acceptedSchemaIds);
+  const bands = new Set(candidateBandIds);
+  const mask = new Float32Array(q * r);
+  for (let i = 0; i < q; i++) {
+    for (let j = 0; j < r; j++) {
+      const slot = active.bankRecords[j]!;
+      if (!accepted.has(frame.schemaIds[slot]!) || !bands.has(frame.bandIds[slot]!)) {
+        mask[i * r + j] = -1e30;
+      }
+    }
+  }
+  return mask;
 }
 
 export class ForwardMasksError extends Error {

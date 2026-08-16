@@ -5,10 +5,16 @@
 import { expect, test } from "bun:test";
 import { getTrainingHarness, createWeightPage, readArenaRegion, runPassWait, uploadArena } from "./training-harness.ts";
 import { KRYSTAL_FORWARD_ARENA, KRYSTAL_FORWARD_ARENA_BASE } from "../packages/webgpu/src/lfm2-layout.ts";
-import { KrystalForward } from "../packages/webgpu/src/krystal-forward.ts";
-import { buildFixtureFrame } from "../packages/krystal/src/fixtures/frame.ts";
+import { KrystalForward, type SelectionMasks } from "../packages/webgpu/src/krystal-forward.ts";
+import { ACTION_INTENT_SCHEMA_ID, buildFixtureFrame } from "../packages/krystal/src/fixtures/frame.ts";
 import { packBrainFrame } from "../packages/krystal/src/frame/packer.ts";
-import { compileActiveFrame, compileMixerMask, compileRecordMask } from "../packages/krystal/src/forward/masks.ts";
+import {
+  compileActiveFrame,
+  compileArgumentMask,
+  compileIntentMask,
+  compileMixerMask,
+  compileRecordMask,
+} from "../packages/krystal/src/forward/masks.ts";
 import {
   BRAIN_FORWARD_CONFIG,
   createBrainForwardWeights,
@@ -16,8 +22,10 @@ import {
 import {
   attentionOracle,
   brainForwardOracle,
+  brainSelectionOracle,
   matmulOracle,
   reluOracle,
+  selectorOracle,
   softmaxRow,
 } from "../packages/krystal/src/forward/oracle.ts";
 
@@ -152,6 +160,50 @@ test("krystal_pool: learned-query pooling over padded records matches manual sof
   expect(maxAbsDiff(gotValues, wantValues)).toBeLessThanOrEqual(1e-5);
 });
 
+test("krystal_selector: masked scoring, softmax, gather and argmax match the oracle", async () => {
+  const h = await getTrainingHarness();
+  const Q = 2;
+  const R = 4;
+  const H = 8;
+  const qProj = Float32Array.from({ length: Q * H }, (_, i) => Math.sin(i * 0.6));
+  const kProj = Float32Array.from({ length: R * H }, (_, i) => Math.cos(i * 0.4));
+  const values = Float32Array.from({ length: R * H }, (_, i) => Math.sin(i * 1.3) + 0.5);
+  // Block record 2 for every query row.
+  const mask = new Float32Array(Q * R);
+  for (let i = 0; i < Q; i++) mask[i * R + 2] = -1e30;
+
+  const qOff = region("selectorQ", Q * H);
+  const kOff = region("selectorK", R * H);
+  const vOff = region("bankValues", R * H);
+  const maskOff = region("intentMask", Q * R);
+  const gatherOff = region("intentGather", Q * H);
+  const pOff = region("intentP", Q * R);
+  const idxOff = region("intentIndices", Q);
+  await uploadArena(h, qOff, qProj);
+  await uploadArena(h, kOff, kProj);
+  await uploadArena(h, vOff, values);
+  await uploadArena(h, maskOff, mask);
+  await runPassWait(h, "krystal_selector", {
+    inputOffset: qOff, auxOffset: kOff, aux2Offset: vOff, aux3Offset: maskOff,
+    outputOffset: gatherOff, aux4Offset: pOff, aux5Offset: idxOff,
+    tokenCount: Q, inputDim: H, u0: R,
+  });
+  const gotP = await readArenaRegion(h, pOff, Q * R);
+  const gotGather = await readArenaRegion(h, gatherOff, Q * H);
+  const gotIdxRaw = await readArenaRegion(h, idxOff, Q);
+  const gotIdx = new Uint32Array(gotIdxRaw.buffer, gotIdxRaw.byteOffset, Q);
+
+  // Oracle with identity selector weights (qProj/kProj are pre-projected here).
+  const identity = new Float32Array(H * H);
+  for (let d = 0; d < H; d++) identity[d * H + d] = 1;
+  const want = selectorOracle(qProj, kProj, values, mask, { wq: identity, wk: identity }, H);
+  expect(maxAbsDiff(gotP, want.p)).toBeLessThanOrEqual(1e-4);
+  expect(maxAbsDiff(gotGather, want.gather)).toBeLessThanOrEqual(1e-4);
+  expect(Array.from(gotIdx)).toEqual(Array.from(want.index));
+  // Record 2 is masked, so no query row may select it.
+  for (const idx of gotIdx) expect(idx).not.toBe(2);
+});
+
 test("krystal_field_embed: six additive embeddings match the manual sum", async () => {
   const h = await getTrainingHarness();
   const H = 8;
@@ -234,9 +286,16 @@ test("composed forward: CPU/GPU parity on the canonical fixture frame", async ()
   const active = compileActiveFrame(frame);
   const { mask: recordMask } = compileRecordMask(active.activeTokens);
   const mixerMask = compileMixerMask(active.queryRecords.length, active.bankRecords.length);
+  // Host-compiled selector masks from ABI metadata (answers 15/26): intent
+  // candidates are the ActionIntent catalog records; the first reference
+  // argument accepts Apple/VisionObject schemas in the vision/memory bands.
+  const selection: SelectionMasks = {
+    intentMask: compileIntentMask(frame, active, ACTION_INTENT_SCHEMA_ID),
+    argMask: compileArgumentMask(frame, active, [2, 1], [3, 8]),
+  };
 
   const runner = new KrystalForward(weights, config);
-  runner.forward(frame);
+  runner.forward(frame, selection);
   await h.device.queue.onSubmittedWorkDone();
 
   const { hiddenSize: hDim } = config;
@@ -248,15 +307,41 @@ test("composed forward: CPU/GPU parity on the canonical fixture frame", async ()
   const gpuBankValues = await runner.readBankValues(r, hDim);
   const gpuQueryOut = await runner.readQueryOutput(q, hDim);
   const gpuFieldStates = await runner.readFieldStates(t, hDim);
+  const gpuIntentP = await runner.readIntentP(q, r);
+  const gpuIntentGather = await runner.readIntentGather(q, hDim);
+  const gpuIntentIdx = await runner.readIntentIndices(q);
+  const gpuArgP = await runner.readArgP(q, r);
+  const gpuArgGather = await runner.readArgGather(q, hDim);
+  const gpuArgIdx = await runner.readArgIndices(q);
 
   const cpu = brainForwardOracle(frame, active, weights, config, recordMask, mixerMask);
+  const cpuSel = brainSelectionOracle(
+    cpu.queryOutput, cpu.bankKeys, cpu.bankValues,
+    selection.intentMask, selection.argMask, weights.selector, hDim,
+  );
 
-  expect(r).toBe(4); // homeostasis, self, apple, memory
+  expect(r).toBe(7); // homeostasis, self, apple, memory, LOOK, EAT, WAIT
   expect(q).toBe(1); // the query record
   expect(maxAbsDiff(gpuFieldStates, cpu.fieldStates)).toBeLessThanOrEqual(1e-2);
   expect(maxAbsDiff(gpuBankKeys, cpu.bankKeys)).toBeLessThanOrEqual(1e-2);
   expect(maxAbsDiff(gpuBankValues, cpu.bankValues)).toBeLessThanOrEqual(1e-2);
   expect(maxAbsDiff(gpuQueryOut, cpu.queryOutput)).toBeLessThanOrEqual(1e-2);
+  expect(maxAbsDiff(gpuIntentP, cpuSel.intent.p)).toBeLessThanOrEqual(1e-4);
+  expect(maxAbsDiff(gpuIntentGather, cpuSel.intent.gather)).toBeLessThanOrEqual(1e-2);
+  expect(Array.from(gpuIntentIdx)).toEqual(Array.from(cpuSel.intent.index));
+  expect(maxAbsDiff(gpuArgP, cpuSel.argument.p)).toBeLessThanOrEqual(1e-4);
+  expect(maxAbsDiff(gpuArgGather, cpuSel.argument.gather)).toBeLessThanOrEqual(1e-2);
+  expect(Array.from(gpuArgIdx)).toEqual(Array.from(cpuSel.argument.index));
+
+  // The intent selector must pick a catalog record (schemaId 5) and the
+  // argument selector an Apple/VisionObject record, never a masked one.
+  for (const idx of gpuIntentIdx) {
+    expect(frame.schemaIds[active.bankRecords[idx]!]).toBe(ACTION_INTENT_SCHEMA_ID);
+  }
+  for (const idx of gpuArgIdx) {
+    const schema = frame.schemaIds[active.bankRecords[idx]!]!;
+    expect([2, 1]).toContain(schema);
+  }
 
   // Sanity: outputs are finite and the mixer actually moved the query state.
   for (const values of [gpuBankKeys, gpuBankValues, gpuQueryOut]) {
