@@ -434,6 +434,54 @@ struct BrainFrame {
 const BRAIN_FRAME_BANDS_LEN: u32 = 11u;
 const BRAIN_FRAME_RECORDS_LEN: u32 = 128u;
 
+struct BinaryLayoutPlanHeader {
+	planVersion: BandMask,
+	layoutVersion: BandMask,
+	bufferCount: BandMask,
+	recordSlots: BandMask,
+	recordWidth: BandMask,
+	tokenCapacity: BandMask,
+	maxReferencesPerRecord: BandMask,
+	planHashLo: BandMask,
+	planHashHi: BandMask,
+	flags: BandMask,
+	reserved0: BandMask,
+};
+
+
+struct BinaryLayoutBufferDesc {
+	bufferId: BandMask,
+	elementCount: BandMask,
+	byteSize: BandMask,
+	flags: BandMask,
+};
+
+
+struct BinaryLayoutPlan {
+	header: BinaryLayoutPlanHeader,
+	buffers: array<BinaryLayoutBufferDesc, 0>,
+};
+
+
+struct BrainFrameGpu {
+	header: BinaryLayoutPlanHeader,
+	tokenIds: array<BandMask, 1024>,
+	fieldRoles: array<BandMask, 1024>,
+	schemaIds: array<BandMask, 128>,
+	bandIds: array<BandMask, 128>,
+	runtimeRefs: array<BandMask, 1024>,
+	recordFlags: array<BandMask, 128>,
+	activeRecordIndices: array<BandMask, 128>,
+};
+
+const BRAIN_FRAME_GPU_TOKENIDS_LEN: u32 = 1024u;
+const BRAIN_FRAME_GPU_FIELDROLES_LEN: u32 = 1024u;
+const BRAIN_FRAME_GPU_SCHEMAIDS_LEN: u32 = 128u;
+const BRAIN_FRAME_GPU_BANDIDS_LEN: u32 = 128u;
+const BRAIN_FRAME_GPU_RUNTIMEREFS_LEN: u32 = 1024u;
+const BRAIN_FRAME_GPU_RECORDFLAGS_LEN: u32 = 128u;
+const BRAIN_FRAME_GPU_ACTIVERECORDINDICES_LEN: u32 = 128u;
+
 struct HomeostasisSignal {
 	channelToken: BandMask,
 	currentStateToken: BandMask,
@@ -1828,6 +1876,185 @@ fn pack_brain_frame_to_words(unpacked: BrainFrame) -> array<u32, 13797> {
 
 fn pack_brain_frame(unpacked: BrainFrame) -> array<u32, 13797> {
 	return pack_brain_frame_to_words(unpacked);
+}
+
+fn unpack_words_to_binary_layout_plan_header(raw: array<u32, 11>) -> BinaryLayoutPlanHeader {
+	var out: BinaryLayoutPlanHeader;
+	out.planVersion = unpack_words_to_band_mask(raw[0u]);
+	out.layoutVersion = unpack_words_to_band_mask(raw[1u]);
+	out.bufferCount = unpack_words_to_band_mask(raw[2u]);
+	out.recordSlots = unpack_words_to_band_mask(raw[3u]);
+	out.recordWidth = unpack_words_to_band_mask(raw[4u]);
+	out.tokenCapacity = unpack_words_to_band_mask(raw[5u]);
+	out.maxReferencesPerRecord = unpack_words_to_band_mask(raw[6u]);
+	out.planHashLo = unpack_words_to_band_mask(raw[7u]);
+	out.planHashHi = unpack_words_to_band_mask(raw[8u]);
+	out.flags = unpack_words_to_band_mask(raw[9u]);
+	out.reserved0 = unpack_words_to_band_mask(raw[10u]);
+	return out;
+}
+
+fn unpack_binary_layout_plan_header(raw: array<u32, 11>) -> BinaryLayoutPlanHeader {
+	return unpack_words_to_binary_layout_plan_header(raw);
+}
+
+fn pack_binary_layout_plan_header_to_words(unpacked: BinaryLayoutPlanHeader) -> array<u32, 11> {
+	var out: array<u32, 11>;
+	for (var w = 0u; w < 11u; w++) { out[w] = 0u; }
+	out[0u] = pack_band_mask_to_words(unpacked.planVersion);
+	out[1u] = pack_band_mask_to_words(unpacked.layoutVersion);
+	out[2u] = pack_band_mask_to_words(unpacked.bufferCount);
+	out[3u] = pack_band_mask_to_words(unpacked.recordSlots);
+	out[4u] = pack_band_mask_to_words(unpacked.recordWidth);
+	out[5u] = pack_band_mask_to_words(unpacked.tokenCapacity);
+	out[6u] = pack_band_mask_to_words(unpacked.maxReferencesPerRecord);
+	out[7u] = pack_band_mask_to_words(unpacked.planHashLo);
+	out[8u] = pack_band_mask_to_words(unpacked.planHashHi);
+	out[9u] = pack_band_mask_to_words(unpacked.flags);
+	out[10u] = pack_band_mask_to_words(unpacked.reserved0);
+	return out;
+}
+
+fn pack_binary_layout_plan_header(unpacked: BinaryLayoutPlanHeader) -> array<u32, 11> {
+	return pack_binary_layout_plan_header_to_words(unpacked);
+}
+
+fn unpack_words_to_binary_layout_buffer_desc(raw: array<u32, 4>) -> BinaryLayoutBufferDesc {
+	var out: BinaryLayoutBufferDesc;
+	out.bufferId = unpack_words_to_band_mask(raw[0u]);
+	out.elementCount = unpack_words_to_band_mask(raw[1u]);
+	out.byteSize = unpack_words_to_band_mask(raw[2u]);
+	out.flags = unpack_words_to_band_mask(raw[3u]);
+	return out;
+}
+
+fn unpack_binary_layout_buffer_desc(raw: array<u32, 4>) -> BinaryLayoutBufferDesc {
+	return unpack_words_to_binary_layout_buffer_desc(raw);
+}
+
+fn pack_binary_layout_buffer_desc_to_words(unpacked: BinaryLayoutBufferDesc) -> array<u32, 4> {
+	var out: array<u32, 4>;
+	for (var w = 0u; w < 4u; w++) { out[w] = 0u; }
+	out[0u] = pack_band_mask_to_words(unpacked.bufferId);
+	out[1u] = pack_band_mask_to_words(unpacked.elementCount);
+	out[2u] = pack_band_mask_to_words(unpacked.byteSize);
+	out[3u] = pack_band_mask_to_words(unpacked.flags);
+	return out;
+}
+
+fn pack_binary_layout_buffer_desc(unpacked: BinaryLayoutBufferDesc) -> array<u32, 4> {
+	return pack_binary_layout_buffer_desc_to_words(unpacked);
+}
+
+fn unpack_words_to_binary_layout_plan(raw: array<u32, 12>) -> BinaryLayoutPlan {
+	var out: BinaryLayoutPlan;
+	{
+		var tmp: array<u32, 11>;
+		for (var j_0 = 0u; j_0 < 11u; j_0++) { tmp[j_0] = raw[0u + j_0]; }
+		out.header = unpack_words_to_binary_layout_plan_header(tmp);
+	}
+	for (var i_0 = 0u; i_0 < 0u; i_0++) {
+		{
+		var tmp: array<u32, 4>;
+		for (var j_1 = 0u; j_1 < 4u; j_1++) { tmp[j_1] = raw[11u + (i_0 * 4u) + j_1]; }
+		out.buffers[i_0] = unpack_words_to_binary_layout_buffer_desc(tmp);
+	}
+	}
+	return out;
+}
+
+fn unpack_binary_layout_plan(raw: array<u32, 12>) -> BinaryLayoutPlan {
+	return unpack_words_to_binary_layout_plan(raw);
+}
+
+fn pack_binary_layout_plan_to_words(unpacked: BinaryLayoutPlan) -> array<u32, 12> {
+	var out: array<u32, 12>;
+	for (var w = 0u; w < 12u; w++) { out[w] = 0u; }
+	{
+		let tmp = pack_binary_layout_plan_header_to_words(unpacked.header);
+		for (var j_0 = 0u; j_0 < 11u; j_0++) { out[0u + j_0] = tmp[j_0]; }
+	}
+	for (var i_0 = 0u; i_0 < 0u; i_0++) {
+			{
+		let tmp = pack_binary_layout_buffer_desc_to_words(unpacked.buffers[i_0]);
+		for (var j_1 = 0u; j_1 < 4u; j_1++) { out[11u + (i_0 * 4u) + j_1] = tmp[j_1]; }
+	}
+		}
+	return out;
+}
+
+fn pack_binary_layout_plan(unpacked: BinaryLayoutPlan) -> array<u32, 12> {
+	return pack_binary_layout_plan_to_words(unpacked);
+}
+
+fn unpack_words_to_brain_frame_gpu(raw: array<u32, 3595>) -> BrainFrameGpu {
+	var out: BrainFrameGpu;
+	{
+		var tmp: array<u32, 11>;
+		for (var j_0 = 0u; j_0 < 11u; j_0++) { tmp[j_0] = raw[0u + j_0]; }
+		out.header = unpack_words_to_binary_layout_plan_header(tmp);
+	}
+	for (var i_0 = 0u; i_0 < 1024u; i_0++) {
+		out.tokenIds[i_0] = unpack_words_to_band_mask(raw[11u + (i_0 * 1u)]);
+	}
+	for (var i_0 = 0u; i_0 < 1024u; i_0++) {
+		out.fieldRoles[i_0] = unpack_words_to_band_mask(raw[1035u + (i_0 * 1u)]);
+	}
+	for (var i_0 = 0u; i_0 < 128u; i_0++) {
+		out.schemaIds[i_0] = unpack_words_to_band_mask(raw[2059u + (i_0 * 1u)]);
+	}
+	for (var i_0 = 0u; i_0 < 128u; i_0++) {
+		out.bandIds[i_0] = unpack_words_to_band_mask(raw[2187u + (i_0 * 1u)]);
+	}
+	for (var i_0 = 0u; i_0 < 1024u; i_0++) {
+		out.runtimeRefs[i_0] = unpack_words_to_band_mask(raw[2315u + (i_0 * 1u)]);
+	}
+	for (var i_0 = 0u; i_0 < 128u; i_0++) {
+		out.recordFlags[i_0] = unpack_words_to_band_mask(raw[3339u + (i_0 * 1u)]);
+	}
+	for (var i_0 = 0u; i_0 < 128u; i_0++) {
+		out.activeRecordIndices[i_0] = unpack_words_to_band_mask(raw[3467u + (i_0 * 1u)]);
+	}
+	return out;
+}
+
+fn unpack_brain_frame_gpu(raw: array<u32, 3595>) -> BrainFrameGpu {
+	return unpack_words_to_brain_frame_gpu(raw);
+}
+
+fn pack_brain_frame_gpu_to_words(unpacked: BrainFrameGpu) -> array<u32, 3595> {
+	var out: array<u32, 3595>;
+	for (var w = 0u; w < 3595u; w++) { out[w] = 0u; }
+	{
+		let tmp = pack_binary_layout_plan_header_to_words(unpacked.header);
+		for (var j_0 = 0u; j_0 < 11u; j_0++) { out[0u + j_0] = tmp[j_0]; }
+	}
+	for (var i_0 = 0u; i_0 < 1024u; i_0++) {
+			out[11u + (i_0 * 1u)] = pack_band_mask_to_words(unpacked.tokenIds[i_0]);
+		}
+	for (var i_0 = 0u; i_0 < 1024u; i_0++) {
+			out[1035u + (i_0 * 1u)] = pack_band_mask_to_words(unpacked.fieldRoles[i_0]);
+		}
+	for (var i_0 = 0u; i_0 < 128u; i_0++) {
+			out[2059u + (i_0 * 1u)] = pack_band_mask_to_words(unpacked.schemaIds[i_0]);
+		}
+	for (var i_0 = 0u; i_0 < 128u; i_0++) {
+			out[2187u + (i_0 * 1u)] = pack_band_mask_to_words(unpacked.bandIds[i_0]);
+		}
+	for (var i_0 = 0u; i_0 < 1024u; i_0++) {
+			out[2315u + (i_0 * 1u)] = pack_band_mask_to_words(unpacked.runtimeRefs[i_0]);
+		}
+	for (var i_0 = 0u; i_0 < 128u; i_0++) {
+			out[3339u + (i_0 * 1u)] = pack_band_mask_to_words(unpacked.recordFlags[i_0]);
+		}
+	for (var i_0 = 0u; i_0 < 128u; i_0++) {
+			out[3467u + (i_0 * 1u)] = pack_band_mask_to_words(unpacked.activeRecordIndices[i_0]);
+		}
+	return out;
+}
+
+fn pack_brain_frame_gpu(unpacked: BrainFrameGpu) -> array<u32, 3595> {
+	return pack_brain_frame_gpu_to_words(unpacked);
 }
 
 fn unpack_words_to_homeostasis_signal(raw: array<u32, 11>) -> HomeostasisSignal {

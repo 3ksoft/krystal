@@ -319,6 +319,43 @@ export namespace v1_0_0 {
 		records: BrainRecordSlot[];
 	}
 	
+	export interface BinaryLayoutPlanHeader {
+		planVersion: BandMask;
+		layoutVersion: BandMask;
+		bufferCount: BandMask;
+		recordSlots: BandMask;
+		recordWidth: BandMask;
+		tokenCapacity: BandMask;
+		maxReferencesPerRecord: BandMask;
+		planHashLo: BandMask;
+		planHashHi: BandMask;
+		flags: BandMask;
+		reserved0: BandMask;
+	}
+	
+	export interface BinaryLayoutBufferDesc {
+		bufferId: BandMask;
+		elementCount: BandMask;
+		byteSize: BandMask;
+		flags: BandMask;
+	}
+	
+	export interface BinaryLayoutPlan {
+		header: BinaryLayoutPlanHeader;
+		buffers: BinaryLayoutBufferDesc[];
+	}
+	
+	export interface BrainFrameGpu {
+		header: BinaryLayoutPlanHeader;
+		tokenIds: BandMask[];
+		fieldRoles: BandMask[];
+		schemaIds: BandMask[];
+		bandIds: BandMask[];
+		runtimeRefs: BandMask[];
+		recordFlags: BandMask[];
+		activeRecordIndices: BandMask[];
+	}
+	
 	export interface HomeostasisSignal {
 		channelToken: BandMask;
 		currentStateToken: BandMask;

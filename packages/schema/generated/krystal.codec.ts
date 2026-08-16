@@ -37,6 +37,10 @@ type BrainRecordSlot = v1_0_0.BrainRecordSlot;
 type BrainBandState = v1_0_0.BrainBandState;
 type BrainFrameHeader = v1_0_0.BrainFrameHeader;
 type BrainFrame = v1_0_0.BrainFrame;
+type BinaryLayoutPlanHeader = v1_0_0.BinaryLayoutPlanHeader;
+type BinaryLayoutBufferDesc = v1_0_0.BinaryLayoutBufferDesc;
+type BinaryLayoutPlan = v1_0_0.BinaryLayoutPlan;
+type BrainFrameGpu = v1_0_0.BrainFrameGpu;
 type HomeostasisSignal = v1_0_0.HomeostasisSignal;
 type BrainQueryKind = v1_0_0.BrainQueryKind;
 type BrainQueryState = v1_0_0.BrainQueryState;
@@ -118,6 +122,17 @@ export const SIZEOF_BrainFrameHeader = 52;
 export const SIZEOF_BrainFrame = 55188;
 export const BRAIN_FRAME_BANDS_LEN = 11;
 export const BRAIN_FRAME_RECORDS_LEN = 128;
+export const SIZEOF_BinaryLayoutPlanHeader = 44;
+export const SIZEOF_BinaryLayoutBufferDesc = 16;
+export const SIZEOF_BinaryLayoutPlan = 48;
+export const SIZEOF_BrainFrameGpu = 14380;
+export const BRAIN_FRAME_GPU_TOKENIDS_LEN = 1024;
+export const BRAIN_FRAME_GPU_FIELDROLES_LEN = 1024;
+export const BRAIN_FRAME_GPU_SCHEMAIDS_LEN = 128;
+export const BRAIN_FRAME_GPU_BANDIDS_LEN = 128;
+export const BRAIN_FRAME_GPU_RUNTIMEREFS_LEN = 1024;
+export const BRAIN_FRAME_GPU_RECORDFLAGS_LEN = 128;
+export const BRAIN_FRAME_GPU_ACTIVERECORDINDICES_LEN = 128;
 export const SIZEOF_HomeostasisSignal = 44;
 export const SIZEOF_BrainQueryState = 68;
 export const SIZEOF_BrainQuerySet = 560;
@@ -1117,6 +1132,181 @@ export function serializeBrainFrame(val: BrainFrame, view: DataView, offset: num
 	serializeBrainFrameHeader(val.header, view, offset);
 	{ for (let i = 0, __o = offset + 52; i < 11; i++, __o += 32) { const __e = val.bands[i]!; { serializeBrainBandKind(__e.kind, view, __o); view.setUint32(__o + 4, __e.activeRecords, true); view.setUint32(__o + 8, __e.activeTokens, true); view.setUint32(__o + 12, __e.overflowRecords, true); view.setUint32(__o + 16, __e.truncatedRecords, true); view.setUint32(__o + 20, __e.revision, true); view.setUint32(__o + 24, __e.flags, true); view.setUint32(__o + 28, __e.reserved0, true); } } }
 	{ for (let i = 0, __o = offset + 404; i < 128; i++, __o += 428) { const __e = val.records[i]!; { serializeBrainRecordHeader(__e.header, view, __o); { for (let i = 0, __o1 = __o + 44; i < 8; i++, __o1 += 4) { const __e1 = __e.tokens[i]!; view.setUint32(__o1, __e1, true); } } { for (let i = 0, __o1 = __o + 76; i < 8; i++, __o1 += 16) { const __e1 = __e.tokenMeta[i]!; { view.setUint32(__o1, __e1.fieldId, true); view.setUint32(__o1 + 4, __e1.roleToken, true); view.setUint32(__o1 + 8, __e1.flags, true); view.setUint32(__o1 + 12, __e1.referenceBinding, true); } } } { for (let i = 0, __o1 = __o + 204; i < 8; i++, __o1 += 28) { const __e1 = __e.references[i]!; { view.setUint32(__o1, __e1.localTokenIndex, true); view.setUint32(__o1 + 4, __e1.fieldId, true); view.setUint32(__o1 + 8, __e1.flags, true); view.setUint32(__o1 + 12, __e1.reserved0, true); serializeRuntimeRefHandle(__e1.handle, view, __o1 + 16); } } } } } }
+}
+
+export function deserializeBinaryLayoutPlanHeader(view: DataView, offset: number, outObj?: any): BinaryLayoutPlanHeader {
+	if (!outObj) {
+		return {
+			planVersion: view.getUint32(offset, true),
+			layoutVersion: view.getUint32(offset + 4, true),
+			bufferCount: view.getUint32(offset + 8, true),
+			recordSlots: view.getUint32(offset + 12, true),
+			recordWidth: view.getUint32(offset + 16, true),
+			tokenCapacity: view.getUint32(offset + 20, true),
+			maxReferencesPerRecord: view.getUint32(offset + 24, true),
+			planHashLo: view.getUint32(offset + 28, true),
+			planHashHi: view.getUint32(offset + 32, true),
+			flags: view.getUint32(offset + 36, true),
+			reserved0: view.getUint32(offset + 40, true),
+		} as any;
+	}
+	outObj.planVersion = view.getUint32(offset, true);
+	outObj.layoutVersion = view.getUint32(offset + 4, true);
+	outObj.bufferCount = view.getUint32(offset + 8, true);
+	outObj.recordSlots = view.getUint32(offset + 12, true);
+	outObj.recordWidth = view.getUint32(offset + 16, true);
+	outObj.tokenCapacity = view.getUint32(offset + 20, true);
+	outObj.maxReferencesPerRecord = view.getUint32(offset + 24, true);
+	outObj.planHashLo = view.getUint32(offset + 28, true);
+	outObj.planHashHi = view.getUint32(offset + 32, true);
+	outObj.flags = view.getUint32(offset + 36, true);
+	outObj.reserved0 = view.getUint32(offset + 40, true);
+	return outObj;
+}
+
+export function serializeBinaryLayoutPlanHeader(val: BinaryLayoutPlanHeader, view: DataView, offset: number): void {
+	view.setUint32(offset, val.planVersion, true);
+	view.setUint32(offset + 4, val.layoutVersion, true);
+	view.setUint32(offset + 8, val.bufferCount, true);
+	view.setUint32(offset + 12, val.recordSlots, true);
+	view.setUint32(offset + 16, val.recordWidth, true);
+	view.setUint32(offset + 20, val.tokenCapacity, true);
+	view.setUint32(offset + 24, val.maxReferencesPerRecord, true);
+	view.setUint32(offset + 28, val.planHashLo, true);
+	view.setUint32(offset + 32, val.planHashHi, true);
+	view.setUint32(offset + 36, val.flags, true);
+	view.setUint32(offset + 40, val.reserved0, true);
+}
+
+export function deserializeBinaryLayoutBufferDesc(view: DataView, offset: number, outObj?: any): BinaryLayoutBufferDesc {
+	if (!outObj) {
+		return {
+			bufferId: view.getUint32(offset, true),
+			elementCount: view.getUint32(offset + 4, true),
+			byteSize: view.getUint32(offset + 8, true),
+			flags: view.getUint32(offset + 12, true),
+		} as any;
+	}
+	outObj.bufferId = view.getUint32(offset, true);
+	outObj.elementCount = view.getUint32(offset + 4, true);
+	outObj.byteSize = view.getUint32(offset + 8, true);
+	outObj.flags = view.getUint32(offset + 12, true);
+	return outObj;
+}
+
+export function serializeBinaryLayoutBufferDesc(val: BinaryLayoutBufferDesc, view: DataView, offset: number): void {
+	view.setUint32(offset, val.bufferId, true);
+	view.setUint32(offset + 4, val.elementCount, true);
+	view.setUint32(offset + 8, val.byteSize, true);
+	view.setUint32(offset + 12, val.flags, true);
+}
+
+export function deserializeBinaryLayoutPlan(view: DataView, offset: number, outObj?: any): BinaryLayoutPlan {
+	if (!outObj) {
+		return {
+			header: deserializeBinaryLayoutPlanHeader(view, offset),
+			buffers: ((o) => { const l = view.getUint32(o, true); const a: any[] = []; const start = o + 4; for(let i=0; i<l; i++) { const o = start; a.push(deserializeBinaryLayoutBufferDesc(view, o + (i * 16))); } return a; })(offset + 44),
+		} as any;
+	}
+	outObj.header = deserializeBinaryLayoutPlanHeader(view, offset);
+	outObj.buffers = ((o) => { const l = view.getUint32(o, true); const a: any[] = []; const start = o + 4; for(let i=0; i<l; i++) { const o = start; a.push(deserializeBinaryLayoutBufferDesc(view, o + (i * 16))); } return a; })(offset + 44);
+	return outObj;
+}
+
+export function serializeBinaryLayoutPlan(val: BinaryLayoutPlan, view: DataView, offset: number): void {
+	serializeBinaryLayoutPlanHeader(val.header, view, offset);
+	{ view.setUint32(offset + 44, val.buffers.length, true); let o = offset + 44 + 4; for(let i=0; i<val.buffers.length; i++) { serializeBinaryLayoutBufferDesc(val.buffers[i]!, view, o + (i * 16)); } }
+}
+
+export function deserializeBrainFrameGpu(view: DataView, offset: number, outObj?: any): BrainFrameGpu {
+	if (!outObj) {
+		const _arr_tokenIds = new Array(1024);
+		for (let i = 0, _off_tokenIds = offset + 44; i < 1024; i++, _off_tokenIds += 4) {
+			_arr_tokenIds[i] = view.getUint32(_off_tokenIds, true);
+		}
+		const _arr_fieldRoles = new Array(1024);
+		for (let i = 0, _off_fieldRoles = offset + 4140; i < 1024; i++, _off_fieldRoles += 4) {
+			_arr_fieldRoles[i] = view.getUint32(_off_fieldRoles, true);
+		}
+		const _arr_schemaIds = new Array(128);
+		for (let i = 0, _off_schemaIds = offset + 8236; i < 128; i++, _off_schemaIds += 4) {
+			_arr_schemaIds[i] = view.getUint32(_off_schemaIds, true);
+		}
+		const _arr_bandIds = new Array(128);
+		for (let i = 0, _off_bandIds = offset + 8748; i < 128; i++, _off_bandIds += 4) {
+			_arr_bandIds[i] = view.getUint32(_off_bandIds, true);
+		}
+		const _arr_runtimeRefs = new Array(1024);
+		for (let i = 0, _off_runtimeRefs = offset + 9260; i < 1024; i++, _off_runtimeRefs += 4) {
+			_arr_runtimeRefs[i] = view.getUint32(_off_runtimeRefs, true);
+		}
+		const _arr_recordFlags = new Array(128);
+		for (let i = 0, _off_recordFlags = offset + 13356; i < 128; i++, _off_recordFlags += 4) {
+			_arr_recordFlags[i] = view.getUint32(_off_recordFlags, true);
+		}
+		const _arr_activeRecordIndices = new Array(128);
+		for (let i = 0, _off_activeRecordIndices = offset + 13868; i < 128; i++, _off_activeRecordIndices += 4) {
+			_arr_activeRecordIndices[i] = view.getUint32(_off_activeRecordIndices, true);
+		}
+		return {
+			header: deserializeBinaryLayoutPlanHeader(view, offset),
+			tokenIds: _arr_tokenIds,
+			fieldRoles: _arr_fieldRoles,
+			schemaIds: _arr_schemaIds,
+			bandIds: _arr_bandIds,
+			runtimeRefs: _arr_runtimeRefs,
+			recordFlags: _arr_recordFlags,
+			activeRecordIndices: _arr_activeRecordIndices,
+		} as any;
+	}
+	const _arr_tokenIds = new Array(1024);
+	for (let i = 0, _off_tokenIds = offset + 44; i < 1024; i++, _off_tokenIds += 4) {
+		_arr_tokenIds[i] = view.getUint32(_off_tokenIds, true);
+	}
+	const _arr_fieldRoles = new Array(1024);
+	for (let i = 0, _off_fieldRoles = offset + 4140; i < 1024; i++, _off_fieldRoles += 4) {
+		_arr_fieldRoles[i] = view.getUint32(_off_fieldRoles, true);
+	}
+	const _arr_schemaIds = new Array(128);
+	for (let i = 0, _off_schemaIds = offset + 8236; i < 128; i++, _off_schemaIds += 4) {
+		_arr_schemaIds[i] = view.getUint32(_off_schemaIds, true);
+	}
+	const _arr_bandIds = new Array(128);
+	for (let i = 0, _off_bandIds = offset + 8748; i < 128; i++, _off_bandIds += 4) {
+		_arr_bandIds[i] = view.getUint32(_off_bandIds, true);
+	}
+	const _arr_runtimeRefs = new Array(1024);
+	for (let i = 0, _off_runtimeRefs = offset + 9260; i < 1024; i++, _off_runtimeRefs += 4) {
+		_arr_runtimeRefs[i] = view.getUint32(_off_runtimeRefs, true);
+	}
+	const _arr_recordFlags = new Array(128);
+	for (let i = 0, _off_recordFlags = offset + 13356; i < 128; i++, _off_recordFlags += 4) {
+		_arr_recordFlags[i] = view.getUint32(_off_recordFlags, true);
+	}
+	const _arr_activeRecordIndices = new Array(128);
+	for (let i = 0, _off_activeRecordIndices = offset + 13868; i < 128; i++, _off_activeRecordIndices += 4) {
+		_arr_activeRecordIndices[i] = view.getUint32(_off_activeRecordIndices, true);
+	}
+	outObj.header = deserializeBinaryLayoutPlanHeader(view, offset);
+	outObj.tokenIds = _arr_tokenIds;
+	outObj.fieldRoles = _arr_fieldRoles;
+	outObj.schemaIds = _arr_schemaIds;
+	outObj.bandIds = _arr_bandIds;
+	outObj.runtimeRefs = _arr_runtimeRefs;
+	outObj.recordFlags = _arr_recordFlags;
+	outObj.activeRecordIndices = _arr_activeRecordIndices;
+	return outObj;
+}
+
+export function serializeBrainFrameGpu(val: BrainFrameGpu, view: DataView, offset: number): void {
+	serializeBinaryLayoutPlanHeader(val.header, view, offset);
+	{ for (let i = 0, __o = offset + 44; i < 1024; i++, __o += 4) { const __e = val.tokenIds[i]!; view.setUint32(__o, __e, true); } }
+	{ for (let i = 0, __o = offset + 4140; i < 1024; i++, __o += 4) { const __e = val.fieldRoles[i]!; view.setUint32(__o, __e, true); } }
+	{ for (let i = 0, __o = offset + 8236; i < 128; i++, __o += 4) { const __e = val.schemaIds[i]!; view.setUint32(__o, __e, true); } }
+	{ for (let i = 0, __o = offset + 8748; i < 128; i++, __o += 4) { const __e = val.bandIds[i]!; view.setUint32(__o, __e, true); } }
+	{ for (let i = 0, __o = offset + 9260; i < 1024; i++, __o += 4) { const __e = val.runtimeRefs[i]!; view.setUint32(__o, __e, true); } }
+	{ for (let i = 0, __o = offset + 13356; i < 128; i++, __o += 4) { const __e = val.recordFlags[i]!; view.setUint32(__o, __e, true); } }
+	{ for (let i = 0, __o = offset + 13868; i < 128; i++, __o += 4) { const __e = val.activeRecordIndices[i]!; view.setUint32(__o, __e, true); } }
 }
 
 export function deserializeHomeostasisSignal(view: DataView, offset: number, outObj?: any): HomeostasisSignal {

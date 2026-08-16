@@ -38,6 +38,10 @@ export const {
 	BrainBandState,
 	BrainFrameHeader,
 	BrainFrame,
+	BinaryLayoutPlanHeader,
+	BinaryLayoutBufferDesc,
+	BinaryLayoutPlan,
+	BrainFrameGpu,
 	HomeostasisSignal,
 	BrainQueryKind,
 	BrainQueryState,
@@ -118,6 +122,10 @@ export type BrainRecordSlot = typeof BrainRecordSlot.infer;
 export type BrainBandState = typeof BrainBandState.infer;
 export type BrainFrameHeader = typeof BrainFrameHeader.infer;
 export type BrainFrame = typeof BrainFrame.infer;
+export type BinaryLayoutPlanHeader = typeof BinaryLayoutPlanHeader.infer;
+export type BinaryLayoutBufferDesc = typeof BinaryLayoutBufferDesc.infer;
+export type BinaryLayoutPlan = typeof BinaryLayoutPlan.infer;
+export type BrainFrameGpu = typeof BrainFrameGpu.infer;
 export type HomeostasisSignal = typeof HomeostasisSignal.infer;
 export type BrainQueryKind = typeof BrainQueryKind.infer;
 export type BrainQueryState = typeof BrainQueryState.infer;

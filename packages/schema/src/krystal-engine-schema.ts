@@ -77,6 +77,19 @@ export const KRYSTAL_ABI = {
  * value has a smaller semantic range. A compiler must reject overflows before
  * frame materialization.
  */
+/**
+ * SoA BinaryLayoutPlan version (M2a freeze).
+ *
+ * This is the version of the GPU-facing SoA lowering of `BrainFrame` (the
+ * `BrainFrameGpu` buffers below). It is independent from the logical
+ * TokenLayoutPlan (`frameLayoutVersion`) because physical packing may change
+ * without moving logical record slots or token positions. Bump this version
+ * and the plan hash whenever a buffer's element type, count or meaning
+ * changes; a compiled frame then fails the compatibility check instead of
+ * being misread by an older runtime.
+ */
+export const BINARY_LAYOUT_PLAN_VERSION = 1;
+
 export const BRAIN_LIMITS = {
   recordWidth: 8,
   frameRecordSlots: 128,
@@ -555,6 +568,69 @@ export const schema = scope({
     header: "BrainFrameHeader",
     bands: `BrainBandState[] == ${BRAIN_LIMITS.frameBands}`,
     records: `BrainRecordSlot[] == ${BRAIN_LIMITS.frameRecordSlots}`,
+  },
+
+  // -----------------------------------------------------------------------
+  // SoA BinaryLayoutPlan (M2a freeze) — the GPU-facing frame lowering
+  // -----------------------------------------------------------------------
+
+  /**
+   * Versioned plan metadata. `planVersion` identifies this SoA packing;
+   * `planHashLo/Hi` cover the buffer descriptor list below. A compiled frame
+   * carries the header and the runtime checks it against its own compiled
+   * plan before reading any buffer.
+   */
+  BinaryLayoutPlanHeader: {
+    planVersion: `u32 = ${BINARY_LAYOUT_PLAN_VERSION}`,
+    layoutVersion: `u32 = ${KRYSTAL_ABI.frameLayoutVersion}`,
+    bufferCount: "u32 = 0",
+
+    recordSlots: `u32 = ${BRAIN_LIMITS.frameRecordSlots}`,
+    recordWidth: `u32 = ${BRAIN_LIMITS.recordWidth}`,
+    tokenCapacity: `u32 = ${BRAIN_LIMITS.frameTokens}`,
+    maxReferencesPerRecord: `u32 = ${BRAIN_LIMITS.maxReferencesPerRecord}`,
+
+    planHashLo: "u32 = 0",
+    planHashHi: "u32 = 0",
+    flags: "u32 = 0",
+    reserved0: "u32 = 0",
+  },
+
+  /**
+   * One SoA buffer in the plan. `bufferId` is a stable enum per plan version
+   * (see BINARY_LAYOUT_BUFFER_IDS). `elementCount` is the number of elements
+   * in the buffer; all buffers are u32 in v1, so byteSize = 4 * elementCount.
+   */
+  BinaryLayoutBufferDesc: {
+    bufferId: "u32",
+    elementCount: "u32",
+    byteSize: "u32",
+    flags: "u32 = 0",
+  },
+
+  BinaryLayoutPlan: {
+    header: "BinaryLayoutPlanHeader",
+    buffers: "BinaryLayoutBufferDesc[]",
+  },
+
+  /**
+   * The GPU-facing SoA lowering of `BrainFrame`.
+   *
+   * tokenIds/fieldRoles are indexed `[recordSlot * recordWidth + localToken]`;
+   * schemaIds/bandIds/recordFlags are indexed `[recordSlot]`; runtimeRefs is
+   * indexed `[recordSlot * maxReferencesPerRecord + localReference]`;
+   * activeRecordIndices lists occupied record slots in ascending order up to
+   * activeRecordCount. Every unused token position is PAD and masked.
+   */
+  BrainFrameGpu: {
+    header: "BinaryLayoutPlanHeader",
+    tokenIds: `u32[] == ${BRAIN_LIMITS.frameTokens}`,
+    fieldRoles: `u32[] == ${BRAIN_LIMITS.frameTokens}`,
+    schemaIds: `u32[] == ${BRAIN_LIMITS.frameRecordSlots}`,
+    bandIds: `u32[] == ${BRAIN_LIMITS.frameRecordSlots}`,
+    runtimeRefs: `u32[] == ${BRAIN_LIMITS.frameRecordSlots * BRAIN_LIMITS.maxReferencesPerRecord}`,
+    recordFlags: `u32[] == ${BRAIN_LIMITS.frameRecordSlots}`,
+    activeRecordIndices: `u32[] == ${BRAIN_LIMITS.frameRecordSlots}`,
   },
 
   // -----------------------------------------------------------------------
