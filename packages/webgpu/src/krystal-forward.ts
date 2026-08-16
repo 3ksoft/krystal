@@ -405,6 +405,43 @@ export class KrystalForward {
     return new Uint32Array(raw.buffer, raw.byteOffset, q);
   }
 
+  /**
+   * Read back both selector slots ([Q, R] P, [Q, H] gather, [Q] argmax
+   * indices) in one pass over the staging buffer. Test-only.
+   */
+  async readSelection(q: number, r: number, h: number): Promise<{
+    readonly intent: {
+      readonly p: Float32Array;
+      readonly gather: Float32Array;
+      readonly index: Uint32Array;
+    };
+    readonly argument: {
+      readonly p: Float32Array;
+      readonly gather: Float32Array;
+      readonly index: Uint32Array;
+    };
+  }> {
+    const A = KRYSTAL_FORWARD_ARENA;
+    const intentP = await this.readbackRegion(this.region(A.intentP, q * r), q * r);
+    const intentGather = await this.readbackRegion(this.region(A.intentGather, q * h), q * h);
+    const intentIdxRaw = await this.readbackRegion(this.region(A.intentIndices, q), q);
+    const argP = await this.readbackRegion(this.region(A.argP, q * r), q * r);
+    const argGather = await this.readbackRegion(this.region(A.argGather, q * h), q * h);
+    const argIdxRaw = await this.readbackRegion(this.region(A.argIndices, q), q);
+    return {
+      intent: {
+        p: intentP,
+        gather: intentGather,
+        index: new Uint32Array(intentIdxRaw.buffer, intentIdxRaw.byteOffset, q),
+      },
+      argument: {
+        p: argP,
+        gather: argGather,
+        index: new Uint32Array(argIdxRaw.buffer, argIdxRaw.byteOffset, q),
+      },
+    };
+  }
+
   destroy(): void {
     this.embeddingsPage.destroy();
     this.poolPage.destroy();

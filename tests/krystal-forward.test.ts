@@ -7,6 +7,9 @@ import { getTrainingHarness, createWeightPage, readArenaRegion, runPassWait, upl
 import { KRYSTAL_FORWARD_ARENA, KRYSTAL_FORWARD_ARENA_BASE } from "../packages/webgpu/src/lfm2-layout.ts";
 import { KrystalForward, type SelectionMasks } from "../packages/webgpu/src/krystal-forward.ts";
 import { ACTION_INTENT_SCHEMA_ID, buildFixtureFrame } from "../packages/krystal/src/fixtures/frame.ts";
+import { buildFixtureActionCatalog } from "../packages/krystal/src/fixtures/action-intents.ts";
+import { BRAIN_LIMITS } from "../packages/schema/src/krystal-engine-schema.ts";
+import { emitIntentSet } from "../packages/krystal/src/forward/intentset.ts";
 import { packBrainFrame } from "../packages/krystal/src/frame/packer.ts";
 import {
   compileActiveFrame,
@@ -346,6 +349,44 @@ test("composed forward: CPU/GPU parity on the canonical fixture frame", async ()
   // Sanity: outputs are finite and the mixer actually moved the query state.
   for (const values of [gpuBankKeys, gpuBankValues, gpuQueryOut]) {
     expect(Number.isFinite(values[0])).toBe(true);
+  }
+
+  // IntentSet emission (answer 27): the same host resolver must produce the
+  // same typed set from GPU and CPU selection heads — intentId, lifecycle,
+  // and exact argument handles resolved from the record sidecars.
+  const catalog = buildFixtureActionCatalog();
+  const gpuSet = emitIntentSet({
+    frame, active, catalog,
+    intentSchemaId: ACTION_INTENT_SCHEMA_ID,
+    intent: { p: gpuIntentP, gather: gpuIntentGather, index: gpuIntentIdx },
+    argument: { p: gpuArgP, gather: gpuArgGather, index: gpuArgIdx },
+    tick: 10,
+  }).intentSet;
+  const cpuSet = emitIntentSet({
+    frame, active, catalog,
+    intentSchemaId: ACTION_INTENT_SCHEMA_ID,
+    intent: cpuSel.intent,
+    argument: cpuSel.argument,
+    tick: 10,
+  }).intentSet;
+  expect(gpuSet.count).toBe(1);
+  expect(gpuSet.count).toBe(cpuSet.count);
+  const gpuProposal = gpuSet.proposals[0]!;
+  const cpuProposal = cpuSet.proposals[0]!;
+  expect(gpuProposal.lifecycle).toBe("start");
+  expect(gpuProposal.lifecycle).toBe(cpuProposal.lifecycle);
+  expect(gpuProposal.intentId).toBe(cpuProposal.intentId);
+  expect(gpuProposal.confidence).toBeCloseTo(cpuProposal.confidence, 4);
+  for (let k = 0; k < BRAIN_LIMITS.maxActionArguments; k++) {
+    expect(gpuProposal.arguments[k]!.kind).toBe(cpuProposal.arguments[k]!.kind);
+    expect(gpuProposal.arguments[k]!.selector.status).toBe(cpuProposal.arguments[k]!.selector.status);
+    expect(gpuProposal.arguments[k]!.handle.tokenId).toBe(cpuProposal.arguments[k]!.handle.tokenId);
+  }
+  // Whatever intent won, its argument must have resolved through a real
+  // sidecar handle or be explicitly masked — never a fabricated value.
+  const winner = gpuProposal.arguments[0]!;
+  if (winner.selector.status === "selected") {
+    expect(winner.handle.tokenId).not.toBe(0);
   }
   runner.destroy();
 });

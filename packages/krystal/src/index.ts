@@ -14,3 +14,4 @@ export * from "./fixtures/frame.ts";
 export * from "./forward/model.ts";
 export * from "./forward/masks.ts";
 export * from "./forward/oracle.ts";
+export * from "./forward/intentset.ts";
