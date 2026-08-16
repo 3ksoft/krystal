@@ -598,6 +598,20 @@ export function defineLfm2(bundle: Lfm2ShaderBundle = emptyLfm2ShaderBundle()) {
       },
     }),
 
+    // Typed decision head forward (§17 item 9): route-kind logits from the
+    // three gathered-context regions, linear head over the weight page.
+    krystal_decision_head: engine.compute({
+      label: "krystal_decision_head",
+      resources: { op: r.op, arena: r.arena, weight32: r.weight32 },
+      includes: commonIncludes,
+      compute: {
+        entryPoint: "krystal_decision_head",
+        params: widLid,
+        workgroupSize: 64,
+        code: sources.krystal_decision_head,
+      },
+    }),
+
     // M3 Krystal backward programs.
     relu_backward: engine.compute({
       label: "relu_backward",

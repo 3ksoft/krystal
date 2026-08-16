@@ -28,7 +28,7 @@ import {
   TRAINING_READBACK_ELEMENTS,
 } from "./lfm2-layout";
 import { lfm2, type Lfm2Definition } from "./lfm2";
-import { Lfm2Executor } from "./pass";
+import { Lfm2Executor, type Lfm2CommandEncoder } from "./pass";
 import {
   compileActiveFrame,
   compileMixerMask,
@@ -57,6 +57,30 @@ export interface SelectionMasks {
   readonly argMask: Float32Array;
 }
 
+/**
+ * Host-side state of one prepared frame: SoA payloads + masks already
+ * uploaded into the arena, plus the compiled active dimensions. The composed
+ * backward runner prepares once and reuses the same uploads for its forward.
+ */
+export interface PreparedForward {
+  readonly frame: v1_0_0.BrainFrameGpu;
+  readonly selection?: SelectionMasks;
+  readonly t: number; // active tokens
+  readonly r: number; // bank records
+  readonly q: number; // query records
+}
+
+/** Trainable weight pages owned by the forward runner (shared with backward). */
+export interface BrainForwardWeightPages {
+  readonly embeddings: GPUBuffer;
+  readonly enc: { wq: GPUBuffer; wk: GPUBuffer; wv: GPUBuffer; w1: GPUBuffer; w2: GPUBuffer }[];
+  readonly pool: GPUBuffer;
+  readonly mixer: { wq: GPUBuffer; wk: GPUBuffer; wv: GPUBuffer; w1: GPUBuffer; w2: GPUBuffer }[];
+  readonly selectorWq: GPUBuffer;
+  readonly selectorWk: GPUBuffer;
+  readonly decisionHead: GPUBuffer;
+}
+
 export class KrystalForward {
   private readonly definition: Lfm2Definition;
   private readonly config: BrainForwardConfig;
@@ -68,6 +92,7 @@ export class KrystalForward {
   private readonly mixerPages: { wq: GPUBuffer; wk: GPUBuffer; wv: GPUBuffer; w1: GPUBuffer; w2: GPUBuffer }[];
   private readonly selectorWqPage: GPUBuffer;
   private readonly selectorWkPage: GPUBuffer;
+  private readonly decisionHeadPage: GPUBuffer;
 
   constructor(
     weights: BrainForwardWeights,
@@ -103,6 +128,7 @@ export class KrystalForward {
     this.mixerPages = weights.mixer.map((block, b) => blockPages(`krystal.mixer${b}`, block));
     this.selectorWqPage = page("krystal.selector.wq", weights.selector.wq);
     this.selectorWkPage = page("krystal.selector.wk", weights.selector.wk);
+    this.decisionHeadPage = page("krystal.decision-head", weights.decisionHeadWh);
   }
 
   private region(offset: number, elements: number): number {
@@ -114,12 +140,11 @@ export class KrystalForward {
   }
 
   /**
-   * Run the encoder + mixer forward for one packed frame, GPU-resident.
-   * Uploads the SoA payloads, host-compiled active lists and masks, then
-   * dispatches the whole pipeline in one submit. Optional selector masks run
-   * the catalog selection + soft gather heads after the mixer.
+   * Upload the SoA payloads + host-compiled masks for one packed frame and
+   * return the compiled dimensions (t/r/q). The uploads live in the shared
+   * arena, so the composed backward runner prepares once and reuses them.
    */
-  forward(frame: v1_0_0.BrainFrameGpu, selection?: SelectionMasks): void {
+  prepare(frame: v1_0_0.BrainFrameGpu, selection?: SelectionMasks): PreparedForward {
     const { hiddenSize: h, ffnSize: ffn, headCount: heads, headDim, encoderBlocks, mixerBlocks } = this.config;
     const A = KRYSTAL_FORWARD_ARENA;
     const active = compileActiveFrame(frame);
@@ -167,6 +192,21 @@ export class KrystalForward {
       uploadF32(A.argMask, selection.argMask);
     }
 
+    return { frame, selection, t, r, q };
+  }
+
+  /**
+   * Dispatch the whole encoder + mixer + selection pipeline for a prepared
+   * frame. When `save` is set, per-block activations (block inputs, Q/K/V
+   * projections, attention probs, post-ReLU FFN states) are written into the
+   * stacked save regions for the composed backward runner; otherwise the
+   * scratch regions are reused per block as in the plain forward.
+   */
+  dispatchForward(encoder: Lfm2CommandEncoder, prepared: PreparedForward, save: boolean): void {
+    const { hiddenSize: h, ffnSize: ffn, headCount: heads, headDim, encoderBlocks, mixerBlocks } = this.config;
+    const { frame, selection, t, r, q } = prepared;
+    const A = KRYSTAL_FORWARD_ARENA;
+
     const fieldStates = this.region(A.fieldStates, t * h);
     const encQ = this.region(A.encQ, t * h);
     const encK = this.region(A.encK, t * h);
@@ -199,11 +239,43 @@ export class KrystalForward {
     const recordCompactOffset = this.region(A.recordCompactOffset, 128);
     const recordCompactCount = this.region(A.recordCompactCount, 128);
 
+    // Per-block save slices for the composed backward runner (M3 close).
+    const th = KRYSTAL_MAX_TOKENS * KRYSTAL_MAX_H;
+    const tf = KRYSTAL_MAX_TOKENS * KRYSTAL_MAX_FFN;
+    const hmEnc = KRYSTAL_MAX_HEADS * KRYSTAL_MAX_TOKENS * KRYSTAL_MAX_TOKENS;
+    const qh = KRYSTAL_MAX_QUERIES * KRYSTAL_MAX_H;
+    const rh = KRYSTAL_MAX_RECORDS * KRYSTAL_MAX_H;
+    const qf = KRYSTAL_MAX_QUERIES * KRYSTAL_MAX_FFN;
+    const hmMix = KRYSTAL_MAX_HEADS * KRYSTAL_MAX_QUERIES * KRYSTAL_MAX_RECORDS;
+    const slice = (base: number, b: number, stride: number, elements: number): number =>
+      this.region(base + b * stride, elements);
+    const encSave = save
+      ? {
+          in: (b: number) => slice(A.encSavedIn, b, th, t * h),
+          ffnIn: (b: number) => slice(A.encSavedFfnIn, b, th, t * h),
+          q: (b: number) => slice(A.encSavedQ, b, th, t * h),
+          k: (b: number) => slice(A.encSavedK, b, th, t * h),
+          v: (b: number) => slice(A.encSavedV, b, th, t * h),
+          p: (b: number) => slice(A.encSavedP, b, hmEnc, heads * t * t),
+          h1: (b: number) => slice(A.encSavedH1, b, tf, t * ffn),
+        }
+      : undefined;
+    const mixerSave = save
+      ? {
+          in: (b: number) => slice(A.mixerSavedIn, b, qh, q * h),
+          ffnIn: (b: number) => slice(A.mixerSavedFfnIn, b, qh, q * h),
+          q: (b: number) => slice(A.mixerSavedQ, b, qh, q * h),
+          k: (b: number) => slice(A.mixerSavedK, b, rh, r * h),
+          v: (b: number) => slice(A.mixerSavedV, b, rh, r * h),
+          p: (b: number) => slice(A.mixerSavedP, b, hmMix, heads * q * r),
+          h1: (b: number) => slice(A.mixerSavedH1, b, qf, q * ffn),
+        }
+      : undefined;
+
     const bases = embeddingTableBases(this.config);
 
-    this.executor.submit((encoder) => {
-      // 1. field embed -> fieldStates.
-      encoder.compute((pass) => pass.run("krystal_field_embed", {
+    // 1. field embed -> fieldStates.
+    encoder.compute((pass) => pass.run("krystal_field_embed", {
         inputOffset: this.region(A.tokenIds, 1024),
         auxOffset: this.region(A.fieldRoles, 1024),
         aux2Offset: this.region(A.schemaIds, 128),
@@ -218,31 +290,48 @@ export class KrystalForward {
       // 2. encoder blocks.
       for (let b = 0; b < encoderBlocks; b++) {
         const block = this.encPages[b]!;
-        for (const [page, out] of [[block.wq, encQ], [block.wk, encK], [block.wv, encV]] as const) {
+        const qOff = encSave ? encSave.q(b) : encQ;
+        const kOff = encSave ? encSave.k(b) : encK;
+        const vOff = encSave ? encSave.v(b) : encV;
+        const pOff = encSave ? encSave.p(b) : this.region(A.encP, heads * t * t);
+        const h1Off = encSave ? encSave.h1(b) : encH1;
+        if (encSave) {
+          encoder.compute((pass) => pass.run("arena_copy", {
+            inputOffset: fieldStates, outputOffset: encSave.in(b),
+            tokenCount: t, inputDim: h,
+          }));
+        }
+        for (const [page, out] of [[block.wq, qOff], [block.wk, kOff], [block.wv, vOff]] as const) {
           encoder.compute((pass) => pass.run("matmul_f32", {
             inputOffset: fieldStates, outputOffset: out,
             tokenCount: t, inputDim: h, outputDim: h, rowStart: 0, rowCount: h,
           }, page));
         }
         encoder.compute((pass) => pass.run("krystal_attention_forward", {
-          inputOffset: encQ, auxOffset: encK, aux2Offset: encV, aux3Offset: encMask,
-          outputOffset: encOut, aux4Offset: this.region(A.encP, heads * t * t),
+          inputOffset: qOff, auxOffset: kOff, aux2Offset: vOff, aux3Offset: encMask,
+          outputOffset: encOut, aux4Offset: pOff,
           tokenCount: t, inputDim: h, outputDim: headDim, u0: t, u1: heads,
         }));
         encoder.compute((pass) => pass.run("residual_add", {
           inputOffset: fieldStates, auxOffset: encOut, outputOffset: fieldStates,
           tokenCount: t, inputDim: h,
         }));
+        if (encSave) {
+          encoder.compute((pass) => pass.run("arena_copy", {
+            inputOffset: fieldStates, outputOffset: encSave.ffnIn(b),
+            tokenCount: t, inputDim: h,
+          }));
+        }
         // FFN: relu(x @ W1^T) @ W2^T, residual.
         encoder.compute((pass) => pass.run("matmul_f32", {
-          inputOffset: fieldStates, outputOffset: encH1,
+          inputOffset: fieldStates, outputOffset: h1Off,
           tokenCount: t, inputDim: h, outputDim: ffn, rowStart: 0, rowCount: ffn,
         }, block.w1));
         encoder.compute((pass) => pass.run("relu", {
-          inputOffset: encH1, outputOffset: encH1, tokenCount: t * ffn,
+          inputOffset: h1Off, outputOffset: h1Off, tokenCount: t * ffn,
         }));
         encoder.compute((pass) => pass.run("matmul_f32", {
-          inputOffset: encH1, outputOffset: encOut,
+          inputOffset: h1Off, outputOffset: encOut,
           tokenCount: t, inputDim: ffn, outputDim: h, rowStart: 0, rowCount: h,
         }, block.w2));
         encoder.compute((pass) => pass.run("residual_add", {
@@ -274,36 +363,53 @@ export class KrystalForward {
       // 4. mixer blocks (query -> bank cross-attention + ReLU FFN).
       for (let b = 0; b < mixerBlocks; b++) {
         const block = this.mixerPages[b]!;
+        const qOff = mixerSave ? mixerSave.q(b) : mixerQ;
+        const kOff = mixerSave ? mixerSave.k(b) : mixerK;
+        const vOff = mixerSave ? mixerSave.v(b) : mixerV;
+        const pOff = mixerSave ? mixerSave.p(b) : this.region(A.mixerP, heads * q * r);
+        const h1Off = mixerSave ? mixerSave.h1(b) : mixerH1;
+        if (mixerSave) {
+          encoder.compute((pass) => pass.run("arena_copy", {
+            inputOffset: queryValues, outputOffset: mixerSave.in(b),
+            tokenCount: q, inputDim: h,
+          }));
+        }
         encoder.compute((pass) => pass.run("matmul_f32", {
-          inputOffset: queryValues, outputOffset: mixerQ,
+          inputOffset: queryValues, outputOffset: qOff,
           tokenCount: q, inputDim: h, outputDim: h, rowStart: 0, rowCount: h,
         }, block.wq));
         encoder.compute((pass) => pass.run("matmul_f32", {
-          inputOffset: bankKeys, outputOffset: mixerK,
+          inputOffset: bankKeys, outputOffset: kOff,
           tokenCount: r, inputDim: h, outputDim: h, rowStart: 0, rowCount: h,
         }, block.wk));
         encoder.compute((pass) => pass.run("matmul_f32", {
-          inputOffset: bankValues, outputOffset: mixerV,
+          inputOffset: bankValues, outputOffset: vOff,
           tokenCount: r, inputDim: h, outputDim: h, rowStart: 0, rowCount: h,
         }, block.wv));
         encoder.compute((pass) => pass.run("krystal_attention_forward", {
-          inputOffset: mixerQ, auxOffset: mixerK, aux2Offset: mixerV, aux3Offset: mixerMaskOffset,
-          outputOffset: mixed, aux4Offset: this.region(A.mixerP, heads * q * r),
+          inputOffset: qOff, auxOffset: kOff, aux2Offset: vOff, aux3Offset: mixerMaskOffset,
+          outputOffset: mixed, aux4Offset: pOff,
           tokenCount: q, inputDim: h, outputDim: headDim, u0: r, u1: heads,
         }));
         encoder.compute((pass) => pass.run("residual_add", {
           inputOffset: queryValues, auxOffset: mixed, outputOffset: queryValues,
           tokenCount: q, inputDim: h,
         }));
+        if (mixerSave) {
+          encoder.compute((pass) => pass.run("arena_copy", {
+            inputOffset: queryValues, outputOffset: mixerSave.ffnIn(b),
+            tokenCount: q, inputDim: h,
+          }));
+        }
         encoder.compute((pass) => pass.run("matmul_f32", {
-          inputOffset: queryValues, outputOffset: mixerH1,
+          inputOffset: queryValues, outputOffset: h1Off,
           tokenCount: q, inputDim: h, outputDim: ffn, rowStart: 0, rowCount: ffn,
         }, block.w1));
         encoder.compute((pass) => pass.run("relu", {
-          inputOffset: mixerH1, outputOffset: mixerH1, tokenCount: q * ffn,
+          inputOffset: h1Off, outputOffset: h1Off, tokenCount: q * ffn,
         }));
         encoder.compute((pass) => pass.run("matmul_f32", {
-          inputOffset: mixerH1, outputOffset: mixed,
+          inputOffset: h1Off, outputOffset: mixed,
           tokenCount: q, inputDim: ffn, outputDim: h, rowStart: 0, rowCount: h,
         }, block.w2));
         encoder.compute((pass) => pass.run("residual_add", {
@@ -335,8 +441,60 @@ export class KrystalForward {
           aux4Offset: argP, aux5Offset: argIndices,
           tokenCount: q, inputDim: h, u0: r,
         }));
-      }
+
+        // 6. typed decision head: route-kind logits from the gathered context
+        // (query output + intent gather + argument gather; §17 item 9).
+        encoder.compute((pass) => pass.run("krystal_decision_head", {
+          inputOffset: queryValues, auxOffset: intentGather, aux2Offset: argGather,
+          outputOffset: this.region(A.decisionLogits, q * this.config.routeKindCount),
+          tokenCount: q, inputDim: h, outputDim: this.config.routeKindCount,
+        }, this.decisionHeadPage));
+    }
+  }
+
+  /** Run the full encoder + mixer + selection forward, GPU-resident. */
+  forward(frame: v1_0_0.BrainFrameGpu, selection?: SelectionMasks): void {
+    const prepared = this.prepare(frame, selection);
+    this.executor.submit((encoder) => this.dispatchForward(encoder, prepared, false));
+  }
+
+  /**
+   * One-submit entry point for the composed backward runner: dispatch the
+   * forward (optionally saving per-block activations) and then run the
+   * caller's backward/optimizer dispatches in the same submit.
+   */
+  submitPrepared(
+    prepared: PreparedForward,
+    save: boolean,
+    callback: (encoder: Lfm2CommandEncoder) => void,
+  ): void {
+    this.executor.submit((encoder) => {
+      this.dispatchForward(encoder, prepared, save);
+      callback(encoder);
     });
+  }
+
+  /** Trainable weight pages; shared with the composed backward runner. */
+  get weightPages(): BrainForwardWeightPages {
+    return {
+      embeddings: this.embeddingsPage,
+      enc: this.encPages,
+      pool: this.poolPage,
+      mixer: this.mixerPages,
+      selectorWq: this.selectorWqPage,
+      selectorWk: this.selectorWkPage,
+      decisionHead: this.decisionHeadPage,
+    };
+  }
+
+  /** Expose the shared definition (composed runner readbacks). */
+  getDefinition(): Lfm2Definition {
+    return this.definition;
+  }
+
+  /** Expose the model config (composed runner dispatch dims). */
+  getConfig(): BrainForwardConfig {
+    return this.config;
   }
 
   /** Copy one arena region into the staging buffer and read it back. */
@@ -400,6 +558,10 @@ export class KrystalForward {
   }
 
   /** Read back the argument selected bank indices [Q] (u32 payloads). Test-only. */
+  async readDecisionLogits(q: number, c: number): Promise<Float32Array> {
+    return this.readbackRegion(this.region(KRYSTAL_FORWARD_ARENA.decisionLogits, q * c), q * c);
+  }
+
   async readArgIndices(q: number): Promise<Uint32Array> {
     const raw = await this.readbackRegion(this.region(KRYSTAL_FORWARD_ARENA.argIndices, q), q);
     return new Uint32Array(raw.buffer, raw.byteOffset, q);

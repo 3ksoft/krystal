@@ -113,6 +113,7 @@ export function defineLfm2FromArtifact() {
     relu: engine.computeProgram("relu"),
     krystal_pool: engine.computeProgram("krystal_pool"),
     krystal_selector: engine.computeProgram("krystal_selector"),
+    krystal_decision_head: engine.computeProgram("krystal_decision_head"),
     // M3 Krystal backward programs.
     relu_backward: engine.computeProgram("relu_backward"),
     krystal_attention_backward_scores: engine.computeProgram("krystal_attention_backward_scores"),

@@ -26,6 +26,7 @@ import {
   attentionOracle,
   brainForwardOracle,
   brainSelectionOracle,
+  decisionHeadOracle,
   matmulOracle,
   reluOracle,
   selectorOracle,
@@ -316,11 +317,16 @@ test("composed forward: CPU/GPU parity on the canonical fixture frame", async ()
   const gpuArgP = await runner.readArgP(q, r);
   const gpuArgGather = await runner.readArgGather(q, hDim);
   const gpuArgIdx = await runner.readArgIndices(q);
+  const gpuDecisionLogits = await runner.readDecisionLogits(q, config.routeKindCount);
 
   const cpu = brainForwardOracle(frame, active, weights, config, recordMask, mixerMask);
   const cpuSel = brainSelectionOracle(
     cpu.queryOutput, cpu.bankKeys, cpu.bankValues,
     selection.intentMask, selection.argMask, weights.selector, hDim,
+  );
+  const cpuDecisionLogits = decisionHeadOracle(
+    cpu.queryOutput, cpuSel.intent.gather, cpuSel.argument.gather,
+    weights.decisionHeadWh, q, hDim, config.routeKindCount,
   );
 
   expect(r).toBe(7); // homeostasis, self, apple, memory, LOOK, EAT, WAIT
@@ -335,6 +341,7 @@ test("composed forward: CPU/GPU parity on the canonical fixture frame", async ()
   expect(maxAbsDiff(gpuArgP, cpuSel.argument.p)).toBeLessThanOrEqual(1e-4);
   expect(maxAbsDiff(gpuArgGather, cpuSel.argument.gather)).toBeLessThanOrEqual(1e-2);
   expect(Array.from(gpuArgIdx)).toEqual(Array.from(cpuSel.argument.index));
+  expect(maxAbsDiff(gpuDecisionLogits, cpuDecisionLogits)).toBeLessThanOrEqual(1e-2);
 
   // The intent selector must pick a catalog record (schemaId 5) and the
   // argument selector an Apple/VisionObject record, never a masked one.

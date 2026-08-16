@@ -350,3 +350,38 @@ export function brainSelectionOracle(
 }
 
 export { NEG_INF };
+
+/**
+ * Typed decision head forward (§17 item 9): route-kind logits from the
+ * concatenated gathered context (query output + intent gather + argument
+ * gather, HIN = 3H). Mirrors krystal_decision_head.wgsl exactly.
+ *
+ *   logits[q,c] = sum_{d in [0,3H)} ctx[q,d] * Wh[c,d]
+ */
+export function decisionHeadOracle(
+  queryOutput: Float32Array, // [Q, H]
+  intentGather: Float32Array, // [Q, H]
+  argGather: Float32Array, // [Q, H]
+  wh: Float32Array, // [C, 3H] row-major
+  q: number,
+  h: number,
+  c: number,
+): Float32Array {
+  const hin = 3 * h;
+  const logits = new Float32Array(q * c);
+  for (let i = 0; i < q; i++) {
+    for (let cl = 0; cl < c; cl++) {
+      let s = 0;
+      for (let d = 0; d < hin; d++) {
+        const ctx = d < h
+          ? queryOutput[i * h + d]!
+          : d < 2 * h
+            ? intentGather[i * h + (d - h)]!
+            : argGather[i * h + (d - 2 * h)]!;
+        s += ctx * wh[cl * hin + d]!;
+      }
+      logits[i * c + cl] = s;
+    }
+  }
+  return logits;
+}

@@ -37,6 +37,8 @@ export interface BrainForwardConfig {
   readonly bandSpace: number;
   readonly streamSpace: number;
   readonly posSpace: number;
+  /** Typed decision head class count (route kinds, architecture v2 §9). */
+  readonly routeKindCount: number;
 }
 
 export const BRAIN_FORWARD_CONFIG: BrainForwardConfig = {
@@ -52,6 +54,7 @@ export const BRAIN_FORWARD_CONFIG: BrainForwardConfig = {
   bandSpace: 11, // frameBands
   streamSpace: 2, // record / query
   posSpace: 8, // recordWidth (learned record-local positions 0..7)
+  routeKindCount: 4, // DIRECT / ACTION / ALU / NONE (provisional fixture set)
 };
 
 export interface EmbeddingTableLayout {
@@ -125,6 +128,12 @@ export interface BrainForwardWeights {
    * across selector slots; per-slot projections are a later ablation.
    */
   readonly selector: SelectorWeights;
+  /**
+   * Typed decision head weights [routeKindCount, 3H]: logits over route kinds
+   * from the concatenated gathered context (query output + intent gather +
+   * argument gather; architecture v2 §12.9). Row-major like matmul weights.
+   */
+  readonly decisionHeadWh: Float32Array;
 }
 
 /** Deterministic mulberry32 PRNG (same helper as the training tests). */
@@ -204,6 +213,7 @@ export function createBrainForwardWeights(
     pool,
     mixer,
     selector: { wq: xavierUniform(h, h, rand), wk: xavierUniform(h, h, rand) },
+    decisionHeadWh: xavierUniform(config.routeKindCount, 3 * h, rand),
   };
 }
 
@@ -250,6 +260,10 @@ export function validateBrainForwardWeights(
   }
   require(weights.selector.wq.length === h * h, "selector.wq size");
   require(weights.selector.wk.length === h * h, "selector.wk size");
+  require(
+    weights.decisionHeadWh.length === config.routeKindCount * 3 * h,
+    "decision head weight size",
+  );
 }
 
 /** Typed brain-stream id list per record slot (from band id). */

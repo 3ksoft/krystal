@@ -14,9 +14,22 @@
  *   krystal_decision_head_backward     -> decisionHeadBackward
  */
 import type { v1_0_0 } from "../../../schema/generated/krystal.types.ts";
-import { embeddingTableBases, type BrainForwardConfig } from "./model.ts";
+import {
+  BRAIN_FORWARD_CONFIG,
+  embeddingTableBases,
+  type BlockWeights,
+  type BrainForwardConfig,
+  type BrainForwardWeights,
+} from "./model.ts";
 import type { ActiveFrame } from "./masks.ts";
-import { softmaxRow } from "./oracle.ts";
+import {
+  addInPlace,
+  decisionHeadOracle,
+  matmulOracle,
+  reluOracle,
+  selectorOracle,
+  softmaxRow,
+} from "./oracle.ts";
 
 /** dIn[i] = (out[i] > 0) ? dOut[i] : 0. Mirrors relu_backward.wgsl. */
 export function reluBackward(out: Float32Array, dOut: Float32Array): Float32Array {
@@ -419,4 +432,362 @@ export function decisionHeadBackward(
     }
   }
   return { dQueryOutput, dIntentGather, dArgGather, dWh };
+}
+
+// ---------------------------------------------------------------------------
+// Composed CPU backward reference (M3 close, §17 item 10)
+// ---------------------------------------------------------------------------
+
+export interface BrainBackwardResult {
+  readonly dFieldStates: Float32Array; // [T, H]
+  readonly dQueryValues: Float32Array; // [Q, H] (mixed query gradient)
+  readonly dBankKeys: Float32Array; // [R, H]
+  readonly dBankValues: Float32Array; // [R, H]
+  readonly dPool: Float32Array; // [2, H]
+  readonly dSelectorWq: Float32Array; // [H, H]
+  readonly dSelectorWk: Float32Array; // [H, H]
+  readonly dDecisionWh: Float32Array; // [C, 3H]
+  readonly dQueryOutput: Float32Array; // [Q, H]
+  readonly dIntentGather: Float32Array; // [Q, H]
+  readonly dArgGather: Float32Array; // [Q, H]
+}
+
+/** dX = dY @ W with W [N, K] row-major (mirrors matmul_backward_input). */
+function matmulBackInput(dY: Float32Array, w: Float32Array, m: number, n: number, k: number): Float32Array {
+  const dX = new Float32Array(m * k);
+  for (let i = 0; i < m; i++) {
+    for (let j = 0; j < k; j++) {
+      let s = 0;
+      for (let l = 0; l < n; l++) s += dY[i * n + l]! * w[l * k + j]!;
+      dX[i * k + j] = s;
+    }
+  }
+  return dX;
+}
+
+/** dW = dY^T @ X with W [N, K] (mirrors matmul_backward_weight). */
+function matmulBackWeight(dY: Float32Array, x: Float32Array, m: number, n: number, k: number): Float32Array {
+  const dW = new Float32Array(n * k);
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < k; j++) {
+      let s = 0;
+      for (let l = 0; l < m; l++) s += dY[l * n + i]! * x[l * k + j]!;
+      dW[i * k + j] = s;
+    }
+  }
+  return dW;
+}
+
+/** Multi-head masked attention returning both the output and P [heads,q,k]. */
+function attentionWithP(
+  q: Float32Array,
+  k: Float32Array,
+  v: Float32Array,
+  mask: Float32Array,
+  qRows: number,
+  kRows: number,
+  h: number,
+  heads: number,
+  headDim: number,
+): { out: Float32Array; p: Float32Array } {
+  const out = new Float32Array(qRows * h);
+  const p = new Float32Array(heads * qRows * kRows);
+  const scores = new Float32Array(kRows);
+  const scale = 1 / Math.sqrt(headDim);
+  for (let head = 0; head < heads; head++) {
+    const hb = head * headDim;
+    for (let i = 0; i < qRows; i++) {
+      for (let j = 0; j < kRows; j++) {
+        let s = 0;
+        for (let d = 0; d < headDim; d++) s += q[i * h + hb + d]! * k[j * h + hb + d]!;
+        scores[j] = s * scale + mask[i * kRows + j]!;
+      }
+      softmaxRow(scores, 0, kRows);
+      for (let j = 0; j < kRows; j++) p[(head * qRows + i) * kRows + j] = scores[j]!;
+      for (let d = 0; d < headDim; d++) {
+        let value = 0;
+        for (let j = 0; j < kRows; j++) value += scores[j]! * v[j * h + hb + d]!;
+        out[i * h + hb + d] = value;
+      }
+    }
+  }
+  return { out, p };
+}
+
+/** Record pooling returning {key, value} [H] each (mirrors the forward). */
+function poolKeyValue(
+  fieldStates: Float32Array,
+  start: number,
+  count: number,
+  pool: Float32Array,
+  h: number,
+): { key: Float32Array; value: Float32Array } {
+  const key = new Float32Array(h);
+  const value = new Float32Array(h);
+  if (count === 0) return { key, value };
+  const scale = 1 / Math.sqrt(h);
+  const keyScores = new Float32Array(count);
+  const valueScores = new Float32Array(count);
+  for (let j = 0; j < count; j++) {
+    let ks = 0;
+    let vs = 0;
+    for (let d = 0; d < h; d++) {
+      const s = fieldStates[(start + j) * h + d]!;
+      ks += pool[d]! * s;
+      vs += pool[h + d]! * s;
+    }
+    keyScores[j] = ks * scale;
+    valueScores[j] = vs * scale;
+  }
+  softmaxRow(keyScores, 0, count);
+  softmaxRow(valueScores, 0, count);
+  for (let d = 0; d < h; d++) {
+    let kAcc = 0;
+    let vAcc = 0;
+    for (let j = 0; j < count; j++) {
+      const s = fieldStates[(start + j) * h + d]!;
+      kAcc += keyScores[j]! * s;
+      vAcc += valueScores[j]! * s;
+    }
+    key[d] = kAcc;
+    value[d] = vAcc;
+  }
+  return { key, value };
+}
+
+/** The six additive embeddings for the active token range (mirrors forward). */
+function fieldEmbedCpu(
+  frame: v1_0_0.BrainFrameGpu,
+  active: ActiveFrame,
+  config: BrainForwardConfig,
+  weights: BrainForwardWeights,
+): Float32Array {
+  const { hiddenSize: h } = config;
+  const bases = embeddingTableBases(config);
+  const table = weights.embeddings;
+  const states = new Float32Array(active.activeTokens.length * h);
+  for (let t = 0; t < active.activeTokens.length; t++) {
+    const frameTok = active.activeTokens[t]!;
+    const slot = frameTok >> 3; // record width is the frozen ABI value 8
+    const local = frameTok & 7;
+    const tok = frame.tokenIds[frameTok]!;
+    const role = frame.fieldRoles[frameTok]!;
+    const schema = frame.schemaIds[slot]!;
+    const band = frame.bandIds[slot]!;
+    const stream = active.streamIds[slot]!;
+    for (let d = 0; d < h; d++) {
+      let value = 0;
+      value += table[bases.token + tok * h + d]!;
+      value += table[bases.field + role * h + d]!;
+      value += table[bases.schema + schema * h + d]!;
+      value += table[bases.band + band * h + d]!;
+      value += table[bases.stream + stream * h + d]!;
+      value += table[bases.pos + local * h + d]!;
+      states[t * h + d] = value;
+    }
+  }
+  return states;
+}
+
+interface SavedBlock {
+  in: Float32Array;
+  ffnIn: Float32Array;
+  q: Float32Array;
+  k: Float32Array;
+  v: Float32Array;
+  p: Float32Array;
+  h1: Float32Array;
+}
+
+export interface BrainBackwardOracleInput {
+  readonly frame: v1_0_0.BrainFrameGpu;
+  readonly active: ActiveFrame;
+  readonly weights: BrainForwardWeights;
+  readonly config?: BrainForwardConfig;
+  readonly recordMask: Float32Array;
+  readonly mixerMask: Float32Array;
+  readonly intentMask: Float32Array;
+  readonly argMask: Float32Array;
+  readonly routeKinds: readonly number[];
+  /** Pointer-loss targets [Q] for the argument selector; default none. */
+  readonly argGold?: readonly number[];
+}
+
+/**
+ * Composed CPU backward for the full Krystal graph (M3 close, §17 item 10).
+ * Mirrors the KrystalBackward runner's dispatch order exactly: forward with
+ * per-block saves -> cross-entropy -> decision head -> both selectors -> mixer
+ * reverse -> pool -> encoder reverse. Only the gradients whose regions the
+ * composed runner exposes for parity are returned (per-block dW regions are
+ * consumed by SGD in the runner and reused across blocks).
+ */
+export function brainBackwardOracle(
+  input: BrainBackwardOracleInput,
+): BrainBackwardResult {
+  const {
+    frame, active, weights, recordMask, mixerMask, intentMask, argMask, routeKinds, argGold,
+  } = input;
+  const config = input.config ?? BRAIN_FORWARD_CONFIG;
+  const { hiddenSize: h, ffnSize: ffn, headCount: heads, headDim, encoderBlocks, mixerBlocks, routeKindCount: C } = config;
+  const t = active.activeTokens.length;
+  const r = active.bankRecords.length;
+  const q = active.queryRecords.length;
+  const zeroQ = new Float32Array(q * h);
+
+  // --- forward with per-block saves ---
+  let x = fieldEmbedCpu(frame, active, config, weights);
+  const enc: SavedBlock[] = [];
+  for (let b = 0; b < encoderBlocks; b++) {
+    const block = weights.enc[b]!;
+    const sIn = Float32Array.from(x);
+    const qq = matmulOracle(x, block.wq, h, h);
+    const kk = matmulOracle(x, block.wk, h, h);
+    const vv = matmulOracle(x, block.wv, h, h);
+    const attn = attentionWithP(qq, kk, vv, recordMask, t, t, h, heads, headDim);
+    addInPlace(x, attn.out);
+    const sFfnIn = Float32Array.from(x);
+    const h1 = reluOracle(matmulOracle(x, block.w1, ffn, h));
+    const ff = matmulOracle(h1, block.w2, h, ffn);
+    addInPlace(x, ff);
+    enc.push({ in: sIn, ffnIn: sFfnIn, q: qq, k: kk, v: vv, p: attn.p, h1 });
+  }
+
+  const bankKeys = new Float32Array(r * h);
+  const bankValues = new Float32Array(r * h);
+  for (let i = 0; i < r; i++) {
+    const slot = active.bankRecords[i]!;
+    const start = active.recordCompactOffset[slot]!;
+    const count = active.recordCompactCount[slot]!;
+    const kv = poolKeyValue(x, start, count, weights.pool, h);
+    bankKeys.set(kv.key, i * h);
+    bankValues.set(kv.value, i * h);
+  }
+  const queryKeys = new Float32Array(q * h);
+  const queryValues = new Float32Array(q * h);
+  for (let i = 0; i < q; i++) {
+    const slot = active.queryRecords[i]!;
+    const start = active.recordCompactOffset[slot]!;
+    const count = active.recordCompactCount[slot]!;
+    const kv = poolKeyValue(x, start, count, weights.pool, h);
+    queryKeys.set(kv.key, i * h);
+    queryValues.set(kv.value, i * h);
+  }
+
+  const mixer: SavedBlock[] = [];
+  const query = queryValues;
+  for (let b = 0; b < mixerBlocks; b++) {
+    const block = weights.mixer[b]!;
+    const sIn = Float32Array.from(query);
+    const qq = matmulOracle(query, block.wq, h, h);
+    const kk = matmulOracle(bankKeys, block.wk, h, h);
+    const vv = matmulOracle(bankValues, block.wv, h, h);
+    const attn = attentionWithP(qq, kk, vv, mixerMask, q, r, h, heads, headDim);
+    addInPlace(query, attn.out);
+    const sFfnIn = Float32Array.from(query);
+    const h1 = reluOracle(matmulOracle(query, block.w1, ffn, h));
+    const ff = matmulOracle(h1, block.w2, h, ffn);
+    addInPlace(query, ff);
+    mixer.push({ in: sIn, ffnIn: sFfnIn, q: qq, k: kk, v: vv, p: attn.p, h1 });
+  }
+  const queryOutput = query;
+
+  const selector = weights.selector;
+  const intent = selectorOracle(queryOutput, bankKeys, bankValues, intentMask, selector, h);
+  const argument = selectorOracle(queryOutput, bankKeys, bankValues, argMask, selector, h);
+  const logits = decisionHeadOracle(queryOutput, intent.gather, argument.gather, weights.decisionHeadWh, q, h, C);
+
+  // --- loss: mean CE, dLogits = (softmax - onehot) / Q ---
+  const dLogits = new Float32Array(q * C);
+  for (let i = 0; i < q; i++) {
+    const probs = Float32Array.from(logits.subarray(i * C, i * C + C));
+    softmaxRow(probs, 0, C);
+    const gold = routeKinds[i]!;
+    for (let c = 0; c < C; c++) dLogits[i * C + c] = (probs[c]! - (c === gold ? 1 : 0)) / q;
+  }
+
+  // --- decision head backward ---
+  const dh = decisionHeadBackward(dLogits, queryOutput, intent.gather, argument.gather, weights.decisionHeadWh, q, h, C);
+
+  // --- selectors (both slots accumulate into shared dQProj/dKProj/dValue) ---
+  const argTargets = argGold ?? new Array<number>(q).fill(0xffff_ffff);
+  const noTargets = new Array<number>(q).fill(0xffff_ffff);
+  const dQProj = new Float32Array(q * h);
+  const dKProj = new Float32Array(r * h);
+  const dValue = new Float32Array(r * h);
+  const selQProj = matmulOracle(queryOutput, selector.wq, h, h); // [Q, H]
+  const selKProj = matmulOracle(bankKeys, selector.wk, h, h); // [R, H]
+  for (const [dGather, p, gold] of [
+    [dh.dIntentGather, intent.p, noTargets],
+    [dh.dArgGather, argument.p, argTargets],
+  ] as const) {
+    const dScore = selectorBackwardScores(dGather, bankValues, p, gold as number[], q, r, h);
+    const g = selectorBackwardQkv(dScore, selQProj, selKProj, p, dGather, q, r, h);
+    addInPlace(dQProj, g.dQProj);
+    addInPlace(dKProj, g.dKProj);
+    addInPlace(dValue, g.dValue);
+  }
+
+  let dQueryValues = Float32Array.from(dh.dQueryOutput);
+  addInPlace(dQueryValues, matmulBackInput(dQProj, selector.wq, q, h, h));
+  const dBankKeys = matmulBackInput(dKProj, selector.wk, r, h, h);
+  const dBankValues = Float32Array.from(dValue);
+  const dSelectorWq = matmulBackWeight(dQProj, queryOutput, q, h, h);
+  const dSelectorWk = matmulBackWeight(dKProj, bankKeys, r, h, h);
+
+  // --- mixer blocks reverse ---
+  for (let b = mixerBlocks - 1; b >= 0; b--) {
+    const block = weights.mixer[b]!;
+    const s = mixer[b]!;
+    const dH1r = matmulBackInput(dQueryValues, block.w2, q, h, ffn); // dFfnOut @ W2
+    const dH1p = reluBackward(s.h1, dH1r);
+    const dFfnIn = matmulBackInput(dH1p, block.w1, q, ffn, h); // dH1p @ W1
+    const dAttnOut = new Float32Array(q * h);
+    for (let i = 0; i < q * h; i++) dAttnOut[i] = dQueryValues[i]! + dFfnIn[i]!;
+    const dScores = attentionBackwardScores(dAttnOut, s.v, s.p, q, r, heads, headDim);
+    const { dQ, dK, dV } = attentionBackwardQkv(dScores, s.q, s.k, s.p, dAttnOut, q, r, heads, headDim);
+    dQueryValues = Float32Array.from(dAttnOut);
+    addInPlace(dQueryValues, matmulBackInput(dQ, block.wq, q, h, h));
+    addInPlace(dBankKeys, matmulBackInput(dK, block.wk, r, h, h));
+    addInPlace(dBankValues, matmulBackInput(dV, block.wv, r, h, h));
+  }
+
+  // --- pool backward (bank + query), then encoder blocks reverse ---
+  const dFieldStates = new Float32Array(t * h);
+  const dPool = new Float32Array(2 * h);
+  const bank = poolBackward(x, Array.from(active.bankRecords), Array.from(active.recordCompactOffset), Array.from(active.recordCompactCount), weights.pool, dBankKeys, dBankValues, h);
+  const queryP = poolBackward(x, Array.from(active.queryRecords), Array.from(active.recordCompactOffset), Array.from(active.recordCompactCount), weights.pool, zeroQ, dQueryValues, h);
+  addInPlace(dFieldStates, bank.dFieldStates);
+  addInPlace(dFieldStates, queryP.dFieldStates);
+  addInPlace(dPool, bank.dPool);
+  addInPlace(dPool, queryP.dPool);
+
+  for (let b = encoderBlocks - 1; b >= 0; b--) {
+    const block = weights.enc[b]!;
+    const s = enc[b]!;
+    const dH1r = matmulBackInput(dFieldStates, block.w2, t, h, ffn); // dFfnOut @ W2
+    const dH1p = reluBackward(s.h1, dH1r);
+    const dFfnIn = matmulBackInput(dH1p, block.w1, t, ffn, h); // dH1p @ W1
+    const dAttnOut = new Float32Array(t * h);
+    for (let i = 0; i < t * h; i++) dAttnOut[i] = dFieldStates[i]! + dFfnIn[i]!;
+    const dScores = attentionBackwardScores(dAttnOut, s.v, s.p, t, t, heads, headDim);
+    const { dQ, dK, dV } = attentionBackwardQkv(dScores, s.q, s.k, s.p, dAttnOut, t, t, heads, headDim);
+    dFieldStates.set(dAttnOut);
+    addInPlace(dFieldStates, matmulBackInput(dQ, block.wq, t, h, h));
+    addInPlace(dFieldStates, matmulBackInput(dK, block.wk, t, h, h));
+    addInPlace(dFieldStates, matmulBackInput(dV, block.wv, t, h, h));
+  }
+
+  return {
+    dFieldStates,
+    dQueryValues,
+    dBankKeys,
+    dBankValues,
+    dPool,
+    dSelectorWq,
+    dSelectorWk,
+    dDecisionWh: dh.dWh,
+    dQueryOutput: dh.dQueryOutput,
+    dIntentGather: dh.dIntentGather,
+    dArgGather: dh.dArgGather,
+  };
 }

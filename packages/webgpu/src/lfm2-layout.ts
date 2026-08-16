@@ -202,6 +202,7 @@ export const KRYSTAL_MAX_FFN = 384; // first profile FFN size (answer 9)
 export const KRYSTAL_MAX_HEADS = 4; // first profile full attention heads (answer 11)
 export const KRYSTAL_MAX_QUERIES = 8; // maxQueries
 export const KRYSTAL_MAX_ROUTE_KINDS = 8; // typed decision-head classes (capacity, not ABI)
+export const KRYSTAL_MAX_BLOCKS = 2; // shared capacity for encoder + mixer block stacks
 
 export interface KrystalForwardArenaLayout {
   // SoA frame inputs (u32 payloads bitcast in shaders) + host-compiled lists.
@@ -249,6 +250,27 @@ export interface KrystalForwardArenaLayout {
   argP: number; // [maxQueries, maxRecords]
   argGather: number; // [maxQueries, H]
   argIndices: number; // [maxQueries]
+  decisionLogits: number; // [maxQueries, routeKinds] (typed decision head)
+
+  // Per-block saved activations for the composed backward runner (M3 close,
+  // §17 item 10). The forward mutates fieldStates/queryValues in place and
+  // overwrites the Q/K/V/P/H1 scratch per block, so backward needs block b's
+  // inputs and intermediates. Stacked [maxBlocks, ...] regions; each block's
+  // slice is written by the forward when saving is enabled.
+  encSavedIn: number; // [maxBlocks, maxTokens, H]    block input (fieldStates before block)
+  encSavedFfnIn: number; // [maxBlocks, maxTokens, H]  x1 = fieldStates after attention residual
+  encSavedQ: number; // [maxBlocks, maxTokens, H]
+  encSavedK: number; // [maxBlocks, maxTokens, H]
+  encSavedV: number; // [maxBlocks, maxTokens, H]
+  encSavedP: number; // [maxBlocks, maxHeads, maxTokens, maxTokens]
+  encSavedH1: number; // [maxBlocks, maxTokens, FFN]  post-ReLU
+  mixerSavedIn: number; // [maxBlocks, maxQueries, H]
+  mixerSavedFfnIn: number; // [maxBlocks, maxQueries, H]
+  mixerSavedQ: number; // [maxBlocks, maxQueries, H]
+  mixerSavedK: number; // [maxBlocks, maxRecords, H]
+  mixerSavedV: number; // [maxBlocks, maxRecords, H]
+  mixerSavedP: number; // [maxBlocks, maxHeads, maxQueries, maxRecords]
+  mixerSavedH1: number; // [maxBlocks, maxQueries, FFN]  post-ReLU
   elements: number;
 }
 
@@ -307,6 +329,23 @@ function createKrystalForwardArenaLayout(): KrystalForwardArenaLayout {
     argP: take(KRYSTAL_MAX_QUERIES * KRYSTAL_MAX_RECORDS),
     argGather: take(qh),
     argIndices: take(KRYSTAL_MAX_QUERIES),
+    decisionLogits: take(KRYSTAL_MAX_QUERIES * KRYSTAL_MAX_ROUTE_KINDS),
+
+    // Per-block saved activations (composed backward runner).
+    encSavedIn: take(KRYSTAL_MAX_BLOCKS * th),
+    encSavedFfnIn: take(KRYSTAL_MAX_BLOCKS * th),
+    encSavedQ: take(KRYSTAL_MAX_BLOCKS * th),
+    encSavedK: take(KRYSTAL_MAX_BLOCKS * th),
+    encSavedV: take(KRYSTAL_MAX_BLOCKS * th),
+    encSavedP: take(KRYSTAL_MAX_BLOCKS * KRYSTAL_MAX_HEADS * KRYSTAL_MAX_TOKENS * KRYSTAL_MAX_TOKENS),
+    encSavedH1: take(KRYSTAL_MAX_BLOCKS * tf),
+    mixerSavedIn: take(KRYSTAL_MAX_BLOCKS * qh),
+    mixerSavedFfnIn: take(KRYSTAL_MAX_BLOCKS * qh),
+    mixerSavedQ: take(KRYSTAL_MAX_BLOCKS * qh),
+    mixerSavedK: take(KRYSTAL_MAX_BLOCKS * rh),
+    mixerSavedV: take(KRYSTAL_MAX_BLOCKS * rh),
+    mixerSavedP: take(KRYSTAL_MAX_BLOCKS * KRYSTAL_MAX_HEADS * KRYSTAL_MAX_QUERIES * KRYSTAL_MAX_RECORDS),
+    mixerSavedH1: take(KRYSTAL_MAX_BLOCKS * KRYSTAL_MAX_QUERIES * KRYSTAL_MAX_FFN),
     elements: cursor,
   };
 }
@@ -367,6 +406,15 @@ export interface KrystalBackwardArenaLayout {
   dSelectorValue: number; // [maxRecords, H]
   selectorGold: number; // [maxQueries]
 
+  // Composed runner additions (M3 close): selector weight gradients, the
+  // optional pointer-loss targets for the argument slot, and the query-side
+  // pool-gradient accumulator (the shared dPool is reduced per dispatch, so
+  // the second pool needs its own target before residual accumulation).
+  dSelectorWq: number; // [H, H]
+  dSelectorWk: number; // [H, H]
+  argGold: number; // [maxQueries]
+  dPool2: number; // [2, H]
+
   // Typed decision head backward (§17 item 9): the final linear head over the
   // gathered context (query output + intent gather + arg gather, HIN = 3H)
   // producing route-kind logits. dLogits [Q, C] is the upstream cross-entropy
@@ -423,6 +471,10 @@ function createKrystalBackwardArenaLayout(): KrystalBackwardArenaLayout {
     dSelectorKProj: take(rh),
     dSelectorValue: take(rh),
     selectorGold: take(KRYSTAL_MAX_QUERIES),
+    dSelectorWq: take(hh),
+    dSelectorWk: take(hh),
+    argGold: take(KRYSTAL_MAX_QUERIES),
+    dPool2: take(2 * KRYSTAL_MAX_H),
     dDecisionLogits: take(KRYSTAL_MAX_QUERIES * KRYSTAL_MAX_ROUTE_KINDS),
     dDecisionQuery: take(KRYSTAL_MAX_QUERIES * KRYSTAL_MAX_H),
     dDecisionIntent: take(KRYSTAL_MAX_QUERIES * KRYSTAL_MAX_H),
@@ -557,6 +609,7 @@ export const KRYSTAL_FORWARD_SHADER_NAMES = [
   "relu",
   "krystal_pool",
   "krystal_selector",
+  "krystal_decision_head",
 ] as const;
 
 export type KrystalForwardShaderName = (typeof KRYSTAL_FORWARD_SHADER_NAMES)[number];
@@ -818,6 +871,9 @@ export function defineLfm2Passes(
       [required(op.tokenCount, "tokenCount"), 1, 1]),
 
     krystal_selector: definePass(programs.krystal_selector, "none", (op) =>
+      [1, required(op.tokenCount, "tokenCount"), 1]),
+
+    krystal_decision_head: definePass(programs.krystal_decision_head, "f32", (op) =>
       [1, required(op.tokenCount, "tokenCount"), 1]),
 
     // --- M3 Krystal backward passes ---
