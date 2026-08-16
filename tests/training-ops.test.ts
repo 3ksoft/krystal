@@ -105,7 +105,7 @@ test("cross_entropy_forward_backward matches CE oracle (stable softmax)", async 
   });
   const dLogits = await readArenaRegion(h, OFFSETS.output, m * v);
   const lossRows = await readArenaRegion(h, OFFSETS.aux, m);
-  const ref = crossEntropyForwardBackward(logits, targets, v);
+  const ref = crossEntropyForwardBackward(logits, Array.from(targets), v);
   expectClose(dLogits, ref.dLogits, "dLogits");
   expectClose(lossRows, ref.lossRows, "lossRows");
   // loss must be finite and the target row must dominate after softmax.
@@ -128,7 +128,7 @@ test("cross_entropy with large row range stays finite (row max subtracted)", asy
   const lossRows = await readArenaRegion(h, OFFSETS.aux, m);
   expect([...lossRows].every(Number.isFinite)).toBe(true);
   expect([...dLogits].every(Number.isFinite)).toBe(true);
-  const ref = crossEntropyForwardBackward(logits, targets, v);
+  const ref = crossEntropyForwardBackward(logits, Array.from(targets), v);
   expectClose(lossRows, ref.lossRows, "lossRows.wide");
 });
 
@@ -186,7 +186,7 @@ test("embedding_backward accumulates repeated token ids", async () => {
     tokenCount: m, inputDim: v, outputDim: hDim, u0: 0,
   });
   const out = await readArenaRegion(h, OFFSETS.output, v * hDim);
-  const expected = embeddingBackward(dHidden, tokens, m, v, hDim);
+  const expected = embeddingBackward(dHidden, Array.from(tokens), m, v, hDim);
   expectClose(out, expected, "dEmbedding");
   // Spot check: token 2 row = dHidden[0] + dHidden[2].
   for (let col = 0; col < hDim; col++) {
