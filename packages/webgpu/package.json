@@ -5,21 +5,13 @@
   "exports": "./src/index.ts",
   "scripts": {
     "artifact:build": "bun run ./scripts/build-lfm2-artifact.ts",
-    "shaders:build": "bun run ./scripts/build-vision-shaders.ts",
     "build:shaders": "deno run --allow-read --sloppy-imports scripts/validate-lfm2-shaders.ts",
-    "build:shaders:full": "deno run --allow-read --sloppy-imports scripts/validate-lfm2-shaders.ts --full",
-    "dev": "bun run artifact:build && vite --config vite.config.ts",
-    "build:browser": "bun run artifact:build && vite build --config vite.config.ts"
+    "build:shaders:full": "deno run --allow-read --sloppy-imports scripts/validate-lfm2-shaders.ts --full"
   },
   "devDependencies": {
     "@types/deno": "^2.7.0",
     "@types/node": "^26.1.2",
     "@webgpu/types": "^0.1.71",
-    "vite": "^8.2.0",
     "@sandblaster/core": "link:@sandblaster/core"
-  },
-  "dependencies": {
-    "@chomato/engine-ts": "workspace:*",
-    "@chomato/bridge": "workspace:*"
   }
 }
