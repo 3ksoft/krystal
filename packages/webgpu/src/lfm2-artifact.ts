@@ -122,6 +122,7 @@ export function defineLfm2FromArtifact() {
     krystal_pool_dpool: engine.computeProgram("krystal_pool_dpool"),
     krystal_selector_backward_scores: engine.computeProgram("krystal_selector_backward_scores"),
     krystal_selector_backward_qkv: engine.computeProgram("krystal_selector_backward_qkv"),
+    krystal_decision_head_backward: engine.computeProgram("krystal_decision_head_backward"),
   } satisfies Record<Lfm2ProgramName, ReturnType<typeof engine.computeProgram>>;
 
   const passes = defineLfm2Passes(programs);

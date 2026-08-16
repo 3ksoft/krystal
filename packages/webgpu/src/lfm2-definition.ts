@@ -689,6 +689,21 @@ export function defineLfm2(bundle: Lfm2ShaderBundle = emptyLfm2ShaderBundle()) {
         code: sources.krystal_selector_backward_qkv,
       },
     }),
+
+    // Typed decision head backward (§17 item 9): reads dLogits + the three
+    // gathered-context regions + the head weight page, writes the dCtx parts
+    // and dWh. Needs the weight32 binding for Wh.
+    krystal_decision_head_backward: engine.compute({
+      label: "krystal_decision_head_backward",
+      resources: { op: r.op, arena: r.arena, weight32: r.weight32 },
+      includes: commonIncludes,
+      compute: {
+        entryPoint: "krystal_decision_head_backward",
+        params: gid,
+        workgroupSize: 256,
+        code: sources.krystal_decision_head_backward,
+      },
+    }),
   } satisfies Record<Lfm2ProgramName, AnyComputeHandle>;
 
   const passes = defineLfm2Passes(programs);

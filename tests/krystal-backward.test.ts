@@ -17,6 +17,7 @@ import {
 import {
   attentionBackwardQkv,
   attentionBackwardScores,
+  decisionHeadBackward,
   fieldEmbedBackward,
   poolBackward,
   reluBackward,
@@ -643,6 +644,203 @@ test("selector_backward: dScore/dQProj/dKProj/dValue match central differences (
   check(gpu.dQProj, "dQProj", (delta, i) => at(delta, i, "qProj"));
   check(gpu.dKProj, "dKProj", (delta, i) => at(delta, i, "kProj"));
   check(gpu.dValue, "dValue", (delta, i) => at(delta, i, "value"));
+});
+
+// ---------------------------------------------------------------------------
+// typed decision head backward (§17 item 9): dCtx parts + dWh from dLogits
+// ---------------------------------------------------------------------------
+
+const DH = { q: 3, h: 8, c: 4 } as const;
+
+function decisionHeadInputs(seedBase: number): {
+  queryOutput: Float32Array;
+  intentGather: Float32Array;
+  argGather: Float32Array;
+  wh: Float32Array;
+  dLogits: Float32Array;
+} {
+  const { q, h, c } = DH;
+  const hin = 3 * h;
+  const queryOutput = Float32Array.from({ length: q * h }, (_, i) => Math.sin(i * 0.4 + seedBase));
+  const intentGather = Float32Array.from({ length: q * h }, (_, i) => Math.cos(i * 0.7 + seedBase));
+  const argGather = Float32Array.from({ length: q * h }, (_, i) => Math.sin(i * 1.3) + 0.25);
+  const wh = Float32Array.from({ length: c * hin }, (_, i) => Math.cos(i * 0.9 + seedBase) * 0.4);
+  const dLogits = Float32Array.from({ length: q * c }, (_, i) => Math.sin(i * 0.6 + seedBase + 1));
+  return { queryOutput, intentGather, argGather, wh, dLogits };
+}
+
+async function runDecisionHeadBackward(
+  h: Awaited<ReturnType<typeof getTrainingHarness>>,
+  inputs: ReturnType<typeof decisionHeadInputs>,
+): Promise<{
+  dQueryOutput: Float32Array;
+  dIntentGather: Float32Array;
+  dArgGather: Float32Array;
+  dWh: Float32Array;
+}> {
+  const { q, h: hd, c } = DH;
+  const hin = 3 * hd;
+  const qOff = fwdRegion("queryValues", q * hd);
+  const iOff = fwdRegion("intentGather", q * hd);
+  const aOff = fwdRegion("argGather", q * hd);
+  const dLogitsOff = bwdRegion("dDecisionLogits", q * c);
+  const dQOff = bwdRegion("dDecisionQuery", q * hd);
+  const dIOff = bwdRegion("dDecisionIntent", q * hd);
+  const dAOff = bwdRegion("dDecisionArg", q * hd);
+  const dWhOff = bwdRegion("dDecisionWh", c * hin);
+  await uploadArena(h, qOff, inputs.queryOutput);
+  await uploadArena(h, iOff, inputs.intentGather);
+  await uploadArena(h, aOff, inputs.argGather);
+  await uploadArena(h, dLogitsOff, inputs.dLogits);
+  const weight = createWeightPage(h, inputs.wh);
+  await runPassWait(h, "krystal_decision_head_backward", {
+    inputOffset: dLogitsOff,
+    auxOffset: qOff, aux2Offset: iOff, aux3Offset: aOff,
+    outputOffset: dQOff, aux4Offset: dIOff, aux5Offset: dAOff, aux6Offset: dWhOff,
+    tokenCount: q, inputDim: hd, outputDim: c,
+  }, weight);
+  return {
+    dQueryOutput: await readArenaRegion(h, dQOff, q * hd),
+    dIntentGather: await readArenaRegion(h, dIOff, q * hd),
+    dArgGather: await readArenaRegion(h, dAOff, q * hd),
+    dWh: await readArenaRegion(h, dWhOff, c * hin),
+  };
+}
+
+test("decision_head_backward: GPU dQueryOutput/dIntentGather/dArgGather/dWh match the CPU oracle", async () => {
+  const h = await getTrainingHarness();
+  const { q, h: hd, c } = DH;
+  const inputs = decisionHeadInputs(0.3);
+  const gpu = await runDecisionHeadBackward(h, inputs);
+
+  const want = decisionHeadBackward(
+    inputs.dLogits, inputs.queryOutput, inputs.intentGather, inputs.argGather, inputs.wh, q, hd, c,
+  );
+  expect(maxAbsDiff(gpu.dQueryOutput, want.dQueryOutput)).toBeLessThanOrEqual(1e-4);
+  expect(maxAbsDiff(gpu.dIntentGather, want.dIntentGather)).toBeLessThanOrEqual(1e-4);
+  expect(maxAbsDiff(gpu.dArgGather, want.dArgGather)).toBeLessThanOrEqual(1e-4);
+  expect(maxAbsDiff(gpu.dWh, want.dWh)).toBeLessThanOrEqual(1e-4);
+});
+
+test("decision_head_backward: dQueryOutput/dIntentGather/dArgGather/dWh match central differences (CE over route kinds)", async () => {
+  const h = await getTrainingHarness();
+  const { q, h: hd, c } = DH;
+  const hin = 3 * hd;
+  const inputs = decisionHeadInputs(0.7);
+  // Gold route kind per query row (all valid class ids).
+  const gold = Uint32Array.from([0, 2, 3]);
+
+  // Forward-only loss: mean cross-entropy of the decision-head logits over
+  // route kinds. logits = ctx @ Wh^T, ctx = concat(query, intent, arg).
+  const forwardLoss = (
+    queryOutput: Float32Array,
+    intentGather: Float32Array,
+    argGather: Float32Array,
+    wh: Float32Array,
+  ): number => {
+    const logits = new Float32Array(q * c);
+    for (let i = 0; i < q; i++) {
+      for (let cl = 0; cl < c; cl++) {
+        let s = 0;
+        for (let d = 0; d < hin; d++) {
+          const ctx = d < hd
+            ? queryOutput[i * hd + d]!
+            : d < 2 * hd
+              ? intentGather[i * hd + (d - hd)]!
+              : argGather[i * hd + (d - 2 * hd)]!;
+          s += ctx * wh[cl * hin + d]!;
+        }
+        logits[i * c + cl] = s;
+      }
+      // In-place softmax leaves the row's probabilities in logits[i*c..i*c+c).
+      softmaxRow(logits, i * c, c);
+    }
+    let loss = 0;
+    for (let i = 0; i < q; i++) {
+      loss -= Math.log(Math.max(logits[i * c + gold[i]!]!, 1e-20));
+    }
+    return loss / q;
+  };
+
+  // dLogits for the CE loss (mean-reduced), the input the shader consumes.
+  const dLogits = new Float32Array(q * c);
+  {
+    const logits = new Float32Array(q * c);
+    for (let i = 0; i < q; i++) {
+      for (let cl = 0; cl < c; cl++) {
+        let s = 0;
+        for (let d = 0; d < hin; d++) {
+          const ctx = d < hd
+            ? inputs.queryOutput[i * hd + d]!
+            : d < 2 * hd
+              ? inputs.intentGather[i * hd + (d - hd)]!
+              : inputs.argGather[i * hd + (d - 2 * hd)]!;
+          s += ctx * inputs.wh[cl * hin + d]!;
+        }
+        logits[i * c + cl] = s;
+      }
+      softmaxRow(logits, i * c, c);
+      for (let cl = 0; cl < c; cl++) {
+        dLogits[i * c + cl] = (logits[i * c + cl]! - (cl === gold[i] ? 1 : 0)) / q;
+      }
+    }
+  }
+  const gpuInputs = { ...inputs, dLogits };
+  const gpu = await runDecisionHeadBackward(h, gpuInputs);
+  const want = decisionHeadBackward(
+    dLogits, inputs.queryOutput, inputs.intentGather, inputs.argGather, inputs.wh, q, hd, c,
+  );
+
+  // GPU vs oracle on the CE dLogits first.
+  expect(maxAbsDiff(gpu.dWh, want.dWh)).toBeLessThanOrEqual(1e-4);
+
+  // Then central differences against the scalar loss, one tensor at a time.
+  const EPS = 1e-3;
+  const check = (
+    label: string,
+    gpuGrad: Float32Array,
+    length: number,
+    at: (delta: number, index: number) => {
+      queryOutput: Float32Array;
+      intentGather: Float32Array;
+      argGather: Float32Array;
+      wh: Float32Array;
+    },
+  ) => {
+    const indices = [0, 3, 7, 11];
+    for (const index of indices) {
+      if (index >= length) continue;
+      const plus = at(EPS, index);
+      const minus = at(-EPS, index);
+      const numeric = (forwardLoss(plus.queryOutput, plus.intentGather, plus.argGather, plus.wh) -
+        forwardLoss(minus.queryOutput, minus.intentGather, minus.argGather, minus.wh)) / (2 * EPS);
+      const analytical = gpuGrad[index]!;
+      const bound = 1e-3 + 5e-2 * Math.abs(analytical);
+      expect(
+        Math.abs(numeric - analytical) <= bound,
+        `${label}[${index}]: numeric ${numeric}, analytical ${analytical}`,
+      ).toBe(true);
+    }
+  };
+  const at = (
+    delta: number,
+    index: number,
+    target: "query" | "intent" | "arg" | "wh",
+  ) => {
+    const queryOutput = inputs.queryOutput.slice();
+    const intentGather = inputs.intentGather.slice();
+    const argGather = inputs.argGather.slice();
+    const wh = inputs.wh.slice();
+    if (target === "query") queryOutput[index] = queryOutput[index]! + delta;
+    else if (target === "intent") intentGather[index] = intentGather[index]! + delta;
+    else if (target === "arg") argGather[index] = argGather[index]! + delta;
+    else wh[index] = wh[index]! + delta;
+    return { queryOutput, intentGather, argGather, wh };
+  };
+  check("dQueryOutput", gpu.dQueryOutput, q * hd, (d, i) => at(d, i, "query"));
+  check("dIntentGather", gpu.dIntentGather, q * hd, (d, i) => at(d, i, "intent"));
+  check("dArgGather", gpu.dArgGather, q * hd, (d, i) => at(d, i, "arg"));
+  check("dWh", gpu.dWh, c * hin, (d, i) => at(d, i, "wh"));
 });
 
 // ---------------------------------------------------------------------------

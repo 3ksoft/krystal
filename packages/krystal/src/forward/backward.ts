@@ -11,6 +11,7 @@
  *   krystal_pool_backward              -> poolBackward
  *   krystal_selector_backward_scores   -> selectorBackwardScores
  *   krystal_selector_backward_qkv      -> selectorBackwardQkv
+ *   krystal_decision_head_backward     -> decisionHeadBackward
  */
 import type { v1_0_0 } from "../../../schema/generated/krystal.types.ts";
 import { embeddingTableBases, type BrainForwardConfig } from "./model.ts";
@@ -348,4 +349,74 @@ export function fieldEmbedBackward(
     }
   }
   return dEmbedding;
+}
+
+/**
+ * Typed decision head backward (§17 item 9): the final linear head over the
+ * gathered context (architecture v2 §12.9, TypedPlan.routeKind). Forward:
+ *
+ *   logits[q,c] = sum_{d in [0,3H)} ctx[q,d] * Wh[c,d]
+ *
+ * with ctx[q] = concat(queryOutput[q], intentGather[q], argGather[q]). Given
+ * upstream dLogits (e.g. cross-entropy gradient over route kinds), returns
+ * the three gathered-context gradient parts and the head-weight gradient:
+ *
+ *   dQueryOutput[q,d]  = sum_c dLogits[q,c] * Wh[c, d]
+ *   dIntentGather[q,d] = sum_c dLogits[q,c] * Wh[c, H + d]
+ *   dArgGather[q,d]    = sum_c dLogits[q,c] * Wh[c, 2H + d]
+ *   dWh[c,d']          = sum_q dLogits[q,c] * ctx[q, d']
+ *
+ * Mirrors krystal_decision_head_backward.wgsl exactly.
+ */
+export function decisionHeadBackward(
+  dLogits: Float32Array, // [Q, C]
+  queryOutput: Float32Array, // [Q, H]
+  intentGather: Float32Array, // [Q, H]
+  argGather: Float32Array, // [Q, H]
+  wh: Float32Array, // [C, 3H] row-major
+  q: number,
+  h: number,
+  c: number,
+): {
+  dQueryOutput: Float32Array;
+  dIntentGather: Float32Array;
+  dArgGather: Float32Array;
+  dWh: Float32Array;
+} {
+  const hin = 3 * h;
+  const dQueryOutput = new Float32Array(q * h);
+  const dIntentGather = new Float32Array(q * h);
+  const dArgGather = new Float32Array(q * h);
+  const dWh = new Float32Array(c * hin);
+  for (let qi = 0; qi < q; qi++) {
+    for (let d = 0; d < h; d++) {
+      let dq = 0;
+      let di = 0;
+      let da = 0;
+      for (let cl = 0; cl < c; cl++) {
+        const dl = dLogits[qi * c + cl]!;
+        dq += dl * wh[cl * hin + d]!;
+        di += dl * wh[cl * hin + h + d]!;
+        da += dl * wh[cl * hin + 2 * h + d]!;
+      }
+      dQueryOutput[qi * h + d] = dq;
+      dIntentGather[qi * h + d] = di;
+      dArgGather[qi * h + d] = da;
+    }
+  }
+  for (let cl = 0; cl < c; cl++) {
+    for (let d = 0; d < hin; d++) {
+      let sum = 0;
+      for (let qi = 0; qi < q; qi++) {
+        const ctx = d < h
+          ? queryOutput[qi * h + d]!
+          : d < 2 * h
+            ? intentGather[qi * h + (d - h)]!
+            : argGather[qi * h + (d - 2 * h)]!;
+        sum += dLogits[qi * c + cl]! * ctx;
+      }
+      dWh[cl * hin + d] = sum;
+    }
+  }
+  return { dQueryOutput, dIntentGather, dArgGather, dWh };
 }

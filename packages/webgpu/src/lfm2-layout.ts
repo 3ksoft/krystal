@@ -201,6 +201,7 @@ export const KRYSTAL_MAX_H = 128; // first profile hidden size (answer 9)
 export const KRYSTAL_MAX_FFN = 384; // first profile FFN size (answer 9)
 export const KRYSTAL_MAX_HEADS = 4; // first profile full attention heads (answer 11)
 export const KRYSTAL_MAX_QUERIES = 8; // maxQueries
+export const KRYSTAL_MAX_ROUTE_KINDS = 8; // typed decision-head classes (capacity, not ABI)
 
 export interface KrystalForwardArenaLayout {
   // SoA frame inputs (u32 payloads bitcast in shaders) + host-compiled lists.
@@ -365,6 +366,17 @@ export interface KrystalBackwardArenaLayout {
   dSelectorKProj: number; // [maxRecords, H]
   dSelectorValue: number; // [maxRecords, H]
   selectorGold: number; // [maxQueries]
+
+  // Typed decision head backward (§17 item 9): the final linear head over the
+  // gathered context (query output + intent gather + arg gather, HIN = 3H)
+  // producing route-kind logits. dLogits [Q, C] is the upstream cross-entropy
+  // gradient; the pass writes dCtx split into its three gathered-context parts
+  // plus the head-weight gradient dWh [C, 3H].
+  dDecisionLogits: number; // [maxQueries, routeKinds]
+  dDecisionQuery: number; // [maxQueries, H]  (d of queryOutput)
+  dDecisionIntent: number; // [maxQueries, H]  (d of intentGather)
+  dDecisionArg: number; // [maxQueries, H]  (d of argGather)
+  dDecisionWh: number; // [routeKinds, 3H]
   elements: number;
 }
 
@@ -411,6 +423,11 @@ function createKrystalBackwardArenaLayout(): KrystalBackwardArenaLayout {
     dSelectorKProj: take(rh),
     dSelectorValue: take(rh),
     selectorGold: take(KRYSTAL_MAX_QUERIES),
+    dDecisionLogits: take(KRYSTAL_MAX_QUERIES * KRYSTAL_MAX_ROUTE_KINDS),
+    dDecisionQuery: take(KRYSTAL_MAX_QUERIES * KRYSTAL_MAX_H),
+    dDecisionIntent: take(KRYSTAL_MAX_QUERIES * KRYSTAL_MAX_H),
+    dDecisionArg: take(KRYSTAL_MAX_QUERIES * KRYSTAL_MAX_H),
+    dDecisionWh: take(KRYSTAL_MAX_ROUTE_KINDS * 3 * KRYSTAL_MAX_H),
     elements: cursor,
   };
 }
@@ -558,6 +575,7 @@ export const KRYSTAL_BACKWARD_SHADER_NAMES = [
   "krystal_pool_dpool",
   "krystal_selector_backward_scores",
   "krystal_selector_backward_qkv",
+  "krystal_decision_head_backward",
 ] as const;
 
 export type KrystalBackwardShaderName = (typeof KRYSTAL_BACKWARD_SHADER_NAMES)[number];
@@ -831,5 +849,11 @@ export function defineLfm2Passes(
     krystal_selector_backward_qkv: definePass(programs.krystal_selector_backward_qkv, "none", (op) =>
       linear(required(op.tokenCount, "tokenCount") * required(op.inputDim, "inputDim") +
         2 * required(op.u0, "u0") * required(op.inputDim, "inputDim"), 256)),
+
+    // Fused dCtx (three gathered-context parts) + dWh, gid-linear split:
+    // [0, 3*QH) are the dCtx parts, [3*QH, 3*QH + C*3H) is dWh.
+    krystal_decision_head_backward: definePass(programs.krystal_decision_head_backward, "f32", (op) =>
+      linear(3 * required(op.tokenCount, "tokenCount") * required(op.inputDim, "inputDim") +
+        required(op.outputDim, "outputDim") * 3 * required(op.inputDim, "inputDim"), 256)),
   } satisfies Record<Lfm2PassName, Lfm2PassSpec>;
 }
