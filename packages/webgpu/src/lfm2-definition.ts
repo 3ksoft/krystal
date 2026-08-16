@@ -665,6 +665,30 @@ export function defineLfm2(bundle: Lfm2ShaderBundle = emptyLfm2ShaderBundle()) {
         code: sources.krystal_pool_dpool,
       },
     }),
+
+    krystal_selector_backward_scores: engine.compute({
+      label: "krystal_selector_backward_scores",
+      resources: { op: r.op, arena: r.arena },
+      includes: [...commonIncludes, include("attention-scores"), include("reduce-f32")],
+      compute: {
+        entryPoint: "krystal_selector_backward_scores",
+        params: widLid,
+        workgroupSize: 64,
+        code: sources.krystal_selector_backward_scores,
+      },
+    }),
+
+    krystal_selector_backward_qkv: engine.compute({
+      label: "krystal_selector_backward_qkv",
+      resources: { op: r.op, arena: r.arena },
+      includes: commonIncludes,
+      compute: {
+        entryPoint: "krystal_selector_backward_qkv",
+        params: gid,
+        workgroupSize: 256,
+        code: sources.krystal_selector_backward_qkv,
+      },
+    }),
   } satisfies Record<Lfm2ProgramName, AnyComputeHandle>;
 
   const passes = defineLfm2Passes(programs);

@@ -20,6 +20,8 @@ import {
   fieldEmbedBackward,
   poolBackward,
   reluBackward,
+  selectorBackwardQkv,
+  selectorBackwardScores,
 } from "../packages/krystal/src/forward/backward.ts";
 import { attentionOracle, softmaxRow } from "../packages/krystal/src/forward/oracle.ts";
 import { buildFixtureFrame } from "../packages/krystal/src/fixtures/frame.ts";
@@ -465,6 +467,182 @@ test("pool_backward: dFieldStates/dPool match central differences of a forward-o
   // for the pool check it is the pool-query slot — the other slot stays fixed.
   check(inputs.fieldStates, gpu.dFieldStates, "dFieldStates", (fs) => forwardLoss(fs, inputs.pool));
   check(inputs.pool, gpu.dPool, "dPool", (pool) => forwardLoss(inputs.fieldStates, pool));
+});
+
+// ---------------------------------------------------------------------------
+// krystal selector backward (soft gather + pointer loss, §17 item 8)
+// ---------------------------------------------------------------------------
+
+const SEL = { q: 2, r: 5, h: 8 } as const;
+
+function selectorInputs(seedBase: number): {
+  qProj: Float32Array;
+  kProj: Float32Array;
+  value: Float32Array;
+  mask: Float32Array;
+  p: Float32Array;
+  dGather: Float32Array;
+} {
+  const { q, r, h } = SEL;
+  const qProj = Float32Array.from({ length: q * h }, (_, i) => Math.sin(i * 0.7 + seedBase));
+  const kProj = Float32Array.from({ length: r * h }, (_, i) => Math.cos(i * 0.3 + seedBase));
+  const value = Float32Array.from({ length: r * h }, (_, i) => Math.sin(i * 1.1) + 0.5);
+  // Block the middle record for every query row (masked position, p == 0).
+  const mask = new Float32Array(q * r);
+  for (let i = 0; i < q; i++) mask[i * r + 2] = -1e30;
+  // p from the forward selector oracle; recompute here for the oracle inputs.
+  const scale = 1 / Math.sqrt(h);
+  const p = new Float32Array(q * r);
+  const scores = new Float32Array(r);
+  for (let i = 0; i < q; i++) {
+    for (let j = 0; j < r; j++) {
+      let s = 0;
+      for (let d = 0; d < h; d++) s += qProj[i * h + d]! * kProj[j * h + d]!;
+      scores[j] = s * scale + mask[i * r + j]!;
+    }
+    softmaxRow(scores, 0, r);
+    for (let j = 0; j < r; j++) p[i * r + j] = scores[j]!;
+  }
+  const dGather = Float32Array.from({ length: q * h }, (_, i) => Math.cos(i * 0.5 + seedBase));
+  return { qProj, kProj, value, mask, p, dGather };
+}
+
+async function runSelectorBackward(
+  h: Awaited<ReturnType<typeof getTrainingHarness>>,
+  inputs: ReturnType<typeof selectorInputs>,
+  gold: Uint32Array,
+): Promise<{ dScore: Float32Array; dQProj: Float32Array; dKProj: Float32Array; dValue: Float32Array }> {
+  const { q, r, h: hd } = SEL;
+  const qProjOff = bwdRegion("dSelectorQProj", q * hd);
+  const kProjOff = bwdRegion("dSelectorKProj", r * hd);
+  const valueOff = bwdRegion("dSelectorValue", r * hd);
+  const pOff = fwdRegion("intentP", q * r);
+  const dGatherOff = bwdRegion("dFieldStates", q * hd);
+  const goldOff = bwdRegion("selectorGold", q);
+  const dScoreOff = bwdRegion("dSelectorScores", q * r);
+  const dQProjOff = bwdRegion("dEncQ", q * hd);
+  const dKProjOff = bwdRegion("dEncK", r * hd);
+  const dValueOff = bwdRegion("dEncV", r * hd);
+  await uploadArena(h, qProjOff, inputs.qProj);
+  await uploadArena(h, kProjOff, inputs.kProj);
+  await uploadArena(h, valueOff, inputs.value);
+  await uploadArena(h, pOff, inputs.p);
+  await uploadArena(h, dGatherOff, inputs.dGather);
+  await uploadU32(h, goldOff, gold);
+  await runPassWait(h, "krystal_selector_backward_scores", {
+    inputOffset: dGatherOff, auxOffset: valueOff, aux2Offset: pOff,
+    aux3Offset: goldOff, outputOffset: dScoreOff,
+    tokenCount: q, inputDim: hd, u0: r,
+  });
+  await runPassWait(h, "krystal_selector_backward_qkv", {
+    inputOffset: dScoreOff, auxOffset: qProjOff, aux2Offset: kProjOff,
+    aux3Offset: pOff, aux4Offset: dGatherOff,
+    outputOffset: dQProjOff, aux5Offset: dKProjOff, aux6Offset: dValueOff,
+    tokenCount: q, inputDim: hd, u0: r,
+  });
+  return {
+    dScore: await readArenaRegion(h, dScoreOff, q * r),
+    dQProj: await readArenaRegion(h, dQProjOff, q * hd),
+    dKProj: await readArenaRegion(h, dKProjOff, r * hd),
+    dValue: await readArenaRegion(h, dValueOff, r * hd),
+  };
+}
+
+test("selector_backward: GPU dScore/dQProj/dKProj/dValue match the CPU oracle (with pointer loss)", async () => {
+  const h = await getTrainingHarness();
+  const { q, r, h: hd } = SEL;
+  const inputs = selectorInputs(0.2);
+  const gold = Uint32Array.from([1, 4]); // record 2 is masked, so never gold
+  const gpu = await runSelectorBackward(h, inputs, gold);
+
+  const wantScores = selectorBackwardScores(inputs.dGather, inputs.value, inputs.p, Array.from(gold), q, r, hd);
+  const want = selectorBackwardQkv(wantScores, inputs.qProj, inputs.kProj, inputs.p, inputs.dGather, q, r, hd);
+  expect(maxAbsDiff(gpu.dScore, wantScores)).toBeLessThanOrEqual(1e-4);
+  expect(maxAbsDiff(gpu.dQProj, want.dQProj)).toBeLessThanOrEqual(1e-4);
+  expect(maxAbsDiff(gpu.dKProj, want.dKProj)).toBeLessThanOrEqual(1e-4);
+  expect(maxAbsDiff(gpu.dValue, want.dValue)).toBeLessThanOrEqual(1e-4);
+  // Masked record 2 must have pointerLossGrad exactly p (p == 0 at masked
+  // positions, so dScore at the masked slot is 0 for the softmax term).
+  for (let i = 0; i < q; i++) {
+    expect(gpu.dScore[i * r + 2]!).toBeCloseTo(0, 12);
+  }
+});
+
+test("selector_backward: dScore/dQProj/dKProj/dValue match central differences (gather + pointer loss)", async () => {
+  const h = await getTrainingHarness();
+  const { q, r, h: hd } = SEL;
+  const inputs = selectorInputs(0.7);
+  const gold = Uint32Array.from([0xffff_ffff, 3]); // row 1 has a pointer target
+  const gpu = await runSelectorBackward(h, inputs, gold);
+
+  const scale = 1 / Math.sqrt(hd);
+  // Forward-only loss: L = sum(gather . G) - sum_i log(p[i, gold[i]]) over
+  // rows with a valid gold. gather and p come from the selector forward.
+  const forwardLoss = (qProj: Float32Array, kProj: Float32Array, value: Float32Array): number => {
+    const p = new Float32Array(q * r);
+    const gather = new Float32Array(q * hd);
+    const scores = new Float32Array(r);
+    for (let i = 0; i < q; i++) {
+      for (let j = 0; j < r; j++) {
+        let s = 0;
+        for (let d = 0; d < hd; d++) s += qProj[i * hd + d]! * kProj[j * hd + d]!;
+        scores[j] = s * scale + inputs.mask[i * r + j]!;
+      }
+      softmaxRow(scores, 0, r);
+      for (let j = 0; j < r; j++) p[i * r + j] = scores[j]!;
+      for (let d = 0; d < hd; d++) {
+        let g = 0;
+        for (let j = 0; j < r; j++) g += scores[j]! * value[j * hd + d]!;
+        gather[i * hd + d] = g;
+      }
+    }
+    let loss = 0;
+    for (let i = 0; i < q; i++) {
+      for (let d = 0; d < hd; d++) loss += gather[i * hd + d]! * inputs.dGather[i * hd + d]!;
+      if (gold[i] !== 0xffff_ffff) loss -= Math.log(Math.max(p[i * r + gold[i]!]!, 1e-20));
+    }
+    return loss;
+  };
+
+  const EPS = 1e-3;
+  // Perturb exactly one tensor per evaluation; the other two stay at their
+  // reference values. Perturbing all three at once (holder-mutator style)
+  // conflates the directional derivatives and NaNs the check.
+  const check = (
+    gpuGrad: Float32Array,
+    label: string,
+    at: (delta: number, index: number) => {
+      qProj: Float32Array;
+      kProj: Float32Array;
+      value: Float32Array;
+    },
+  ) => {
+    const indices = [0, 2, 5, 8, 13];
+    for (const index of indices) {
+      const plus = at(EPS, index);
+      const minus = at(-EPS, index);
+      const numeric = (forwardLoss(plus.qProj, plus.kProj, plus.value) -
+        forwardLoss(minus.qProj, minus.kProj, minus.value)) / (2 * EPS);
+      const analytical = gpuGrad[index]!;
+      const bound = 1e-3 + 5e-2 * Math.abs(analytical);
+      expect(
+        Math.abs(numeric - analytical) <= bound,
+        `${label}[${index}]: numeric ${numeric}, analytical ${analytical}`,
+      ).toBe(true);
+    }
+  };
+  const at = (delta: number, index: number, target: "qProj" | "kProj" | "value") => {
+    const qProj = inputs.qProj.slice();
+    const kProj = inputs.kProj.slice();
+    const value = inputs.value.slice();
+    if (target === "qProj") qProj[index] = qProj[index]! + delta;
+    else if (target === "kProj") kProj[index] = kProj[index]! + delta;
+    else value[index] = value[index]! + delta;
+    return { qProj, kProj, value };
+  };
+  check(gpu.dQProj, "dQProj", (delta, i) => at(delta, i, "qProj"));
+  check(gpu.dKProj, "dKProj", (delta, i) => at(delta, i, "kProj"));
+  check(gpu.dValue, "dValue", (delta, i) => at(delta, i, "value"));
 });
 
 // ---------------------------------------------------------------------------

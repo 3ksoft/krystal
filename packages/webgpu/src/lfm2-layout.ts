@@ -354,6 +354,17 @@ export interface KrystalBackwardArenaLayout {
   dQueryValues: number; // [maxQueries, H]
   dPoolPartial: number; // [maxRecords, 2, H]
   dPool: number; // [2, H]
+
+  // Selector backward (§17 item 8): soft-gather gradients of the selector
+  // projections and bank values plus the pointer-loss-aware dScore. dScore
+  // and dQProj are row-owned (written by the scores pass); dKProj/dValue are
+  // written by the companion qkv pass. gold [Q] holds optional pointer-loss
+  // targets as u32 payloads (0xffffffff = none).
+  dSelectorScores: number; // [maxQueries, maxRecords]
+  dSelectorQProj: number; // [maxQueries, H]
+  dSelectorKProj: number; // [maxRecords, H]
+  dSelectorValue: number; // [maxRecords, H]
+  selectorGold: number; // [maxQueries]
   elements: number;
 }
 
@@ -395,6 +406,11 @@ function createKrystalBackwardArenaLayout(): KrystalBackwardArenaLayout {
     dQueryValues: take(KRYSTAL_MAX_QUERIES * KRYSTAL_MAX_H),
     dPoolPartial: take(KRYSTAL_MAX_RECORDS * 2 * KRYSTAL_MAX_H),
     dPool: take(2 * KRYSTAL_MAX_H),
+    dSelectorScores: take(KRYSTAL_MAX_QUERIES * KRYSTAL_MAX_RECORDS),
+    dSelectorQProj: take(KRYSTAL_MAX_QUERIES * KRYSTAL_MAX_H),
+    dSelectorKProj: take(rh),
+    dSelectorValue: take(rh),
+    selectorGold: take(KRYSTAL_MAX_QUERIES),
     elements: cursor,
   };
 }
@@ -540,6 +556,8 @@ export const KRYSTAL_BACKWARD_SHADER_NAMES = [
   "krystal_field_embed_backward",
   "krystal_pool_backward",
   "krystal_pool_dpool",
+  "krystal_selector_backward_scores",
+  "krystal_selector_backward_qkv",
 ] as const;
 
 export type KrystalBackwardShaderName = (typeof KRYSTAL_BACKWARD_SHADER_NAMES)[number];
@@ -806,5 +824,12 @@ export function defineLfm2Passes(
 
     krystal_pool_dpool: definePass(programs.krystal_pool_dpool, "none", (op) =>
       linear(2 * required(op.inputDim, "inputDim"), 256)),
+
+    krystal_selector_backward_scores: definePass(programs.krystal_selector_backward_scores, "none", (op) =>
+      [1, required(op.tokenCount, "tokenCount"), 1]),
+
+    krystal_selector_backward_qkv: definePass(programs.krystal_selector_backward_qkv, "none", (op) =>
+      linear(required(op.tokenCount, "tokenCount") * required(op.inputDim, "inputDim") +
+        2 * required(op.u0, "u0") * required(op.inputDim, "inputDim"), 256)),
   } satisfies Record<Lfm2PassName, Lfm2PassSpec>;
 }

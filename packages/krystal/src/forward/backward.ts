@@ -8,6 +8,9 @@
  *   krystal_attention_backward_scores  -> attentionBackwardScores
  *   krystal_attention_backward_qkv     -> attentionBackwardQkv
  *   krystal_field_embed_backward       -> fieldEmbedBackward
+ *   krystal_pool_backward              -> poolBackward
+ *   krystal_selector_backward_scores   -> selectorBackwardScores
+ *   krystal_selector_backward_qkv      -> selectorBackwardQkv
  */
 import type { v1_0_0 } from "../../../schema/generated/krystal.types.ts";
 import { embeddingTableBases, type BrainForwardConfig } from "./model.ts";
@@ -217,6 +220,97 @@ export function poolBackward(
  * tokens whose per-table index == row of dFieldStates[t,h]. The result is the
  * full concatenated embeddings page layout (see embeddingTableBases).
  */
+/**
+ * Selector soft-gather score gradient (one typed slot, §17 item 8). Mirrors
+ * krystal_selector_backward_scores.wgsl:
+ *
+ *   dP[i,j]     = dot(dGather[i], value[j])
+ *   rowSum[i]   = sum_j p[i,j] * dP[i,j]
+ *   dScore[i,j] = p[i,j] * (dP[i,j] - rowSum[i]) + pointerLossGrad[i,j]
+ *   pointerLossGrad[i,j] = p[i,j] - onehot(j == gold[i])  (gold valid only)
+ *
+ * Layouts: dGather [Q,H], value [R,H], p/dScore [Q,R], gold [Q] u32 payloads
+ * (0xffffffff = no pointer loss for that row).
+ */
+export function selectorBackwardScores(
+  dGather: Float32Array, // [Q, H]
+  value: Float32Array, // [R, H]
+  p: Float32Array, // [Q, R]
+  gold: readonly number[], // [Q] u32 payloads; 0xffffffff = none
+  q: number,
+  r: number,
+  h: number,
+): Float32Array {
+  const dScore = new Float32Array(q * r);
+  for (let i = 0; i < q; i++) {
+    const dP = new Float32Array(r);
+    let rowSum = 0;
+    for (let j = 0; j < r; j++) {
+      let dp = 0;
+      for (let d = 0; d < h; d++) {
+        dp += dGather[i * h + d]! * value[j * h + d]!;
+      }
+      dP[j] = dp;
+      rowSum += p[i * r + j]! * dp;
+    }
+    const goldValid = gold[i] !== 0xffff_ffff;
+    for (let j = 0; j < r; j++) {
+      const pointerGrad = goldValid ? p[i * r + j]! - (j === gold[i] ? 1 : 0) : 0;
+      dScore[i * r + j] = p[i * r + j]! * (dP[j]! - rowSum) + pointerGrad;
+    }
+  }
+  return dScore;
+}
+
+/**
+ * Selector projection/value gradients (one typed slot, §17 item 8). Mirrors
+ * krystal_selector_backward_qkv.wgsl:
+ *
+ *   dQProj[i,d] = scale * sum_j dScore[i,j] * kProj[j,d]
+ *   dKProj[j,d] = scale * sum_i dScore[i,j] * qProj[i,d]
+ *   dValue[j,d] =        sum_i p[i,j]       * dGather[i,d]
+ *
+ * Layouts: dScore/p [Q,R], qProj/dGather [Q,H], kProj [R,H], dQProj [Q,H],
+ * dKProj/dValue [R,H]. scale = 1/sqrt(H).
+ */
+export function selectorBackwardQkv(
+  dScore: Float32Array, // [Q, R]
+  qProj: Float32Array, // [Q, H]
+  kProj: Float32Array, // [R, H]
+  p: Float32Array, // [Q, R]
+  dGather: Float32Array, // [Q, H]
+  q: number,
+  r: number,
+  h: number,
+): { dQProj: Float32Array; dKProj: Float32Array; dValue: Float32Array } {
+  const scale = 1 / Math.sqrt(h);
+  const dQProj = new Float32Array(q * h);
+  const dKProj = new Float32Array(r * h);
+  const dValue = new Float32Array(r * h);
+  for (let i = 0; i < q; i++) {
+    for (let col = 0; col < h; col++) {
+      let acc = 0;
+      for (let j = 0; j < r; j++) {
+        acc += dScore[i * r + j]! * kProj[j * h + col]!;
+      }
+      dQProj[i * h + col] = acc * scale;
+    }
+  }
+  for (let j = 0; j < r; j++) {
+    for (let col = 0; col < h; col++) {
+      let accK = 0;
+      let accV = 0;
+      for (let i = 0; i < q; i++) {
+        accK += dScore[i * r + j]! * qProj[i * h + col]!;
+        accV += p[i * r + j]! * dGather[i * h + col]!;
+      }
+      dKProj[j * h + col] = accK * scale;
+      dValue[j * h + col] = accV;
+    }
+  }
+  return { dQProj, dKProj, dValue };
+}
+
 export function fieldEmbedBackward(
   frame: v1_0_0.BrainFrameGpu,
   active: ActiveFrame,
