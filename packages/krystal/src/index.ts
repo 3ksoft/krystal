@@ -11,3 +11,6 @@ export * from "./fixtures/vocabulary.ts";
 export * from "./fixtures/record-schemas.ts";
 export * from "./fixtures/action-intents.ts";
 export * from "./fixtures/frame.ts";
+export * from "./forward/model.ts";
+export * from "./forward/masks.ts";
+export * from "./forward/oracle.ts";

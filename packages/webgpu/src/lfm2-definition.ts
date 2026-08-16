@@ -31,9 +31,11 @@ import {
   LFM2_SHADER_NAMES,
   TRAINING_READBACK_ELEMENTS,
   TRAINING_SHADER_NAMES,
+  KRYSTAL_FORWARD_SHADER_NAMES,
   type Lfm2ProgramName,
   type Lfm2ShaderName,
   type TrainingShaderName,
+  type KrystalForwardShaderName,
   defineLfm2Passes,
 } from "./lfm2-layout";
 
@@ -45,6 +47,7 @@ export const LFM2_INCLUDE_NAMES = [
   "common",
   "matmul-rows",
   "matmul-rows-wide",
+  "pool-scores",
   "reduce-f32",
   "reduce-u32",
   "runtime",
@@ -58,7 +61,7 @@ export const LFM2_INCLUDE_NAMES = [
 export type Lfm2IncludeName = (typeof LFM2_INCLUDE_NAMES)[number];
 
 export interface Lfm2ShaderBundle {
-  readonly sources: Record<Lfm2ShaderName | TrainingShaderName, string>;
+  readonly sources: Record<Lfm2ShaderName | TrainingShaderName | KrystalForwardShaderName, string>;
   readonly includes: Record<Lfm2IncludeName, string>;
 }
 
@@ -68,7 +71,11 @@ function emptyRecord<const K extends readonly string[]>(keys: K): Record<K[numbe
 
 export function emptyLfm2ShaderBundle(): Lfm2ShaderBundle {
   return {
-    sources: emptyRecord([...LFM2_SHADER_NAMES, ...TRAINING_SHADER_NAMES]),
+    sources: emptyRecord([
+      ...LFM2_SHADER_NAMES,
+      ...TRAINING_SHADER_NAMES,
+      ...KRYSTAL_FORWARD_SHADER_NAMES,
+    ]),
     includes: emptyRecord(LFM2_INCLUDE_NAMES),
   };
 }
@@ -173,10 +180,10 @@ export function defineLfm2(bundle: Lfm2ShaderBundle = emptyLfm2ShaderBundle()) {
         buffer: {
           type: "uniform",
           hasDynamicOffset: true,
-          minBindingSize: 80,
+          minBindingSize: 96,
         },
         offset: 0,
-        size: 80,
+        size: 96,
         representation: "native",
       } satisfies BufferResourceUse,
       runtime: nativeWrite(runtime),
@@ -520,6 +527,54 @@ export function defineLfm2(bundle: Lfm2ShaderBundle = emptyLfm2ShaderBundle()) {
       resources: { op: r.op, arena: r.arena },
       includes: commonIncludes,
       compute: { entryPoint: "attention_backward_qkv", params: gid, workgroupSize: 256, code: sources.attention_backward_qkv },
+    }),
+
+    // --- M2b Krystal forward programs ---
+    // The SoA frame and host-compiled active lists live in the shared arena
+    // as u32 payloads (bitcast inside the shaders). krystal_field_embed binds
+    // weight32 for the concatenated embedding tables; krystal_pool binds the
+    // two learned pooling query vectors.
+    krystal_field_embed: engine.compute({
+      label: "krystal_field_embed",
+      resources: { op: r.op, arena: r.arena, weight32: r.weight32 },
+      includes: commonIncludes,
+      compute: {
+        entryPoint: "krystal_field_embed",
+        params: gid,
+        workgroupSize: 256,
+        code: sources.krystal_field_embed,
+      },
+    }),
+
+    krystal_attention_forward: engine.compute({
+      label: "krystal_attention_forward",
+      resources: { op: r.op, arena: r.arena },
+      includes: [...commonIncludes, include("attention-scores")],
+      compute: {
+        entryPoint: "krystal_attention_forward",
+        params: widLid,
+        workgroupSize: 64,
+        code: sources.krystal_attention_forward,
+      },
+    }),
+
+    relu: engine.compute({
+      label: "relu",
+      resources: { op: r.op, arena: r.arena },
+      includes: commonIncludes,
+      compute: { entryPoint: "relu", params: gid, workgroupSize: 256, code: sources.relu },
+    }),
+
+    krystal_pool: engine.compute({
+      label: "krystal_pool",
+      resources: { op: r.op, arena: r.arena, weight32: r.weight32 },
+      includes: [...commonIncludes, include("pool-scores")],
+      compute: {
+        entryPoint: "krystal_pool",
+        params: widLid,
+        workgroupSize: 64,
+        code: sources.krystal_pool,
+      },
     }),
   } satisfies Record<Lfm2ProgramName, AnyComputeHandle>;
 

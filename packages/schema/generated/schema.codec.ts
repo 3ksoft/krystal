@@ -41,7 +41,7 @@ export const SIZEOF_ConstraintTokenizerHeader = 32;
 export const SIZEOF_ConstraintTokenByteEntry = 8;
 export const SIZEOF_ConstraintDecoderState = 96;
 export const CONSTRAINT_DECODER_STATE_NUMBERTEXT_LEN = 16;
-export const SIZEOF_OpParams = 80;
+export const SIZEOF_OpParams = 96;
 export const SIZEOF_LlmRuntime = 48;
 export const SIZEOF_DecodeTelemetryEntry = 4;
 export const SIZEOF_GenerateOptions = 20;
@@ -341,6 +341,10 @@ export function deserializeOpParams(view: DataView, offset: number, outObj?: any
 			f1: view.getFloat32(offset + 68, true),
 			u0: view.getUint32(offset + 72, true),
 			u1: view.getUint32(offset + 76, true),
+			u2: view.getUint32(offset + 80, true),
+			u3: view.getUint32(offset + 84, true),
+			u4: view.getUint32(offset + 88, true),
+			u5: view.getUint32(offset + 92, true),
 		} as any;
 	}
 	outObj.inputOffset = view.getUint32(offset, true);
@@ -363,6 +367,10 @@ export function deserializeOpParams(view: DataView, offset: number, outObj?: any
 	outObj.f1 = view.getFloat32(offset + 68, true);
 	outObj.u0 = view.getUint32(offset + 72, true);
 	outObj.u1 = view.getUint32(offset + 76, true);
+	outObj.u2 = view.getUint32(offset + 80, true);
+	outObj.u3 = view.getUint32(offset + 84, true);
+	outObj.u4 = view.getUint32(offset + 88, true);
+	outObj.u5 = view.getUint32(offset + 92, true);
 	return outObj;
 }
 
@@ -387,6 +395,10 @@ export function serializeOpParams(val: OpParams, view: DataView, offset: number)
 	view.setFloat32(offset + 68, val.f1, true);
 	view.setUint32(offset + 72, val.u0, true);
 	view.setUint32(offset + 76, val.u1, true);
+	view.setUint32(offset + 80, val.u2, true);
+	view.setUint32(offset + 84, val.u3, true);
+	view.setUint32(offset + 88, val.u4, true);
+	view.setUint32(offset + 92, val.u5, true);
 }
 
 export function deserializeLlmRuntimeStatus(view: DataView, offset: number): LlmRuntimeStatus {

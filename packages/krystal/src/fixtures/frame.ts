@@ -1,9 +1,11 @@
 /**
- * Canonical fixture BrainFrame (AoS form) exercising all four record kinds
+ * Canonical fixture BrainFrame (AoS form) exercising all five record kinds
  * used by the first milestones: Self (body, fixed slot 12), Apple (vision,
- * slot 24), HomeostasisQuery (homeostasis, fixed slot 4) and MemoryObject
- * (memory, slot 90). Token patterns follow the schema's illustrative
- * lowerings; reference bindings carry exact 0xExx handles with generations.
+ * slot 24), HomeostasisQuery (homeostasis, fixed slot 4), MemoryObject
+ * (memory, slot 90) and the active query (query band, fixed slot 122, which
+ * the M2b mixer cross-attends to the record bank). Token patterns follow the
+ * schema's illustrative lowerings; reference bindings carry exact 0xExx
+ * handles with generations.
  */
 import {
   BRAIN_FIXED_RECORDS,
@@ -100,6 +102,15 @@ export function buildFixtureRecords(): readonly FixtureRecordSpec[] {
       refs: [refBinding(1, FIXTURE_MEMORY_REF, 1)],
       source: "memory",
       flags: RECORD_FLAGS.occupied | RECORD_FLAGS.remembered,
+    },
+    {
+      slot: BRAIN_FIXED_RECORDS.primaryQuery,
+      band: "query",
+      schemaId: 3, // HomeostasisQuery doubles as the first query/need record
+      tokens: [FEEL_BAD, NEED, SATIATED, PAD_TOKEN_ID, PAD_TOKEN_ID, PAD_TOKEN_ID, PAD_TOKEN_ID, PAD_TOKEN_ID],
+      roleTokens: [FEEL_BAD, NEED, SATIATED, 0, 0, 0, 0, 0],
+      source: "query",
+      flags: RECORD_FLAGS.occupied | RECORD_FLAGS.fixed | RECORD_FLAGS.query,
     },
   ];
 }

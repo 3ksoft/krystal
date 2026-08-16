@@ -7,9 +7,11 @@ import {
   LFM2_INCLUDE_NAMES,
   LFM2_SHADER_NAMES,
   TRAINING_SHADER_NAMES,
+  KRYSTAL_FORWARD_SHADER_NAMES,
   type Lfm2IncludeName,
   type Lfm2ShaderName,
   type TrainingShaderName,
+  type KrystalForwardShaderName,
 } from "../src/lfm2-definition";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -36,7 +38,8 @@ async function readNamed<K extends string>(
 
 const core = await readNamed<Lfm2ShaderName>(shaderDir, LFM2_SHADER_NAMES);
 const training = await readNamed<TrainingShaderName>(trainingDir, TRAINING_SHADER_NAMES);
-const sources = { ...core, ...training };
+const krystal = await readNamed<KrystalForwardShaderName>(trainingDir, KRYSTAL_FORWARD_SHADER_NAMES);
+const sources = { ...core, ...training, ...krystal };
 const includes = await readNamed<Lfm2IncludeName>(includeDir, LFM2_INCLUDE_NAMES);
 const definition = defineLfm2({ sources, includes });
 const artifact = definition.engine.serialize(definition.engine.link());

@@ -187,7 +187,109 @@ export const TRAINING_ARENA_ELEMENTS = LFM2_TRAINING_ARENA.elements;
  */
 export const TRAINING_READBACK_ELEMENTS = TRAINING_MAX_V * TRAINING_MAX_H;
 
-export const ARENA_ELEMENTS = LFM2_ARENA.elements + TRAINING_ARENA_ELEMENTS;
+// --- Krystal forward arena (M2b: record/query encoder + mixer forward) ------
+//
+// Fixed capacity constants, not ABI limits: shaders read actual dims from
+// OpParams. The SoA frame (tokenIds/fieldRoles/...) is uploaded into the arena
+// as u32 payloads and bitcast in WGSL; the host-compiled active lists and
+// record masks follow concerns answer 15/16 (host-compiled masks, dispatch
+// over active records/tokens only).
+
+export const KRYSTAL_MAX_TOKENS = 1024; // frameTokens (hard v2 capacity)
+export const KRYSTAL_MAX_RECORDS = 128; // frameRecordSlots
+export const KRYSTAL_MAX_H = 128; // first profile hidden size (answer 9)
+export const KRYSTAL_MAX_FFN = 384; // first profile FFN size (answer 9)
+export const KRYSTAL_MAX_HEADS = 4; // first profile full attention heads (answer 11)
+export const KRYSTAL_MAX_QUERIES = 8; // maxQueries
+
+export interface KrystalForwardArenaLayout {
+  // SoA frame inputs (u32 payloads bitcast in shaders) + host-compiled lists.
+  tokenIds: number; // [maxTokens]
+  fieldRoles: number; // [maxTokens]
+  schemaIds: number; // [maxRecords]
+  bandIds: number; // [maxRecords]
+  streamIds: number; // [maxRecords]
+  activeTokens: number; // [maxTokens]
+  recordCompactOffset: number; // [maxRecords]
+  recordCompactCount: number; // [maxRecords]
+  bankIndices: number; // [maxRecords]
+  queryIndices: number; // [maxQueries]
+
+  fieldStates: number; // [maxTokens, H]
+  encQ: number; // [maxTokens, H]
+  encK: number; // [maxTokens, H]
+  encV: number; // [maxTokens, H]
+  encOut: number; // [maxTokens, H]
+  encH1: number; // [maxTokens, FFN]
+  encMask: number; // [maxTokens, maxTokens]
+
+  bankKeys: number; // [maxRecords, H]
+  bankValues: number; // [maxRecords, H]
+  queryKeys: number; // [maxQueries, H]
+  queryValues: number; // [maxQueries, H]
+
+  mixerQ: number; // [maxQueries, H]
+  mixerK: number; // [maxQueries, H]
+  mixerV: number; // [maxQueries, H]
+  mixerH1: number; // [maxQueries, FFN]
+  mixed: number; // [maxQueries, H]
+  mixerMask: number; // [maxQueries, maxRecords]
+  elements: number;
+}
+
+function createKrystalForwardArenaLayout(): KrystalForwardArenaLayout {
+  let cursor = 0;
+  const take = (elements: number) => {
+    const offset = cursor;
+    cursor += elements;
+    return offset;
+  };
+  const th = KRYSTAL_MAX_TOKENS * KRYSTAL_MAX_H;
+  const rh = KRYSTAL_MAX_RECORDS * KRYSTAL_MAX_H;
+  const qh = KRYSTAL_MAX_QUERIES * KRYSTAL_MAX_H;
+  const tf = KRYSTAL_MAX_TOKENS * KRYSTAL_MAX_FFN;
+  return {
+    tokenIds: take(KRYSTAL_MAX_TOKENS),
+    fieldRoles: take(KRYSTAL_MAX_TOKENS),
+    schemaIds: take(KRYSTAL_MAX_RECORDS),
+    bandIds: take(KRYSTAL_MAX_RECORDS),
+    streamIds: take(KRYSTAL_MAX_RECORDS),
+    activeTokens: take(KRYSTAL_MAX_TOKENS),
+    recordCompactOffset: take(KRYSTAL_MAX_RECORDS),
+    recordCompactCount: take(KRYSTAL_MAX_RECORDS),
+    bankIndices: take(KRYSTAL_MAX_RECORDS),
+    queryIndices: take(KRYSTAL_MAX_QUERIES),
+
+    fieldStates: take(th),
+    encQ: take(th),
+    encK: take(th),
+    encV: take(th),
+    encOut: take(th),
+    encH1: take(tf),
+    encMask: take(KRYSTAL_MAX_TOKENS * KRYSTAL_MAX_TOKENS),
+
+    bankKeys: take(rh),
+    bankValues: take(rh),
+    queryKeys: take(qh),
+    queryValues: take(qh),
+
+    mixerQ: take(qh),
+    mixerK: take(qh),
+    mixerV: take(qh),
+    mixerH1: take(KRYSTAL_MAX_QUERIES * KRYSTAL_MAX_FFN),
+    mixed: take(qh),
+    mixerMask: take(KRYSTAL_MAX_QUERIES * KRYSTAL_MAX_RECORDS),
+    elements: cursor,
+  };
+}
+
+/** Krystal forward regions are appended after the training regions. */
+export const KRYSTAL_FORWARD_ARENA_BASE = LFM2_ARENA.elements + TRAINING_ARENA_ELEMENTS;
+export const KRYSTAL_FORWARD_ARENA = createKrystalForwardArenaLayout();
+export const KRYSTAL_FORWARD_ARENA_ELEMENTS = KRYSTAL_FORWARD_ARENA.elements;
+
+export const ARENA_ELEMENTS =
+  LFM2_ARENA.elements + TRAINING_ARENA_ELEMENTS + KRYSTAL_FORWARD_ARENA_ELEMENTS;
 
 // Generalniejsze niż attentionLayerCount * 8:
 // obsłuży też ewentualnie różną liczbę KV heads per layer.
@@ -293,6 +395,20 @@ export type TrainingShaderName = (typeof TRAINING_SHADER_NAMES)[number];
 export type TrainingPassName = TrainingShaderName;
 
 /**
+ * M2b Krystal forward shaders (record/query encoder + mixer): one file per
+ * entry point under src/shaders/training/. They share the OpParams/arena
+ * conventions and link into the same artifact.
+ */
+export const KRYSTAL_FORWARD_SHADER_NAMES = [
+  "krystal_field_embed",
+  "krystal_attention_forward",
+  "relu",
+  "krystal_pool",
+] as const;
+
+export type KrystalForwardShaderName = (typeof KRYSTAL_FORWARD_SHADER_NAMES)[number];
+
+/**
  * Programs are no longer 1:1 with shader files: matmul_wq4 is compiled twice
  * from one body, once per row tiling. Names above index the .wgsl files on
  * disk; names here index the linked programs.
@@ -301,6 +417,7 @@ export const LFM2_PROGRAM_NAMES = [
   ...LFM2_SHADER_NAMES,
   "matmul_wq4_wide",
   ...TRAINING_SHADER_NAMES,
+  ...KRYSTAL_FORWARD_SHADER_NAMES,
 ] as const;
 export type Lfm2ProgramName = (typeof LFM2_PROGRAM_NAMES)[number];
 
@@ -330,6 +447,10 @@ export interface Lfm2OpParams {
   f1?: number;
   u0?: number;
   u1?: number;
+  u2?: number;
+  u3?: number;
+  u4?: number;
+  u5?: number;
 }
 
 export type Lfm2Workgroups = readonly [x: number, y: number, z: number];
@@ -508,5 +629,19 @@ export function defineLfm2Passes(
 
     attention_backward_qkv: definePass(programs.attention_backward_qkv, "none", (op) =>
       linear(3 * required(op.tokenCount, "tokenCount") * required(op.inputDim, "inputDim"), 256)),
+
+    // --- M2b Krystal forward passes ---
+    // Shader contracts are documented in each training/*.wgsl file.
+    krystal_field_embed: definePass(programs.krystal_field_embed, "f32", (op) =>
+      linear(required(op.tokenCount, "tokenCount") * required(op.inputDim, "inputDim"), 256)),
+
+    krystal_attention_forward: definePass(programs.krystal_attention_forward, "none", (op) =>
+      [required(op.u1, "u1"), required(op.tokenCount, "tokenCount"), 1]),
+
+    relu: definePass(programs.relu, "none", (op) =>
+      linear(required(op.tokenCount, "tokenCount"), 256)),
+
+    krystal_pool: definePass(programs.krystal_pool, "f32", (op) =>
+      [required(op.tokenCount, "tokenCount"), 1, 1]),
   } satisfies Record<Lfm2PassName, Lfm2PassSpec>;
 }

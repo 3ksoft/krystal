@@ -109,6 +109,10 @@ export namespace v1_0_0 {
 		f1: number;
 		u0: number;
 		u1: number;
+		u2: number;
+		u3: number;
+		u4: number;
+		u5: number;
 	}
 	
 	export const LlmRuntimeStatus = {

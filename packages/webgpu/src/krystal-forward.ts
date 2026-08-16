@@ -1,0 +1,327 @@
+// M2b Krystal forward runner: wires the packed SoA BrainFrameGpu (M2a) into
+// the record/query encoder and query-to-record mixer, GPU-resident in one
+// submit (WEBGPU_BACKWARD_PLAN.md §17 item 7, first half).
+//
+//   field embed (6 additive tables) -> fieldStates
+//   -> 2 encoder blocks: local masked self-attention + ReLU FFN
+//   -> learned-query pooling -> bank keys/values + query states
+//   -> 2 mixer blocks: query -> bank cross-attention + ReLU FFN
+//   -> mixed query output + record bank
+//
+// Dispatch mirrors the oracle in packages/krystal/src/forward/oracle.ts; the
+// parity test compares the two on identical packed frames. Masks and active
+// lists are compiled on the host (concerns answers 15/16) from the frame's
+// ABI metadata. Forward-only: M3 adds backward for these ops.
+//
+// The SoA frame payloads are u32 and are uploaded into the shared f32 arena
+// (bitcast inside the shaders). Weight pages are created once in the
+// constructor from the deterministic host initialization.
+import {
+  KRYSTAL_FORWARD_ARENA,
+  KRYSTAL_FORWARD_ARENA_BASE,
+  KRYSTAL_MAX_FFN,
+  KRYSTAL_MAX_HEADS,
+  KRYSTAL_MAX_H,
+  KRYSTAL_MAX_QUERIES,
+  KRYSTAL_MAX_RECORDS,
+  KRYSTAL_MAX_TOKENS,
+  TRAINING_READBACK_ELEMENTS,
+} from "./lfm2-layout";
+import { lfm2, type Lfm2Definition } from "./lfm2";
+import { Lfm2Executor } from "./pass";
+import {
+  compileActiveFrame,
+  compileMixerMask,
+  compileRecordMask,
+} from "../../krystal/src/forward/masks";
+import {
+  BRAIN_FORWARD_CONFIG,
+  embeddingTableBases,
+  validateBrainForwardWeights,
+  type BrainForwardConfig,
+  type BrainForwardWeights,
+} from "../../krystal/src/forward/model";
+import type { v1_0_0 } from "../../schema/generated/krystal.types";
+
+function validate(condition: boolean, message: string): void {
+  if (!condition) throw new Error(`KrystalForward: ${message}`);
+}
+
+export class KrystalForward {
+  private readonly definition: Lfm2Definition;
+  private readonly config: BrainForwardConfig;
+  private readonly executor: Lfm2Executor;
+
+  private readonly embeddingsPage: GPUBuffer;
+  private readonly encPages: { wq: GPUBuffer; wk: GPUBuffer; wv: GPUBuffer; w1: GPUBuffer; w2: GPUBuffer }[];
+  private readonly poolPage: GPUBuffer;
+  private readonly mixerPages: { wq: GPUBuffer; wk: GPUBuffer; wv: GPUBuffer; w1: GPUBuffer; w2: GPUBuffer }[];
+
+  constructor(
+    weights: BrainForwardWeights,
+    config: BrainForwardConfig = BRAIN_FORWARD_CONFIG,
+    definition: Lfm2Definition = lfm2,
+  ) {
+    validateBrainForwardWeights(config, weights);
+    validate(config.hiddenSize <= KRYSTAL_MAX_H, `hiddenSize ${config.hiddenSize} exceeds capacity`);
+    validate(config.ffnSize <= KRYSTAL_MAX_FFN, `ffnSize ${config.ffnSize} exceeds capacity`);
+    validate(config.headCount <= KRYSTAL_MAX_HEADS, `headCount ${config.headCount} exceeds capacity`);
+    this.config = config;
+    this.definition = definition;
+    this.executor = new Lfm2Executor(definition);
+
+    const usage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST;
+    const device = definition.engine.device;
+    const page = (label: string, values: Float32Array): GPUBuffer => {
+      const buffer = device.createBuffer({ label, size: Math.max(4, values.byteLength), usage });
+      device.queue.writeBuffer(buffer, 0, values);
+      return buffer;
+    };
+    const blockPages = (label: string, block: BrainForwardWeights["enc"][number]) => ({
+      wq: page(`${label}.wq`, block.wq),
+      wk: page(`${label}.wk`, block.wk),
+      wv: page(`${label}.wv`, block.wv),
+      w1: page(`${label}.w1`, block.w1),
+      w2: page(`${label}.w2`, block.w2),
+    });
+
+    this.embeddingsPage = page("krystal.embeddings", weights.embeddings);
+    this.encPages = weights.enc.map((block, b) => blockPages(`krystal.enc${b}`, block));
+    this.poolPage = page("krystal.pool", weights.pool);
+    this.mixerPages = weights.mixer.map((block, b) => blockPages(`krystal.mixer${b}`, block));
+  }
+
+  private region(offset: number, elements: number): number {
+    validate(
+      offset + elements <= KRYSTAL_FORWARD_ARENA.elements,
+      "krystal forward arena region overflows the declared capacity",
+    );
+    return KRYSTAL_FORWARD_ARENA_BASE + offset;
+  }
+
+  /**
+   * Run the encoder + mixer forward for one packed frame, GPU-resident.
+   * Uploads the SoA payloads, host-compiled active lists and masks, then
+   * dispatches the whole pipeline in one submit.
+   */
+  forward(frame: v1_0_0.BrainFrameGpu): void {
+    const { hiddenSize: h, ffnSize: ffn, headCount: heads, headDim, encoderBlocks, mixerBlocks } = this.config;
+    const A = KRYSTAL_FORWARD_ARENA;
+    const active = compileActiveFrame(frame);
+    const t = active.activeTokens.length;
+    const r = active.bankRecords.length;
+    const q = active.queryRecords.length;
+    validate(t <= KRYSTAL_MAX_TOKENS, `active tokens ${t} exceed capacity`);
+    validate(r <= KRYSTAL_MAX_RECORDS, `bank records ${r} exceed capacity`);
+    validate(q <= KRYSTAL_MAX_QUERIES, `query records ${q} exceed capacity`);
+    validate(q > 0, "the frame must contain at least one query record for the mixer");
+
+    const { mask: recordMask } = compileRecordMask(active.activeTokens);
+    const mixerMask = compileMixerMask(q, r);
+
+    const device = this.definition.engine.device;
+    const arena = this.definition.resources.arena.gpu;
+    const uploadU32 = (offset: number, values: Uint32Array): void => {
+      device.queue.writeBuffer(arena, this.region(offset, values.length) * 4, values);
+    };
+    const uploadF32 = (offset: number, values: Float32Array): void => {
+      device.queue.writeBuffer(arena, this.region(offset, values.length) * 4, values);
+    };
+
+    // SoA frame payloads + host-compiled active lists (u32 in the f32 arena).
+    uploadU32(A.tokenIds, Uint32Array.from(frame.tokenIds));
+    uploadU32(A.fieldRoles, Uint32Array.from(frame.fieldRoles));
+    uploadU32(A.schemaIds, Uint32Array.from(frame.schemaIds));
+    uploadU32(A.bandIds, Uint32Array.from(frame.bandIds));
+    uploadU32(A.streamIds, active.streamIds);
+    uploadU32(A.activeTokens, active.activeTokens);
+    uploadU32(A.recordCompactOffset, active.recordCompactOffset);
+    uploadU32(A.recordCompactCount, active.recordCompactCount);
+    uploadU32(A.bankIndices, active.bankRecords);
+    uploadU32(A.queryIndices, active.queryRecords);
+    uploadF32(A.encMask, recordMask);
+    uploadF32(A.mixerMask, mixerMask);
+
+    const fieldStates = this.region(A.fieldStates, t * h);
+    const encQ = this.region(A.encQ, t * h);
+    const encK = this.region(A.encK, t * h);
+    const encV = this.region(A.encV, t * h);
+    const encOut = this.region(A.encOut, t * h);
+    const encH1 = this.region(A.encH1, t * ffn);
+    const encMask = this.region(A.encMask, t * t);
+    const bankKeys = this.region(A.bankKeys, r * h);
+    const bankValues = this.region(A.bankValues, r * h);
+    const queryKeys = this.region(A.queryKeys, q * h);
+    const queryValues = this.region(A.queryValues, q * h);
+    const mixerQ = this.region(A.mixerQ, q * h);
+    const mixerK = this.region(A.mixerK, q * h);
+    const mixerV = this.region(A.mixerV, q * h);
+    const mixerH1 = this.region(A.mixerH1, q * ffn);
+    const mixed = this.region(A.mixed, q * h);
+    const mixerMaskOffset = this.region(A.mixerMask, q * r);
+    const bankIndices = this.region(A.bankIndices, r);
+    const queryIndices = this.region(A.queryIndices, q);
+    const recordCompactOffset = this.region(A.recordCompactOffset, 128);
+    const recordCompactCount = this.region(A.recordCompactCount, 128);
+
+    const bases = embeddingTableBases(this.config);
+
+    this.executor.submit((encoder) => {
+      // 1. field embed -> fieldStates.
+      encoder.compute((pass) => pass.run("krystal_field_embed", {
+        inputOffset: this.region(A.tokenIds, 1024),
+        auxOffset: this.region(A.fieldRoles, 1024),
+        aux2Offset: this.region(A.schemaIds, 128),
+        aux3Offset: this.region(A.bandIds, 128),
+        aux4Offset: this.region(A.activeTokens, t),
+        aux5Offset: this.region(A.streamIds, 128),
+        outputOffset: fieldStates,
+        tokenCount: t, inputDim: h,
+        u0: bases.token, u1: bases.field, u2: bases.schema, u3: bases.band, u4: bases.stream, u5: bases.pos,
+      }, this.embeddingsPage));
+
+      // 2. encoder blocks.
+      for (let b = 0; b < encoderBlocks; b++) {
+        const block = this.encPages[b]!;
+        for (const [page, out] of [[block.wq, encQ], [block.wk, encK], [block.wv, encV]] as const) {
+          encoder.compute((pass) => pass.run("matmul_f32", {
+            inputOffset: fieldStates, outputOffset: out,
+            tokenCount: t, inputDim: h, outputDim: h, rowStart: 0, rowCount: h,
+          }, page));
+        }
+        encoder.compute((pass) => pass.run("krystal_attention_forward", {
+          inputOffset: encQ, auxOffset: encK, aux2Offset: encV, aux3Offset: encMask,
+          outputOffset: encOut,
+          tokenCount: t, inputDim: h, outputDim: headDim, u0: t, u1: heads,
+        }));
+        encoder.compute((pass) => pass.run("residual_add", {
+          inputOffset: fieldStates, auxOffset: encOut, outputOffset: fieldStates,
+          tokenCount: t, inputDim: h,
+        }));
+        // FFN: relu(x @ W1^T) @ W2^T, residual.
+        encoder.compute((pass) => pass.run("matmul_f32", {
+          inputOffset: fieldStates, outputOffset: encH1,
+          tokenCount: t, inputDim: h, outputDim: ffn, rowStart: 0, rowCount: ffn,
+        }, block.w1));
+        encoder.compute((pass) => pass.run("relu", {
+          inputOffset: encH1, outputOffset: encH1, tokenCount: t * ffn,
+        }));
+        encoder.compute((pass) => pass.run("matmul_f32", {
+          inputOffset: encH1, outputOffset: encOut,
+          tokenCount: t, inputDim: ffn, outputDim: h, rowStart: 0, rowCount: h,
+        }, block.w2));
+        encoder.compute((pass) => pass.run("residual_add", {
+          inputOffset: fieldStates, auxOffset: encOut, outputOffset: fieldStates,
+          tokenCount: t, inputDim: h,
+        }));
+      }
+
+      // 3. learned-query pooling -> bank keys/values + query states.
+      encoder.compute((pass) => pass.run("krystal_pool", {
+        inputOffset: fieldStates,
+        auxOffset: bankIndices,
+        aux2Offset: recordCompactOffset,
+        aux3Offset: recordCompactCount,
+        outputOffset: bankKeys,
+        aux4Offset: bankValues,
+        tokenCount: r, inputDim: h,
+      }, this.poolPage));
+      encoder.compute((pass) => pass.run("krystal_pool", {
+        inputOffset: fieldStates,
+        auxOffset: queryIndices,
+        aux2Offset: recordCompactOffset,
+        aux3Offset: recordCompactCount,
+        outputOffset: queryKeys,
+        aux4Offset: queryValues,
+        tokenCount: q, inputDim: h,
+      }, this.poolPage));
+
+      // 4. mixer blocks (query -> bank cross-attention + ReLU FFN).
+      for (let b = 0; b < mixerBlocks; b++) {
+        const block = this.mixerPages[b]!;
+        encoder.compute((pass) => pass.run("matmul_f32", {
+          inputOffset: queryValues, outputOffset: mixerQ,
+          tokenCount: q, inputDim: h, outputDim: h, rowStart: 0, rowCount: h,
+        }, block.wq));
+        encoder.compute((pass) => pass.run("matmul_f32", {
+          inputOffset: bankKeys, outputOffset: mixerK,
+          tokenCount: r, inputDim: h, outputDim: h, rowStart: 0, rowCount: h,
+        }, block.wk));
+        encoder.compute((pass) => pass.run("matmul_f32", {
+          inputOffset: bankValues, outputOffset: mixerV,
+          tokenCount: r, inputDim: h, outputDim: h, rowStart: 0, rowCount: h,
+        }, block.wv));
+        encoder.compute((pass) => pass.run("krystal_attention_forward", {
+          inputOffset: mixerQ, auxOffset: mixerK, aux2Offset: mixerV, aux3Offset: mixerMaskOffset,
+          outputOffset: mixed,
+          tokenCount: q, inputDim: h, outputDim: headDim, u0: r, u1: heads,
+        }));
+        encoder.compute((pass) => pass.run("residual_add", {
+          inputOffset: queryValues, auxOffset: mixed, outputOffset: queryValues,
+          tokenCount: q, inputDim: h,
+        }));
+        encoder.compute((pass) => pass.run("matmul_f32", {
+          inputOffset: queryValues, outputOffset: mixerH1,
+          tokenCount: q, inputDim: h, outputDim: ffn, rowStart: 0, rowCount: ffn,
+        }, block.w1));
+        encoder.compute((pass) => pass.run("relu", {
+          inputOffset: mixerH1, outputOffset: mixerH1, tokenCount: q * ffn,
+        }));
+        encoder.compute((pass) => pass.run("matmul_f32", {
+          inputOffset: mixerH1, outputOffset: mixed,
+          tokenCount: q, inputDim: ffn, outputDim: h, rowStart: 0, rowCount: h,
+        }, block.w2));
+        encoder.compute((pass) => pass.run("residual_add", {
+          inputOffset: queryValues, auxOffset: mixed, outputOffset: queryValues,
+          tokenCount: q, inputDim: h,
+        }));
+      }
+    });
+  }
+
+  /** Copy one arena region into the staging buffer and read it back. */
+  private async readbackRegion(offset: number, elements: number): Promise<Float32Array> {
+    validate(elements <= TRAINING_READBACK_ELEMENTS, `readback region ${elements} exceeds staging capacity`);
+    const device = this.definition.engine.device;
+    const arena = this.definition.resources.arena;
+    const staging = this.definition.resources.trainingReadback;
+    const encoder = device.createCommandEncoder();
+    encoder.copyBufferToBuffer(arena.gpu, offset * 4, staging.gpu, 0, elements * 4);
+    device.queue.submit([encoder.finish()]);
+    await device.queue.onSubmittedWorkDone();
+    const raw = (await staging.readback()) as unknown as ArrayLike<number>;
+    return Float32Array.from(raw).slice(0, elements);
+  }
+
+  /** Read back the record bank keys [R, H]. Test-only. */
+  async readBankKeys(r: number, h: number): Promise<Float32Array> {
+    return this.readbackRegion(this.region(KRYSTAL_FORWARD_ARENA.bankKeys, r * h), r * h);
+  }
+
+  /** Read back the record bank values [R, H]. Test-only. */
+  async readBankValues(r: number, h: number): Promise<Float32Array> {
+    return this.readbackRegion(this.region(KRYSTAL_FORWARD_ARENA.bankValues, r * h), r * h);
+  }
+
+  /** Read back the mixed query output [Q, H] (post-mixer). Test-only. */
+  async readQueryOutput(q: number, h: number): Promise<Float32Array> {
+    return this.readbackRegion(this.region(KRYSTAL_FORWARD_ARENA.queryValues, q * h), q * h);
+  }
+
+  /** Read back the encoded field states [T, H]. Test-only. */
+  async readFieldStates(t: number, h: number): Promise<Float32Array> {
+    return this.readbackRegion(this.region(KRYSTAL_FORWARD_ARENA.fieldStates, t * h), t * h);
+  }
+
+  destroy(): void {
+    this.embeddingsPage.destroy();
+    this.poolPage.destroy();
+    for (const block of [...this.encPages, ...this.mixerPages]) {
+      block.wq.destroy();
+      block.wk.destroy();
+      block.wv.destroy();
+      block.w1.destroy();
+      block.w2.destroy();
+    }
+  }
+}

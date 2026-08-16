@@ -41,7 +41,7 @@ export function lfm2Pass(
   };
 }
 
-const OP_PARAM_BYTES = 80;
+const OP_PARAM_BYTES = 96;
 
 function align(value: number, alignment: number): number {
   return Math.ceil(value / alignment) * alignment;
@@ -57,7 +57,7 @@ class Lfm2ParamWriter {
     tokenCount: 0, inputDim: 0, outputDim: 0, rowStart: 0,
     rowCount: 0, layerIndex: 0, attentionSlot: 0,
     mode: "prefill" as "prefill" | "decode" | "continuation",
-    f0: 0, f1: 0, u0: 0, u1: 0,
+    f0: 0, f1: 0, u0: 0, u1: 0, u2: 0, u3: 0, u4: 0, u5: 0,
     reserved: new Array<number>(44).fill(0),
   };
 
@@ -106,6 +106,10 @@ class Lfm2ParamWriter {
     value.f1 = params.f1 ?? 0;
     value.u0 = params.u0 ?? 0;
     value.u1 = params.u1 ?? 0;
+    value.u2 = params.u2 ?? 0;
+    value.u3 = params.u3 ?? 0;
+    value.u4 = params.u4 ?? 0;
+    value.u5 = params.u5 ?? 0;
     this.resource.encodeInto(value, this.view, offset);
 
     this.cursor += this.stride;

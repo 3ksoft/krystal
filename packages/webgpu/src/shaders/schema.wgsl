@@ -131,6 +131,10 @@ struct OpParams {
 	f1: f32,
 	u0: u32,
 	u1: u32,
+	u2: u32,
+	u3: u32,
+	u4: u32,
+	u5: u32,
 };
 
 
@@ -466,7 +470,7 @@ fn pack_constraint_decoder_state(unpacked: ConstraintDecoderState) -> array<u32,
 	return pack_constraint_decoder_state_to_words(unpacked);
 }
 
-fn unpack_words_to_op_params(raw: array<u32, 20>) -> OpParams {
+fn unpack_words_to_op_params(raw: array<u32, 24>) -> OpParams {
 	var out: OpParams;
 	out.inputOffset = bitcast<u32>(raw[0u]);
 	out.outputOffset = bitcast<u32>(raw[1u]);
@@ -488,16 +492,20 @@ fn unpack_words_to_op_params(raw: array<u32, 20>) -> OpParams {
 	out.f1 = bitcast<f32>(raw[17u]);
 	out.u0 = bitcast<u32>(raw[18u]);
 	out.u1 = bitcast<u32>(raw[19u]);
+	out.u2 = bitcast<u32>(raw[20u]);
+	out.u3 = bitcast<u32>(raw[21u]);
+	out.u4 = bitcast<u32>(raw[22u]);
+	out.u5 = bitcast<u32>(raw[23u]);
 	return out;
 }
 
-fn unpack_op_params(raw: array<u32, 20>) -> OpParams {
+fn unpack_op_params(raw: array<u32, 24>) -> OpParams {
 	return unpack_words_to_op_params(raw);
 }
 
-fn pack_op_params_to_words(unpacked: OpParams) -> array<u32, 20> {
-	var out: array<u32, 20>;
-	for (var w = 0u; w < 20u; w++) { out[w] = 0u; }
+fn pack_op_params_to_words(unpacked: OpParams) -> array<u32, 24> {
+	var out: array<u32, 24>;
+	for (var w = 0u; w < 24u; w++) { out[w] = 0u; }
 	out[0u] = bitcast<u32>(unpacked.inputOffset);
 	out[1u] = bitcast<u32>(unpacked.outputOffset);
 	out[2u] = bitcast<u32>(unpacked.auxOffset);
@@ -518,10 +526,14 @@ fn pack_op_params_to_words(unpacked: OpParams) -> array<u32, 20> {
 	out[17u] = bitcast<u32>(unpacked.f1);
 	out[18u] = bitcast<u32>(unpacked.u0);
 	out[19u] = bitcast<u32>(unpacked.u1);
+	out[20u] = bitcast<u32>(unpacked.u2);
+	out[21u] = bitcast<u32>(unpacked.u3);
+	out[22u] = bitcast<u32>(unpacked.u4);
+	out[23u] = bitcast<u32>(unpacked.u5);
 	return out;
 }
 
-fn pack_op_params(unpacked: OpParams) -> array<u32, 20> {
+fn pack_op_params(unpacked: OpParams) -> array<u32, 24> {
 	return pack_op_params_to_words(unpacked);
 }
 

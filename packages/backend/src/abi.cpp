@@ -112,6 +112,10 @@ namespace v1_0_0 {
 		float f1;
 		uint32_t u0;
 		uint32_t u1;
+		uint32_t u2;
+		uint32_t u3;
+		uint32_t u4;
+		uint32_t u5;
 	};
 	
 	using LlmRuntimeStatus = uint8_t;

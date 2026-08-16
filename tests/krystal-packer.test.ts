@@ -39,8 +39,8 @@ test("packer: fixture frame packs to the expected SoA buffers", () => {
   const input = buildFixtureFrame();
   const { frame, activeRecordIndices } = packBrainFrame(input, BINARY_LAYOUT_PLAN);
 
-  // Active records in ascending slot order.
-  expect(activeRecordIndices).toEqual([4, 12, 24, 90]);
+  // Active records in ascending slot order (incl. the query record at 122).
+  expect(activeRecordIndices).toEqual([4, 12, 24, 90, 122]);
   // BrainFrameGpu header is the plan header.
   expect(frame.header.planVersion).toBe(BINARY_LAYOUT_PLAN.header.planVersion);
   expect(frame.header.bufferCount).toBe(BINARY_LAYOUT_PLAN.header.bufferCount);

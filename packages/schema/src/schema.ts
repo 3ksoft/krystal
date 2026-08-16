@@ -198,6 +198,13 @@ export const schema = scope({
     f1: "f32 = 0",
     u0: "u32 = 0",
     u1: "u32 = 0",
+
+    // Extra scalar u32s for ops that carry more than two small integers
+    // (krystal_field_embed passes six embedding-table bases).
+    u2: "u32 = 0",
+    u3: "u32 = 0",
+    u4: "u32 = 0",
+    u5: "u32 = 0",
   },
 
   LlmRuntimeStatus: "'idle' | 'running' | 'eos' | 'done' | 'error'",

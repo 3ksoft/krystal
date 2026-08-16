@@ -107,6 +107,11 @@ export function defineLfm2FromArtifact() {
     attention_forward: engine.computeProgram("attention_forward"),
     attention_backward_scores: engine.computeProgram("attention_backward_scores"),
     attention_backward_qkv: engine.computeProgram("attention_backward_qkv"),
+    // M2b Krystal forward programs.
+    krystal_field_embed: engine.computeProgram("krystal_field_embed"),
+    krystal_attention_forward: engine.computeProgram("krystal_attention_forward"),
+    relu: engine.computeProgram("relu"),
+    krystal_pool: engine.computeProgram("krystal_pool"),
   } satisfies Record<Lfm2ProgramName, ReturnType<typeof engine.computeProgram>>;
 
   const passes = defineLfm2Passes(programs);
