@@ -226,7 +226,7 @@ export class KrystalForward {
         }
         encoder.compute((pass) => pass.run("krystal_attention_forward", {
           inputOffset: encQ, auxOffset: encK, aux2Offset: encV, aux3Offset: encMask,
-          outputOffset: encOut,
+          outputOffset: encOut, aux4Offset: this.region(A.encP, heads * t * t),
           tokenCount: t, inputDim: h, outputDim: headDim, u0: t, u1: heads,
         }));
         encoder.compute((pass) => pass.run("residual_add", {
@@ -288,7 +288,7 @@ export class KrystalForward {
         }, block.wv));
         encoder.compute((pass) => pass.run("krystal_attention_forward", {
           inputOffset: mixerQ, auxOffset: mixerK, aux2Offset: mixerV, aux3Offset: mixerMaskOffset,
-          outputOffset: mixed,
+          outputOffset: mixed, aux4Offset: this.region(A.mixerP, heads * q * r),
           tokenCount: q, inputDim: h, outputDim: headDim, u0: r, u1: heads,
         }));
         encoder.compute((pass) => pass.run("residual_add", {

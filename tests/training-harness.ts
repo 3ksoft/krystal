@@ -29,7 +29,19 @@ let instance: Promise<TrainingHarness> | undefined;
 export function getTrainingHarness(): Promise<TrainingHarness> {
   instance ??= (async () => {
     await installDawn();
-    const { device } = await createWebGpuDevice({ label: "krystal.training" });
+    // The shared arena now exceeds the default 128 MiB storage-buffer binding
+    // limit (M3 added the backward regions). Ask for the adapter's maximum so
+    // every program can bind the whole arena; fall back to the default when
+    // the adapter reports no higher limit.
+    const gpu = (globalThis as { navigator?: { gpu?: GPU } }).navigator?.gpu;
+    const adapter = await gpu!.requestAdapter({});
+    const limit = adapter!.limits.maxStorageBufferBindingSize;
+    const { device } = await createWebGpuDevice({
+      label: "krystal.training",
+      requiredLimits: {
+        maxStorageBufferBindingSize: Math.min(limit, 2147483644),
+      },
+    });
     const compiled = await lfm2.engine.compile({ device });
     expect(compiled.failed).toBe(0);
     const executor = new Lfm2Executor(lfm2);

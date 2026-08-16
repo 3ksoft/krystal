@@ -31,9 +31,13 @@ import {
   LFM2_INCLUDE_NAMES,
   LFM2_SHADER_NAMES,
   TRAINING_SHADER_NAMES,
+  KRYSTAL_FORWARD_SHADER_NAMES,
+  KRYSTAL_BACKWARD_SHADER_NAMES,
   type Lfm2IncludeName,
   type Lfm2ShaderName,
   type TrainingShaderName,
+  type KrystalForwardShaderName,
+  type KrystalBackwardShaderName,
 } from "../src/lfm2-definition";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -70,11 +74,13 @@ interface LinkedLfm2 {
 async function linkCurrentSources(): Promise<LinkedLfm2> {
   const core = await readNamed<Lfm2ShaderName>(shaderDir, LFM2_SHADER_NAMES);
   const training = await readNamed<TrainingShaderName>(trainingDir, TRAINING_SHADER_NAMES);
-  const sources = { ...core, ...training };
+  const krystal = await readNamed<KrystalForwardShaderName>(trainingDir, KRYSTAL_FORWARD_SHADER_NAMES);
+  const backward = await readNamed<KrystalBackwardShaderName>(trainingDir, KRYSTAL_BACKWARD_SHADER_NAMES);
+  const sources = { ...core, ...training, ...krystal, ...backward };
   const includes = await readNamed<Lfm2IncludeName>(includeDir, LFM2_INCLUDE_NAMES);
   const definition = defineLfm2({ sources, includes });
   definition.engine.link();
-  const programs = [...LFM2_SHADER_NAMES, ...TRAINING_SHADER_NAMES].map((name) => ({
+  const programs = [...LFM2_SHADER_NAMES, ...TRAINING_SHADER_NAMES, ...KRYSTAL_FORWARD_SHADER_NAMES, ...KRYSTAL_BACKWARD_SHADER_NAMES].map((name) => ({
     label: name,
     code: definition.programs[name].source,
   }));

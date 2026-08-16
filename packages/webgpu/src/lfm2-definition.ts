@@ -32,10 +32,12 @@ import {
   TRAINING_READBACK_ELEMENTS,
   TRAINING_SHADER_NAMES,
   KRYSTAL_FORWARD_SHADER_NAMES,
+  KRYSTAL_BACKWARD_SHADER_NAMES,
   type Lfm2ProgramName,
   type Lfm2ShaderName,
   type TrainingShaderName,
   type KrystalForwardShaderName,
+  type KrystalBackwardShaderName,
   defineLfm2Passes,
 } from "./lfm2-layout";
 
@@ -61,7 +63,10 @@ export const LFM2_INCLUDE_NAMES = [
 export type Lfm2IncludeName = (typeof LFM2_INCLUDE_NAMES)[number];
 
 export interface Lfm2ShaderBundle {
-  readonly sources: Record<Lfm2ShaderName | TrainingShaderName | KrystalForwardShaderName, string>;
+  readonly sources: Record<
+    Lfm2ShaderName | TrainingShaderName | KrystalForwardShaderName | KrystalBackwardShaderName,
+    string
+  >;
   readonly includes: Record<Lfm2IncludeName, string>;
 }
 
@@ -75,6 +80,7 @@ export function emptyLfm2ShaderBundle(): Lfm2ShaderBundle {
       ...LFM2_SHADER_NAMES,
       ...TRAINING_SHADER_NAMES,
       ...KRYSTAL_FORWARD_SHADER_NAMES,
+      ...KRYSTAL_BACKWARD_SHADER_NAMES,
     ]),
     includes: emptyRecord(LFM2_INCLUDE_NAMES),
   };
@@ -588,6 +594,50 @@ export function defineLfm2(bundle: Lfm2ShaderBundle = emptyLfm2ShaderBundle()) {
         params: widLid,
         workgroupSize: 64,
         code: sources.krystal_selector,
+      },
+    }),
+
+    // M3 Krystal backward programs.
+    relu_backward: engine.compute({
+      label: "relu_backward",
+      resources: { op: r.op, arena: r.arena },
+      includes: commonIncludes,
+      compute: { entryPoint: "relu_backward", params: gid, workgroupSize: 256, code: sources.relu_backward },
+    }),
+
+    krystal_attention_backward_scores: engine.compute({
+      label: "krystal_attention_backward_scores",
+      resources: { op: r.op, arena: r.arena },
+      includes: [...commonIncludes, include("attention-scores"), include("reduce-f32")],
+      compute: {
+        entryPoint: "krystal_attention_backward_scores",
+        params: widLid,
+        workgroupSize: 64,
+        code: sources.krystal_attention_backward_scores,
+      },
+    }),
+
+    krystal_attention_backward_qkv: engine.compute({
+      label: "krystal_attention_backward_qkv",
+      resources: { op: r.op, arena: r.arena },
+      includes: commonIncludes,
+      compute: {
+        entryPoint: "krystal_attention_backward_qkv",
+        params: gid,
+        workgroupSize: 256,
+        code: sources.krystal_attention_backward_qkv,
+      },
+    }),
+
+    krystal_field_embed_backward: engine.compute({
+      label: "krystal_field_embed_backward",
+      resources: { op: r.op, arena: r.arena },
+      includes: commonIncludes,
+      compute: {
+        entryPoint: "krystal_field_embed_backward",
+        params: gid,
+        workgroupSize: 256,
+        code: sources.krystal_field_embed_backward,
       },
     }),
   } satisfies Record<Lfm2ProgramName, AnyComputeHandle>;

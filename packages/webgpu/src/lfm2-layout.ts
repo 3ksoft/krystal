@@ -222,6 +222,7 @@ export interface KrystalForwardArenaLayout {
   encOut: number; // [maxTokens, H]
   encH1: number; // [maxTokens, FFN]
   encMask: number; // [maxTokens, maxTokens]
+  encP: number; // [maxHeads, maxTokens, maxTokens] persisted attention probs
 
   bankKeys: number; // [maxRecords, H]
   bankValues: number; // [maxRecords, H]
@@ -234,6 +235,7 @@ export interface KrystalForwardArenaLayout {
   mixerH1: number; // [maxQueries, FFN]
   mixed: number; // [maxQueries, H]
   mixerMask: number; // [maxQueries, maxRecords]
+  mixerP: number; // [maxHeads, maxQueries, maxRecords] persisted mixer probs
 
   // Catalog selection + soft gather (architecture v2 §7, answer 26).
   selectorQ: number; // [maxQueries, H]  shared query/key projections
@@ -279,6 +281,7 @@ function createKrystalForwardArenaLayout(): KrystalForwardArenaLayout {
     encOut: take(th),
     encH1: take(tf),
     encMask: take(KRYSTAL_MAX_TOKENS * KRYSTAL_MAX_TOKENS),
+    encP: take(KRYSTAL_MAX_HEADS * KRYSTAL_MAX_TOKENS * KRYSTAL_MAX_TOKENS),
 
     bankKeys: take(rh),
     bankValues: take(rh),
@@ -291,6 +294,7 @@ function createKrystalForwardArenaLayout(): KrystalForwardArenaLayout {
     mixerH1: take(KRYSTAL_MAX_QUERIES * KRYSTAL_MAX_FFN),
     mixed: take(qh),
     mixerMask: take(KRYSTAL_MAX_QUERIES * KRYSTAL_MAX_RECORDS),
+    mixerP: take(KRYSTAL_MAX_HEADS * KRYSTAL_MAX_QUERIES * KRYSTAL_MAX_RECORDS),
 
     selectorQ: take(qh),
     selectorK: take(rh),
@@ -311,8 +315,81 @@ export const KRYSTAL_FORWARD_ARENA_BASE = LFM2_ARENA.elements + TRAINING_ARENA_E
 export const KRYSTAL_FORWARD_ARENA = createKrystalForwardArenaLayout();
 export const KRYSTAL_FORWARD_ARENA_ELEMENTS = KRYSTAL_FORWARD_ARENA.elements;
 
-export const ARENA_ELEMENTS =
+// --- Krystal backward arena (M3: backward ops for the M2b forward graph) -----
+//
+// Fixed capacity constants, not ABI limits: shaders read actual dims from
+// OpParams. Gradients live here so a later composed KrystalBackward runner
+// mirrors KrystalForward's one-submit structure (WEBGPU_BACKWARD_PLAN.md §17
+// items 6-8).
+
+export interface KrystalBackwardArenaLayout {
+  // Field embedding backward (scatter-add into the six concatenated tables).
+  dEmbedding: number; // [embeddingsPageElements]
+  dFieldStates: number; // [maxTokens, H]
+
+  // Encoder-block attention backward (cross-capable, mirrored per block).
+  dEncQ: number; // [maxTokens, H]
+  dEncK: number; // [maxTokens, H]
+  dEncV: number; // [maxTokens, H]
+  dEncOut: number; // [maxTokens, H]
+  dScoresEnc: number; // [maxHeads, maxTokens, maxTokens]
+  dHiddenQ: number; // [maxTokens, H] (projection-input grads)
+  dHiddenK: number; // [maxTokens, H]
+  dHiddenV: number; // [maxTokens, H]
+  dWq: number; // [H, H] (block weight grads, reused across blocks)
+  dWk: number; // [H, H]
+  dWv: number; // [H, H]
+  dH1: number; // [maxTokens, FFN] (FFN pre-activation grads)
+  dW1: number; // [FFN, H]
+  dW2: number; // [H, FFN]
+  elements: number;
+}
+
+function createKrystalBackwardArenaLayout(): KrystalBackwardArenaLayout {
+  let cursor = 0;
+  const take = (elements: number) => {
+    const offset = cursor;
+    cursor += elements;
+    return offset;
+  };
+  const th = KRYSTAL_MAX_TOKENS * KRYSTAL_MAX_H;
+  const hh = KRYSTAL_MAX_H * KRYSTAL_MAX_H;
+  const tf = KRYSTAL_MAX_TOKENS * KRYSTAL_MAX_FFN;
+  const fh = KRYSTAL_MAX_FFN * KRYSTAL_MAX_H;
+  const hf = KRYSTAL_MAX_H * KRYSTAL_MAX_FFN;
+  const emb =
+    (0x1000 + 0x1000 + 0x100 + 11 + 2 + 8) * KRYSTAL_MAX_H; // EMBEDDING_TABLES rows
+  return {
+    dEmbedding: take(emb),
+    dFieldStates: take(th),
+    dEncQ: take(th),
+    dEncK: take(th),
+    dEncV: take(th),
+    dEncOut: take(th),
+    dScoresEnc: take(KRYSTAL_MAX_HEADS * KRYSTAL_MAX_TOKENS * KRYSTAL_MAX_TOKENS),
+    dHiddenQ: take(th),
+    dHiddenK: take(th),
+    dHiddenV: take(th),
+    dWq: take(hh),
+    dWk: take(hh),
+    dWv: take(hh),
+    dH1: take(tf),
+    dW1: take(fh),
+    dW2: take(hf),
+    elements: cursor,
+  };
+}
+
+export const KRYSTAL_BACKWARD_ARENA_BASE =
   LFM2_ARENA.elements + TRAINING_ARENA_ELEMENTS + KRYSTAL_FORWARD_ARENA_ELEMENTS;
+export const KRYSTAL_BACKWARD_ARENA = createKrystalBackwardArenaLayout();
+export const KRYSTAL_BACKWARD_ARENA_ELEMENTS = KRYSTAL_BACKWARD_ARENA.elements;
+
+export const ARENA_ELEMENTS =
+  LFM2_ARENA.elements +
+  TRAINING_ARENA_ELEMENTS +
+  KRYSTAL_FORWARD_ARENA_ELEMENTS +
+  KRYSTAL_BACKWARD_ARENA_ELEMENTS;
 
 // Generalniejsze niż attentionLayerCount * 8:
 // obsłuży też ewentualnie różną liczbę KV heads per layer.
@@ -433,6 +510,20 @@ export const KRYSTAL_FORWARD_SHADER_NAMES = [
 export type KrystalForwardShaderName = (typeof KRYSTAL_FORWARD_SHADER_NAMES)[number];
 
 /**
+ * M3 Krystal backward shaders (record encoder + attention backward, §17
+ * order). One file per entry point under src/shaders/training/; they share
+ * the OpParams/arena conventions and link into the same artifact.
+ */
+export const KRYSTAL_BACKWARD_SHADER_NAMES = [
+  "relu_backward",
+  "krystal_attention_backward_scores",
+  "krystal_attention_backward_qkv",
+  "krystal_field_embed_backward",
+] as const;
+
+export type KrystalBackwardShaderName = (typeof KRYSTAL_BACKWARD_SHADER_NAMES)[number];
+
+/**
  * Programs are no longer 1:1 with shader files: matmul_wq4 is compiled twice
  * from one body, once per row tiling. Names above index the .wgsl files on
  * disk; names here index the linked programs.
@@ -442,6 +533,7 @@ export const LFM2_PROGRAM_NAMES = [
   "matmul_wq4_wide",
   ...TRAINING_SHADER_NAMES,
   ...KRYSTAL_FORWARD_SHADER_NAMES,
+  ...KRYSTAL_BACKWARD_SHADER_NAMES,
 ] as const;
 export type Lfm2ProgramName = (typeof LFM2_PROGRAM_NAMES)[number];
 
@@ -670,5 +762,22 @@ export function defineLfm2Passes(
 
     krystal_selector: definePass(programs.krystal_selector, "none", (op) =>
       [1, required(op.tokenCount, "tokenCount"), 1]),
+
+    // --- M3 Krystal backward passes ---
+    // Contracts are documented in each training/*.wgsl file; geometry mirrors
+    // the corresponding forward pass (gid-linear for elementwise, one
+    // workgroup per (head, row) for the attention score gradient).
+    relu_backward: definePass(programs.relu_backward, "none", (op) =>
+      linear(required(op.tokenCount, "tokenCount"), 256)),
+
+    krystal_attention_backward_scores: definePass(programs.krystal_attention_backward_scores, "none", (op) =>
+      [required(op.u1, "u1"), required(op.tokenCount, "tokenCount"), 1]),
+
+    krystal_attention_backward_qkv: definePass(programs.krystal_attention_backward_qkv, "none", (op) =>
+      linear(required(op.tokenCount, "tokenCount") * required(op.inputDim, "inputDim") +
+        2 * required(op.u0, "u0") * required(op.inputDim, "inputDim"), 256)),
+
+    krystal_field_embed_backward: definePass(programs.krystal_field_embed_backward, "none", (op) =>
+      linear(required(op.tokenCount, "tokenCount") * required(op.inputDim, "inputDim"), 256)),
   } satisfies Record<Lfm2PassName, Lfm2PassSpec>;
 }

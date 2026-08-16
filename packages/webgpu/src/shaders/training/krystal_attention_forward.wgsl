@@ -16,6 +16,8 @@
 //   K, V [kRows, H]  same head layout
 //   mask [qRows, kRows] f32, mask[i*kRows + j]
 //   out  [qRows, H]  same head layout as Q
+//   P    [headCount, qRows, kRows], P[(h*qRows + i)*kRows + j] (persisted
+//        for backward, mirroring attention_forward's aux4Offset contract)
 //
 // OpParams:
 //   tokenCount = qRows, inputDim = H, outputDim = headDim
@@ -25,6 +27,7 @@
 //   aux2Offset  = V [kRows, H]
 //   aux3Offset  = mask [qRows, kRows]
 //   outputOffset = out [qRows, H]
+//   aux4Offset  = P [headCount, qRows, kRows]
 //
 // scale = 1 / sqrt(headDim), computed in WGSL.
 
@@ -68,7 +71,15 @@
   }
   workgroupBarrier();
 
-  // Pass 3: reduce the context vector per output dimension.
+  // Pass 3: persist probs (backward needs them), then reduce the context
+  // vector per output dimension.
+  j = lid.x;
+  loop {
+    if (j >= kRows) { break; }
+    arena[op.aux4Offset + (head * qRows + i) * kRows + j] = attentionScores[j];
+    j += WG;
+  }
+  workgroupBarrier();
   var dim = lid.x;
   loop {
     if (dim >= headDim) { break; }
