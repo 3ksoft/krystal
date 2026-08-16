@@ -171,11 +171,6 @@ export class Lfm2ComputePass {
     );
   }
 
-  /** Dispatch a static AOT program that has no OpParams binding. */
-  runStatic(name: "constraint_mask", workgroups: Lfm2Workgroups): void {
-    this.onRun?.(name);
-    this.pass.run(lfm2.programs[name], { workgroups });
-  }
 }
 
 export interface Lfm2CommandEncoder {
@@ -203,21 +198,17 @@ export class Lfm2Executor {
       );
     }
     // Regression guard for the weight placeholder contract: pass.ts overrides
-    // weightRaw/weight32 with real tensor pages, so they must link as
-    // RUNTIME-sized WGSL arrays (declared as count>1 scalar buffers in
-    // lfm2-definition.ts). If Sandblaster's linker ever emits a fixed-length
-    // type here, weight reads past it become out-of-bounds and inference
-    // silently degrades to garbage/NaN instead of failing loudly.
-    //
-    // Training programs that bind weight32 (embedding_f32, matmul_backward_input,
-    // sgd_step) share the same placeholder contract, so they are guarded too.
+    // weight32 with real tensor pages, so it must link as a RUNTIME-sized WGSL
+    // array (declared as a count>1 scalar buffer in lfm2-definition.ts). If
+    // Sandblaster's linker ever emits a fixed-length type here, weight reads
+    // past it become out-of-bounds and training silently degrades to
+    // garbage/NaN instead of failing loudly.
     for (const programName of [
-      "embedding_wq4", "matmul_wq4", "rms_norm",
       "embedding_f32", "matmul_backward_input", "sgd_step",
     ] as const) {
       const manifest = lfm2.programs[programName].manifest;
       for (const binding of manifest.bindings) {
-        if (binding.name !== "weightRaw" && binding.name !== "weight32") continue;
+        if (binding.name !== "weight32") continue;
         if (!binding.wgslType.startsWith("array<")) {
           throw new Error(
             `LFM2 weight binding '${binding.name}' must be a runtime-sized WGSL array, ` +
