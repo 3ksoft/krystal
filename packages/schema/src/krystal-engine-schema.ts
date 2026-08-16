@@ -871,6 +871,7 @@ export const schema = scope({
 
     activation: "f32 = 0",
     priority: "f32 = 0",
+    intensity: "f32 = 0.5",
     persistence: "f32 = 0",
     confidence: "f32 = 0",
 
