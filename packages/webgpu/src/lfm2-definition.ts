@@ -50,6 +50,7 @@ export const LFM2_INCLUDE_NAMES = [
   "matmul-rows",
   "matmul-rows-wide",
   "pool-scores",
+  "pool-backward-scores",
   "reduce-f32",
   "reduce-u32",
   "runtime",
@@ -638,6 +639,30 @@ export function defineLfm2(bundle: Lfm2ShaderBundle = emptyLfm2ShaderBundle()) {
         params: gid,
         workgroupSize: 256,
         code: sources.krystal_field_embed_backward,
+      },
+    }),
+
+    krystal_pool_backward: engine.compute({
+      label: "krystal_pool_backward",
+      resources: { op: r.op, arena: r.arena, weight32: r.weight32 },
+      includes: [...commonIncludes, include("pool-backward-scores")],
+      compute: {
+        entryPoint: "krystal_pool_backward",
+        params: widLid,
+        workgroupSize: 64,
+        code: sources.krystal_pool_backward,
+      },
+    }),
+
+    krystal_pool_dpool: engine.compute({
+      label: "krystal_pool_dpool",
+      resources: { op: r.op, arena: r.arena },
+      includes: commonIncludes,
+      compute: {
+        entryPoint: "krystal_pool_dpool",
+        params: gid,
+        workgroupSize: 256,
+        code: sources.krystal_pool_dpool,
       },
     }),
   } satisfies Record<Lfm2ProgramName, AnyComputeHandle>;

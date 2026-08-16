@@ -7,7 +7,7 @@
 // (krystal_attention_forward) now writes P through aux4Offset exactly like the
 // M1 attention_forward contract.
 import { expect, test } from "bun:test";
-import { getTrainingHarness, readArenaRegion, runPassWait, uploadArena } from "./training-harness.ts";
+import { createWeightPage, getTrainingHarness, readArenaRegion, runPassWait, uploadArena } from "./training-harness.ts";
 import {
   KRYSTAL_BACKWARD_ARENA,
   KRYSTAL_BACKWARD_ARENA_BASE,
@@ -18,6 +18,7 @@ import {
   attentionBackwardQkv,
   attentionBackwardScores,
   fieldEmbedBackward,
+  poolBackward,
   reluBackward,
 } from "../packages/krystal/src/forward/backward.ts";
 import { attentionOracle, softmaxRow } from "../packages/krystal/src/forward/oracle.ts";
@@ -302,6 +303,168 @@ test("attention backward: dQ/dK/dV match central differences of a forward-only l
   await check(q, off.q, gpu.dQ, "dQ");
   await check(k, off.k, gpu.dK, "dK");
   await check(v, off.v, gpu.dV, "dV");
+});
+
+// ---------------------------------------------------------------------------
+// krystal pool backward (learned-query pooling gradients, §17 item 7)
+// ---------------------------------------------------------------------------
+
+const POOL = {
+  H: 8,
+  recordCount: 2,
+  // Record 0: tokens 0..2 (3 active). Record 1: tokens 3..4 (2 active).
+  starts: [0, 3],
+  counts: [3, 2],
+} as const;
+
+function poolInputs(seedBase: number): {
+  fieldStates: Float32Array;
+  pool: Float32Array;
+  dKeys: Float32Array;
+  dValues: Float32Array;
+} {
+  const { H, recordCount } = POOL;
+  const total = POOL.starts[1]! + POOL.counts[1]!; // 5 tokens
+  return {
+    fieldStates: Float32Array.from({ length: total * H }, (_, i) => Math.sin(i * 0.9 + seedBase) + 0.25),
+    pool: Float32Array.from({ length: 2 * H }, (_, i) => (i < H ? Math.cos(i * 0.5) : Math.sin(i * 0.2))),
+    dKeys: Float32Array.from({ length: recordCount * H }, (_, i) => Math.cos(i * 1.3) * 0.7),
+    dValues: Float32Array.from({ length: recordCount * H }, (_, i) => Math.sin(i * 0.8) * 0.9),
+  };
+}
+
+async function runPoolBackward(
+  h: Awaited<ReturnType<typeof getTrainingHarness>>,
+  inputs: ReturnType<typeof poolInputs>,
+): Promise<{ dFieldStates: Float32Array; dPool: Float32Array }> {
+  const { H, recordCount, starts, counts } = POOL;
+  const total = starts[1]! + counts[1]!;
+  const fsOff = bwdRegion("dFieldStates", total * H);
+  const dKeysOff = bwdRegion("dBankKeys", recordCount * H);
+  const dValuesOff = bwdRegion("dBankValues", recordCount * H);
+  const idxOff = bwdRegion("dEncQ", recordCount);
+  const cOff = bwdRegion("dEncK", 4);
+  const cCntOff = bwdRegion("dEncV", 4);
+  const dFsOutOff = bwdRegion("dH1", total * H);
+  const dPoolPartialOff = bwdRegion("dPoolPartial", recordCount * 2 * H);
+  const dPoolOff = bwdRegion("dPool", 2 * H);
+
+  await uploadArena(h, fsOff, inputs.fieldStates);
+  await uploadArena(h, dKeysOff, inputs.dKeys);
+  await uploadArena(h, dValuesOff, inputs.dValues);
+  await uploadU32(h, idxOff, Uint32Array.from([0, 1]));
+  const compactOffset = new Uint32Array(4).fill(0xffff_ffff);
+  compactOffset[0] = starts[0];
+  compactOffset[1] = starts[1];
+  const compactCount = Uint32Array.from(counts);
+  await uploadU32(h, cOff, compactOffset);
+  await uploadU32(h, cCntOff, compactCount);
+  // dFieldStates is accumulated (+=), so zero the output region first.
+  await uploadArena(h, dFsOutOff, new Float32Array(total * H));
+
+  const poolPage = createWeightPage(h, inputs.pool);
+  await runPassWait(h, "krystal_pool_backward", {
+    inputOffset: fsOff, auxOffset: idxOff, aux2Offset: cOff, aux3Offset: cCntOff,
+    aux4Offset: dKeysOff, aux5Offset: dValuesOff,
+    outputOffset: dFsOutOff, aux6Offset: dPoolPartialOff,
+    tokenCount: recordCount, inputDim: H,
+  }, poolPage);
+  await runPassWait(h, "krystal_pool_dpool", {
+    inputOffset: dPoolPartialOff, outputOffset: dPoolOff,
+    tokenCount: recordCount, inputDim: H,
+  });
+  const dFieldStates = await readArenaRegion(h, dFsOutOff, total * H);
+  const dPool = await readArenaRegion(h, dPoolOff, 2 * H);
+  return { dFieldStates, dPool };
+}
+
+test("pool_backward: GPU dFieldStates/dPool match the CPU oracle", async () => {
+  const h = await getTrainingHarness();
+  const { H, recordCount, starts, counts } = POOL;
+  const inputs = poolInputs(0.4);
+  const gpu = await runPoolBackward(h, inputs);
+
+  const want = poolBackward(
+    inputs.fieldStates, [0, 1], starts, counts, inputs.pool, inputs.dKeys, inputs.dValues, H,
+  );
+  const total = starts[1]! + counts[1]!;
+  expect(maxAbsDiff(gpu.dFieldStates, want.dFieldStates)).toBeLessThanOrEqual(1e-4);
+  expect(maxAbsDiff(gpu.dPool, want.dPool)).toBeLessThanOrEqual(1e-4);
+  expect(gpu.dFieldStates.length).toBe(total * H);
+});
+
+test("pool_backward: dFieldStates/dPool match central differences of a forward-only loss", async () => {
+  const h = await getTrainingHarness();
+  const { H, recordCount, starts, counts } = POOL;
+  const inputs = poolInputs(0.9);
+  const total = starts[1]! + counts[1]!;
+  const scale = 1 / Math.sqrt(H);
+  const Gk = Float32Array.from({ length: recordCount * H }, (_, i) => Math.sin(i * 0.6) * 0.5);
+  const Gv = Float32Array.from({ length: recordCount * H }, (_, i) => Math.cos(i * 0.4) * 0.6);
+
+  // Forward-only scalar loss L = sum(keys . Gk) + sum(values . Gv), where
+  // keys/values come from the same pooling math as krystal_pool forward.
+  const forwardLoss = (fieldStates: Float32Array, pool: Float32Array): number => {
+    const keyScores = new Float32Array(8);
+    const valueScores = new Float32Array(8);
+    let loss = 0;
+    for (let rec = 0; rec < recordCount; rec++) {
+      const start = starts[rec]!;
+      const count = counts[rec]!;
+      for (let j = 0; j < count; j++) {
+        let ks = 0;
+        let vs = 0;
+        for (let d = 0; d < H; d++) {
+          const s = fieldStates[(start + j) * H + d]!;
+          ks += pool[d]! * s;
+          vs += pool[H + d]! * s;
+        }
+        keyScores[j] = ks * scale;
+        valueScores[j] = vs * scale;
+      }
+      softmaxRow(keyScores, 0, count);
+      softmaxRow(valueScores, 0, count);
+      for (let d = 0; d < H; d++) {
+        let kAcc = 0;
+        let vAcc = 0;
+        for (let j = 0; j < count; j++) {
+          const s = fieldStates[(start + j) * H + d]!;
+          kAcc += keyScores[j]! * s;
+          vAcc += valueScores[j]! * s;
+        }
+        loss += kAcc * Gk[rec * H + d]! + vAcc * Gv[rec * H + d]!;
+      }
+    }
+    return loss;
+  };
+
+  const gpu = await runPoolBackward(h, { ...inputs, dKeys: Gk, dValues: Gv });
+  const EPS = 1e-3;
+  const check = (
+    perturbed: Float32Array,
+    gpuGrad: Float32Array,
+    label: string,
+    loss: (fs: Float32Array, pool: Float32Array) => number,
+  ) => {
+    const indices = [0, 1, 5, 8, 13];
+    for (const index of indices) {
+      const plus = perturbed.slice();
+      plus[index] = perturbed[index]! + EPS;
+      const minus = perturbed.slice();
+      minus[index] = perturbed[index]! - EPS;
+      const numeric = (loss(plus, plus) - loss(minus, minus)) / (2 * EPS);
+      const analytical = gpuGrad[index]!;
+      const bound = 1e-3 + 5e-2 * Math.abs(analytical);
+      expect(
+        Math.abs(numeric - analytical) <= bound,
+        `${label}[${index}]: numeric ${numeric}, analytical ${analytical}`,
+      ).toBe(true);
+    }
+  };
+  // For the fieldStates check the perturbed tensor is the fieldStates slot;
+  // for the pool check it is the pool-query slot — the other slot stays fixed.
+  check(inputs.fieldStates, gpu.dFieldStates, "dFieldStates", (fs) => forwardLoss(fs, inputs.pool));
+  check(inputs.pool, gpu.dPool, "dPool", (pool) => forwardLoss(inputs.fieldStates, pool));
 });
 
 // ---------------------------------------------------------------------------

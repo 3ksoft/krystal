@@ -12,6 +12,7 @@
 import type { v1_0_0 } from "../../../schema/generated/krystal.types.ts";
 import { embeddingTableBases, type BrainForwardConfig } from "./model.ts";
 import type { ActiveFrame } from "./masks.ts";
+import { softmaxRow } from "./oracle.ts";
 
 /** dIn[i] = (out[i] > 0) ? dOut[i] : 0. Mirrors relu_backward.wgsl. */
 export function reluBackward(out: Float32Array, dOut: Float32Array): Float32Array {
@@ -116,6 +117,98 @@ export function attentionBackwardQkv(
     }
   }
   return { dQ, dK, dV };
+}
+
+/**
+ * Learned-query pooling backward (record mixer training path, §17 item 7
+ * second half). Mirrors krystal_pool_backward.wgsl + krystal_pool_dpool.wgsl:
+ * given upstream dKeys/dValues per record, compute the fieldStates gradient
+ * and the shared pool-query gradient.
+ *
+ *   key[r,h]   = sum_j pk[j] * s[j,h],   pk = softmax(qk . s_j / sqrt(H))
+ *   value[r,h] = sum_j pv[j] * s[j,h],   pv = softmax(qv . s_j / sqrt(H))
+ *
+ *   dPk[j]     = dot(dKeys[r], s_j)
+ *   dScoreK[j] = pk[j] * (dPk[j] - rowSumK), rowSumK = sum pk*dPk
+ *   dQk[d]     = scale * sum_j dScoreK[j] * s[j,d]
+ *   dS[j,d]   += pk[j]*dKeys[r,d] + scale*dScoreK[j]*qk[d]
+ *   (same for the value side with qv/pv/dValues)
+ *
+ * recordIndices holds the record slot per active record; compact offsets/counts
+ * locate each record's token range inside the compacted fieldStates [T, H].
+ */
+export function poolBackward(
+  fieldStates: Float32Array, // [T, H]
+  recordIndices: readonly number[], // [R] record slots
+  recordCompactOffset: readonly number[], // [maxRecords]
+  recordCompactCount: readonly number[], // [maxRecords]
+  pool: Float32Array, // [2, H] qk row 0, qv row 1
+  dKeys: Float32Array, // [R, H]
+  dValues: Float32Array, // [R, H]
+  h: number,
+): { dFieldStates: Float32Array; dPool: Float32Array } {
+  const r = recordIndices.length;
+  const dFieldStates = new Float32Array(fieldStates.length);
+  const dPool = new Float32Array(2 * h);
+  const scale = 1 / Math.sqrt(h);
+  for (let rec = 0; rec < r; rec++) {
+    const slot = recordIndices[rec]!;
+    const start = recordCompactOffset[slot]!;
+    const count = recordCompactCount[slot]!;
+    if (count === 0) continue;
+    const pk = new Float32Array(count);
+    const pv = new Float32Array(count);
+    const dPk = new Float32Array(count);
+    const dPv = new Float32Array(count);
+    const keyScores = new Float32Array(count);
+    const valueScores = new Float32Array(count);
+    for (let j = 0; j < count; j++) {
+      let ks = 0;
+      let vs = 0;
+      for (let d = 0; d < h; d++) {
+        const s = fieldStates[(start + j) * h + d]!;
+        ks += pool[d]! * s;
+        vs += pool[h + d]! * s;
+      }
+      keyScores[j] = ks * scale;
+      valueScores[j] = vs * scale;
+    }
+    softmaxRow(keyScores, 0, count);
+    softmaxRow(valueScores, 0, count);
+    for (let j = 0; j < count; j++) {
+      pk[j] = keyScores[j]!;
+      pv[j] = valueScores[j]!;
+      let dk = 0;
+      let dv = 0;
+      for (let d = 0; d < h; d++) {
+        const s = fieldStates[(start + j) * h + d]!;
+        dk += dKeys[rec * h + d]! * s;
+        dv += dValues[rec * h + d]! * s;
+      }
+      dPk[j] = dk;
+      dPv[j] = dv;
+    }
+    let kRowSum = 0;
+    let vRowSum = 0;
+    for (let j = 0; j < count; j++) {
+      kRowSum += pk[j]! * dPk[j]!;
+      vRowSum += pv[j]! * dPv[j]!;
+    }
+    for (let j = 0; j < count; j++) {
+      const dScoreK = pk[j]! * (dPk[j]! - kRowSum);
+      const dScoreV = pv[j]! * (dPv[j]! - vRowSum);
+      for (let d = 0; d < h; d++) {
+        const s = fieldStates[(start + j) * h + d]!;
+        const ds = pk[j]! * dKeys[rec * h + d]! +
+          pv[j]! * dValues[rec * h + d]! +
+          scale * (dScoreK * pool[d]! + dScoreV * pool[h + d]!);
+        dFieldStates[(start + j) * h + d] = (dFieldStates[(start + j) * h + d] ?? 0) + ds;
+        dPool[d] = (dPool[d] ?? 0) + scale * dScoreK * s;
+        dPool[h + d] = (dPool[h + d] ?? 0) + scale * dScoreV * s;
+      }
+    }
+  }
+  return { dFieldStates, dPool };
 }
 
 /**

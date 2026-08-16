@@ -342,6 +342,18 @@ export interface KrystalBackwardArenaLayout {
   dH1: number; // [maxTokens, FFN] (FFN pre-activation grads)
   dW1: number; // [FFN, H]
   dW2: number; // [H, FFN]
+
+  // Learned-query pooling backward (§17 item 7, second half): upstream
+  // gradients of the pooled bank/query keys and values, the per-record dPool
+  // partials and the final dPool [2, H]. dPoolPartial rows are disjoint per
+  // record, so the backward writes them directly and krystal_pool_dpool
+  // reduces them into dPool.
+  dBankKeys: number; // [maxRecords, H]
+  dBankValues: number; // [maxRecords, H]
+  dQueryKeys: number; // [maxQueries, H]
+  dQueryValues: number; // [maxQueries, H]
+  dPoolPartial: number; // [maxRecords, 2, H]
+  dPool: number; // [2, H]
   elements: number;
 }
 
@@ -353,6 +365,7 @@ function createKrystalBackwardArenaLayout(): KrystalBackwardArenaLayout {
     return offset;
   };
   const th = KRYSTAL_MAX_TOKENS * KRYSTAL_MAX_H;
+  const rh = KRYSTAL_MAX_RECORDS * KRYSTAL_MAX_H;
   const hh = KRYSTAL_MAX_H * KRYSTAL_MAX_H;
   const tf = KRYSTAL_MAX_TOKENS * KRYSTAL_MAX_FFN;
   const fh = KRYSTAL_MAX_FFN * KRYSTAL_MAX_H;
@@ -376,6 +389,12 @@ function createKrystalBackwardArenaLayout(): KrystalBackwardArenaLayout {
     dH1: take(tf),
     dW1: take(fh),
     dW2: take(hf),
+    dBankKeys: take(rh),
+    dBankValues: take(rh),
+    dQueryKeys: take(KRYSTAL_MAX_QUERIES * KRYSTAL_MAX_H),
+    dQueryValues: take(KRYSTAL_MAX_QUERIES * KRYSTAL_MAX_H),
+    dPoolPartial: take(KRYSTAL_MAX_RECORDS * 2 * KRYSTAL_MAX_H),
+    dPool: take(2 * KRYSTAL_MAX_H),
     elements: cursor,
   };
 }
@@ -519,6 +538,8 @@ export const KRYSTAL_BACKWARD_SHADER_NAMES = [
   "krystal_attention_backward_scores",
   "krystal_attention_backward_qkv",
   "krystal_field_embed_backward",
+  "krystal_pool_backward",
+  "krystal_pool_dpool",
 ] as const;
 
 export type KrystalBackwardShaderName = (typeof KRYSTAL_BACKWARD_SHADER_NAMES)[number];
@@ -779,5 +800,11 @@ export function defineLfm2Passes(
 
     krystal_field_embed_backward: definePass(programs.krystal_field_embed_backward, "none", (op) =>
       linear(required(op.tokenCount, "tokenCount") * required(op.inputDim, "inputDim"), 256)),
+
+    krystal_pool_backward: definePass(programs.krystal_pool_backward, "f32", (op) =>
+      [required(op.tokenCount, "tokenCount"), 1, 1]),
+
+    krystal_pool_dpool: definePass(programs.krystal_pool_dpool, "none", (op) =>
+      linear(2 * required(op.inputDim, "inputDim"), 256)),
   } satisfies Record<Lfm2PassName, Lfm2PassSpec>;
 }
