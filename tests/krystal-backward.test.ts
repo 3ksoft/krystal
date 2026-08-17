@@ -930,3 +930,81 @@ test("field_embed_backward: GPU scatter-add matches the CPU oracle", async () =>
   }
   expect(slices.length).toBeGreaterThan(0);
 });
+
+test("field_embed_sgd: sparse fused update matches dense gradient + SGD", async () => {
+  const h = await getTrainingHarness();
+  const config: BrainForwardConfig = BRAIN_FORWARD_CONFIG;
+  const { hiddenSize: H } = config;
+  const frame = packBrainFrame(buildFixtureFrame()).frame;
+  const active = compileActiveFrame(frame);
+  const t = active.activeTokens.length;
+  const dFieldStates = Float32Array.from({ length: t * H }, (_, i) => Math.sin(i * 0.37) + 0.5);
+  const denseGradient = fieldEmbedBackward(frame, active, dFieldStates, config);
+  const initial = Float32Array.from({ length: denseGradient.length }, (_, i) => Math.cos(i * 0.013) * 0.1);
+  const learningRate = 0.025;
+
+  const rows = [
+    config.tokenSpace, config.fieldSpace, config.schemaSpace,
+    config.bandSpace, config.streamSpace, config.posSpace,
+  ];
+  const cum = rows.map((_, i) => rows.slice(0, i + 1).reduce((a, b) => a + b, 0));
+  const bases = [0, cum[0]!, cum[1]!, cum[2]!, cum[3]!, cum[4]!];
+  const touched = new Set<number>();
+  for (const frameTok of active.activeTokens) {
+    const slot = frameTok >> 3;
+    const indices = [
+      frame.tokenIds[frameTok]!, frame.fieldRoles[frameTok]!, frame.schemaIds[slot]!,
+      frame.bandIds[slot]!, active.streamIds[slot]!, frameTok & 7,
+    ];
+    for (let table = 0; table < indices.length; table++) touched.add(bases[table]! + indices[table]!);
+  }
+  const sparseRows = Uint32Array.from(touched);
+
+  const dFsOff = bwdRegion("dFieldStates", t * H);
+  const sparseOff = bwdRegion("dEmbedding", sparseRows.length);
+  const tokOff = fwdRegion("tokenIds", frame.tokenIds.length);
+  const roleOff = fwdRegion("fieldRoles", frame.fieldRoles.length);
+  const schemaOff = fwdRegion("schemaIds", frame.schemaIds.length);
+  const bandOff = fwdRegion("bandIds", frame.bandIds.length);
+  const streamOff = fwdRegion("streamIds", active.streamIds.length);
+  const activeOff = fwdRegion("activeTokens", t);
+  await uploadArena(h, dFsOff, dFieldStates);
+  await uploadU32(h, sparseOff, sparseRows);
+  await uploadU32(h, tokOff, Uint32Array.from(frame.tokenIds));
+  await uploadU32(h, roleOff, Uint32Array.from(frame.fieldRoles));
+  await uploadU32(h, schemaOff, Uint32Array.from(frame.schemaIds));
+  await uploadU32(h, bandOff, Uint32Array.from(frame.bandIds));
+  await uploadU32(h, streamOff, active.streamIds);
+  await uploadU32(h, activeOff, active.activeTokens);
+
+  const weights = createWeightPage(h, initial);
+  await runPassWait(h, "krystal_field_embed_sgd", {
+    inputOffset: dFsOff, outputOffset: sparseOff,
+    auxOffset: tokOff, aux2Offset: roleOff, aux3Offset: schemaOff,
+    aux4Offset: bandOff, aux5Offset: streamOff, aux6Offset: activeOff,
+    tokenCount: sparseRows.length, inputDim: H, outputDim: t, f0: learningRate,
+    u0: cum[0], u1: cum[1], u2: cum[2], u3: cum[3], u4: cum[4], u5: cum[5],
+  }, weights);
+
+  const staging = h.definition.resources.trainingReadback;
+  const encoder = h.device.createCommandEncoder();
+  let packedOffset = 0;
+  for (const row of sparseRows) {
+    encoder.copyBufferToBuffer(weights, row * H * 4, staging.gpu, packedOffset * 4, H * 4);
+    packedOffset += H;
+  }
+  h.device.queue.submit([encoder.finish()]);
+  await h.device.queue.onSubmittedWorkDone();
+  const raw = (await staging.readback()) as unknown as ArrayLike<number>;
+  const got = Float32Array.from(raw).slice(0, packedOffset);
+  let packedRow = 0;
+  for (const row of sparseRows) {
+    for (let d = 0; d < H; d++) {
+      const index = row * H + d;
+      const want = initial[index]! - learningRate * denseGradient[index]!;
+      expect(Math.abs(got[packedRow * H + d]! - want)).toBeLessThanOrEqual(1e-6);
+    }
+    packedRow++;
+  }
+  weights.destroy();
+});

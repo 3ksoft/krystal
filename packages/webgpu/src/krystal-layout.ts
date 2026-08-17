@@ -164,8 +164,8 @@ export interface KrystalForwardArenaLayout {
   queryValues: number; // [maxQueries, H]
 
   mixerQ: number; // [maxQueries, H]
-  mixerK: number; // [maxQueries, H]
-  mixerV: number; // [maxQueries, H]
+  mixerK: number; // [maxRecords, H]
+  mixerV: number; // [maxRecords, H]
   mixerH1: number; // [maxQueries, FFN]
   mixed: number; // [maxQueries, H]
   mixerMask: number; // [maxQueries, maxRecords]
@@ -244,8 +244,8 @@ function createKrystalForwardArenaLayout(): KrystalForwardArenaLayout {
     queryValues: take(qh),
 
     mixerQ: take(qh),
-    mixerK: take(qh),
-    mixerV: take(qh),
+    mixerK: take(rh),
+    mixerV: take(rh),
     mixerH1: take(KRYSTAL_MAX_QUERIES * KRYSTAL_MAX_FFN),
     mixed: take(qh),
     mixerMask: take(KRYSTAL_MAX_QUERIES * KRYSTAL_MAX_RECORDS),
@@ -496,6 +496,7 @@ export const KRYSTAL_BACKWARD_SHADER_NAMES = [
   "krystal_attention_backward_scores",
   "krystal_attention_backward_qkv",
   "krystal_field_embed_backward",
+  "krystal_field_embed_sgd",
   "krystal_pool_backward",
   "krystal_pool_dpool",
   "krystal_selector_backward_scores",
@@ -690,6 +691,9 @@ export function defineKrystalPasses(
         2 * required(op.u0, "u0") * required(op.inputDim, "inputDim"), 256)),
 
     krystal_field_embed_backward: definePass(programs.krystal_field_embed_backward, "none", (op) =>
+      linear(required(op.tokenCount, "tokenCount") * required(op.inputDim, "inputDim"), 256)),
+
+    krystal_field_embed_sgd: definePass(programs.krystal_field_embed_sgd, "f32", (op) =>
       linear(required(op.tokenCount, "tokenCount") * required(op.inputDim, "inputDim"), 256)),
 
     krystal_pool_backward: definePass(programs.krystal_pool_backward, "f32", (op) =>

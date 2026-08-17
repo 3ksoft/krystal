@@ -74,7 +74,9 @@ export function attentionOracle(
         }
         scores[j] = s * scale + mask[i * kRows + j]!;
       }
-      softmaxRow(scores, 0, kRows);
+      const allBlocked = scores.every((score) => score < -1e29);
+      if (allBlocked) scores.fill(0);
+      else softmaxRow(scores, 0, kRows);
       for (let d = 0; d < headDim; d++) {
         let value = 0;
         for (let j = 0; j < kRows; j++) {
@@ -311,13 +313,15 @@ export function selectorOracle(
       for (let d = 0; d < h; d++) s += qProj[i * h + d]! * kProj[j * h + d]!;
       scores[j] = s * scale + mask[i * r + j]!;
     }
-    softmaxRow(scores, 0, r);
+    const allBlocked = scores.every((score) => score < -1e29);
+    if (allBlocked) scores.fill(0);
+    else softmaxRow(scores, 0, r);
     let best = 0;
     for (let j = 0; j < r; j++) {
       p[i * r + j] = scores[j]!;
       if (scores[j]! > scores[best]!) best = j;
     }
-    index[i] = best;
+    index[i] = allBlocked ? 0xffff_ffff : best;
     for (let d = 0; d < h; d++) {
       let g = 0;
       for (let j = 0; j < r; j++) g += scores[j]! * bankValues[j * h + d]!;

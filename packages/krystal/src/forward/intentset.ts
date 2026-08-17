@@ -22,6 +22,7 @@ import {
 } from "../../../schema/src/krystal-engine-schema.ts";
 import type { v1_0_0 } from "../../../schema/generated/krystal.types.ts";
 import { unpackRuntimeHandle } from "../frame/packer.ts";
+import { argAcceptedSchemaIds } from "./masks.ts";
 import type { ActiveFrame } from "./masks.ts";
 import type { SelectionSlotResult } from "./oracle.ts";
 import type { CompiledActionCatalog } from "../fixtures/action-intents.ts";
@@ -194,7 +195,12 @@ export function emitIntentSet(input: IntentSetEmissionInput): IntentSetEmissionR
     };
 
     // v0 shares one argument selector across slots (answer 26); each typed
-    // argument of the selected intent resolves through that selection.
+    // argument of the selected intent resolves through that selection. The
+    // accepted-schema check is capability-aware (S2-S10 contract): an argument
+    // whose descriptor declares a capability accepts every record whose schema
+    // carries it (e.g. EAT.target -> "edible" covers Apple/Berry/Bread), so the
+    // resolution never relies on a hardcoded identity list.
+    let allRequiredResolved = true;
     for (let k = 0; k < descriptor.argumentCount && k < BRAIN_LIMITS.maxActionArguments; k++) {
       const argDesc = catalog.arguments[descriptor.argumentOffset + k]!;
       const argBankIdx = argument.index[i]!;
@@ -215,7 +221,10 @@ export function emitIntentSet(input: IntentSetEmissionInput): IntentSetEmissionR
       let handle: v1_0_0.RuntimeRefHandle = invalidRef();
       let selectedRecord = INVALID_U32;
       let selectedReference = INVALID_U32;
-      if (argSlot !== undefined && frame.schemaIds[argSlot] === argDesc.acceptedSchemaId) {
+      const accepted = new Set(
+        argAcceptedSchemaIds(catalog, descriptor.intentId, k, argDesc),
+      );
+      if (argSlot !== undefined && accepted.has(frame.schemaIds[argSlot]!)) {
         // Exact handle from the record's runtime-ref sidecar (first binding).
         const packed = frame.runtimeRefs[argSlot * maxRefs] ?? INVALID_U32;
         if (packed !== INVALID_U32) {
@@ -228,6 +237,8 @@ export function emitIntentSet(input: IntentSetEmissionInput): IntentSetEmissionR
           status = "error";
         }
       }
+
+      if (status !== "selected" && argDesc.flags & 1) allRequiredResolved = false;
 
       proposal.arguments[k] = {
         kind: argDesc.valueKind,
@@ -247,6 +258,12 @@ export function emitIntentSet(input: IntentSetEmissionInput): IntentSetEmissionR
         },
       };
     }
+
+    // A proposal whose intent declares a required reference argument that did
+    // not resolve is not executable (S2-S10 contract): no fabricated handle
+    // and no emitted proposal. The slot stays empty, exactly like a masked
+    // intent row, so count reflects executable proposals only.
+    if (!allRequiredResolved) continue;
 
     // Argument support: mean selector probability across the intent's typed
     // arguments (1 when the intent declares none). Masked/error arguments

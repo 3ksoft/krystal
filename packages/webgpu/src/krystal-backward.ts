@@ -53,10 +53,14 @@ export interface KrystalTrainStepOptions {
   /** Route-kind gold labels [Q] for the decision-head cross-entropy loss. */
   readonly routeKinds: readonly number[] | Uint32Array;
   /**
-   * Optional pointer-loss targets [Q] for the argument selector slot
-   * (0xffffffff = no pointer loss for that row; default: none).
+   * Optional pointer-loss targets for the argument selector, one [Q] array
+   * per argument index (`argumentTarget[q][argument]`, S2-S10 contract):
+   * bank indices of the gold records, 0xffffffff = no pointer loss for that
+   * row. Arity-0 intents and unlabelled rows carry 0xffffffff. The temporary
+   * implementation has one pointer head, so only `argumentTargets[0]` is
+   * consumed; the shape is per-argument for future arity (default: none).
    */
-  readonly argGold?: readonly number[] | Uint32Array;
+  readonly argumentTargets?: readonly (readonly number[] | Uint32Array)[];
   /**
    * Optional pointer-loss targets [Q] for the intent selector slot (bank
    * indices of the catalog records; 0xffffffff = no pointer loss for that
@@ -115,7 +119,7 @@ export class KrystalBackward {
     const T = KRYSTAL_TRAINING_ARENA;
 
     const prepared = this.forward.prepare(options.frame, options.selection);
-    const { t, r, q } = prepared;
+    const { active, t, r, q } = prepared;
     const routeKinds = options.routeKinds instanceof Uint32Array
       ? options.routeKinds
       : Uint32Array.from(options.routeKinds);
@@ -217,9 +221,12 @@ export class KrystalBackward {
       : noTargets;
     validate(intentTargets.length === q, `intentGold must be [Q] = ${q}`);
     device.queue.writeBuffer(arena, selectorGold * 4, intentTargets);
-    const argTargets = options.argGold
-      ? (options.argGold instanceof Uint32Array ? options.argGold : Uint32Array.from(options.argGold))
+    const argTargets = options.argumentTargets?.[0]
+      ? (options.argumentTargets[0] instanceof Uint32Array
+          ? options.argumentTargets[0]
+          : Uint32Array.from(options.argumentTargets[0]))
       : noTargets;
+    validate(argTargets.length === q, `argumentTargets[0] must be [Q] = ${q}`);
     device.queue.writeBuffer(arena, argGoldOff * 4, argTargets);
 
     // Cumulative embedding-table row counts (field embed backward u0..u5).
@@ -234,6 +241,34 @@ export class KrystalBackward {
     const embRows = embCum[embCum.length - 1]!;
     const dEmbeddingElems = embRows * h;
     validate(dEmbeddingElems <= KRYSTAL_BACKWARD_ARENA.elements, "dEmbedding overflow");
+
+    // The dense reference embedding backward owns all 8,469 * H output
+    // elements and makes each one scan every active token, even though only a
+    // small subset of rows can receive a gradient in one frame. Build that
+    // subset once on the host and let the fused sparse pass preserve the exact
+    // token-order reduction for just those rows. B.dEmbedding is otherwise
+    // dead in the composed runner, so its prefix safely stores the row list.
+    const embeddingRows = new Set<number>();
+    const embBases = [0, embCum[0]!, embCum[1]!, embCum[2]!, embCum[3]!, embCum[4]!];
+    for (const frameTok of active.activeTokens) {
+      const slot = frameTok >> 3;
+      const indices = [
+        options.frame.tokenIds[frameTok]!,
+        options.frame.fieldRoles[frameTok]!,
+        options.frame.schemaIds[slot]!,
+        options.frame.bandIds[slot]!,
+        active.streamIds[slot]!,
+        frameTok & 7,
+      ];
+      for (let table = 0; table < indices.length; table++) {
+        const row = embBases[table]! + indices[table]!;
+        validate(row >= embBases[table]! && row < embCum[table]!, `embedding row ${row} outside table ${table}`);
+        embeddingRows.add(row);
+      }
+    }
+    const sparseEmbeddingRows = Uint32Array.from(embeddingRows);
+    const sparseEmbeddingRowsOff = this.bwd(B.dEmbedding, sparseEmbeddingRows.length);
+    device.queue.writeBuffer(arena, sparseEmbeddingRowsOff * 4, sparseEmbeddingRows);
 
     const lr = options.learningRate;
     const pages = this.pages;
@@ -276,13 +311,17 @@ export class KrystalBackward {
         encoder.compute((pass) => pass.run("krystal_selector_backward_scores", {
           inputOffset: dGather, auxOffset: bankValues, aux2Offset: pOff, aux3Offset: goldOff,
           outputOffset: dSelectorScores,
-          tokenCount: q, inputDim: h, u0: r,
+          tokenCount: q, inputDim: h, u0: r, u1: scratch ? 1 : 0,
         }));
         encoder.compute((pass) => pass.run("krystal_selector_backward_qkv", {
           inputOffset: dSelectorScores, auxOffset: selectorQ, aux2Offset: selectorK,
           aux3Offset: pOff, aux4Offset: dGather,
           outputOffset: dQOut, aux5Offset: dKOut, aux6Offset: dVOut,
           tokenCount: q, inputDim: h, u0: r,
+          // FOLLOW_UP2 Fix A: the argument slot's INVALID (arity-0 / unlabelled)
+          // rows must contribute zero gradient everywhere; the scores pass
+          // zeroes their dScore, this pass skips them in the dValue sum.
+          u1: scratch ? argGoldOff : 0, u2: scratch ? 1 : 0,
         }));
         if (scratch) {
           encoder.compute((pass) => pass.run("residual_add", {
@@ -499,12 +538,15 @@ export class KrystalBackward {
         // Attention branch.
         encoder.compute((pass) => pass.run("krystal_attention_backward_scores", {
           inputOffset: dFieldStates, auxOffset: sV, aux2Offset: sP, outputOffset: dScoresEnc,
-          tokenCount: t, inputDim: h, outputDim: headDim, u0: t, u1: heads,
+          aux5Offset: activeTokens, aux6Offset: recordCompactOffset,
+          tokenCount: t, inputDim: h, outputDim: headDim,
+          u0: t, u1: heads, u2: recordCompactCount, u3: 1,
         }));
         encoder.compute((pass) => pass.run("krystal_attention_backward_qkv", {
           inputOffset: dScoresEnc, auxOffset: sQ, aux2Offset: sK, aux3Offset: sP, aux4Offset: dFieldStates,
           outputOffset: dEncQ, aux5Offset: dEncK, aux6Offset: dEncV,
-          tokenCount: t, inputDim: h, outputDim: headDim, u0: t, u1: heads,
+          tokenCount: t, inputDim: h, outputDim: headDim,
+          u0: t, u1: heads, u2: activeTokens, u3: recordCompactOffset, u4: recordCompactCount, u5: 1,
         }));
         encoder.compute((pass) => pass.run("matmul_backward_weight", {
           inputOffset: dEncQ, auxOffset: sIn, outputOffset: dWq,
@@ -550,17 +592,15 @@ export class KrystalBackward {
         encoder.compute((pass) => pass.run("sgd_step", { inputOffset: dWv, tokenCount: h * h, f0: lr }, block.wv));
       }
 
-      // 9. Field embedding backward (scatter-add over the whole concatenated
-      //    page) + SGD on the embeddings.
-      encoder.compute((pass) => pass.run("krystal_field_embed_backward", {
-        inputOffset: dFieldStates, outputOffset: this.bwd(B.dEmbedding, dEmbeddingElems),
+      // 9. Fused sparse field-embedding backward + SGD. The standalone dense
+      //    gradient pass remains available for parity/debug tests, while the
+      //    composed runner touches only rows referenced by this frame.
+      encoder.compute((pass) => pass.run("krystal_field_embed_sgd", {
+        inputOffset: dFieldStates, outputOffset: sparseEmbeddingRowsOff,
         auxOffset: tokenIds, aux2Offset: fieldRoles, aux3Offset: schemaIds,
         aux4Offset: bandIds, aux5Offset: streamIds, aux6Offset: activeTokens,
-        tokenCount: embRows, inputDim: h, outputDim: t,
+        tokenCount: sparseEmbeddingRows.length, inputDim: h, outputDim: t, f0: lr,
         u0: embCum[0], u1: embCum[1], u2: embCum[2], u3: embCum[3], u4: embCum[4], u5: embCum[5],
-      }));
-      encoder.compute((pass) => pass.run("sgd_step", {
-        inputOffset: this.bwd(B.dEmbedding, dEmbeddingElems), tokenCount: dEmbeddingElems, f0: lr,
       }, pages.embeddings));
     });
 
@@ -581,4 +621,3 @@ export class KrystalBackward {
     return this.step;
   }
 }
-

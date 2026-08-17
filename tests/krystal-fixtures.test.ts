@@ -98,10 +98,10 @@ test("record schemas: manifest hash is deterministic", () => {
   expect(a.header.schemaHashHi).toBe(b.header.schemaHashHi);
 });
 
-test("action catalog: LOOK/EAT/WAIT/CRY/LAUGH compile with resolved arguments", () => {
+test("action catalog: LOOK/EAT/MOVE_TOWARDS/WAIT/CRY/LAUGH compile with resolved arguments", () => {
   const catalog = buildFixtureActionCatalog();
   expect(catalog.header.intentCount).toBe(FIXTURE_ACTION_INTENTS.length);
-  expect(catalog.descriptors).toHaveLength(5);
+  expect(catalog.descriptors).toHaveLength(6);
 
   const look = fixtureIntent("LOOK");
   expect(look.argumentCount).toBe(1);
@@ -111,8 +111,14 @@ test("action catalog: LOOK/EAT/WAIT/CRY/LAUGH compile with resolved arguments", 
   const eat = fixtureIntent("EAT");
   expect(eat.argumentCount).toBe(1);
   expect(eat.flags & 1).toBe(1); // durative
-  // EAT's argument accepts the Apple schema (schemaId 2 in catalog order).
+  // EAT's argument identity is the Apple schema (schemaId 2 in catalog order);
+  // the capability layer (S7) widens acceptance to every edible schema.
   expect(catalog.arguments[eat.argumentOffset]!.acceptedSchemaId).toBe(2);
+
+  const move = fixtureIntent("MOVE_TOWARDS");
+  expect(move.argumentCount).toBe(1);
+  expect(move.flags & 1).toBe(1); // durative
+  expect(catalog.arguments[move.argumentOffset]!.valueKind).toBe("context_ref");
 
   const wait = fixtureIntent("WAIT");
   expect(wait.argumentCount).toBe(0);

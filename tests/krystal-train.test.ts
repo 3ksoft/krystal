@@ -48,7 +48,7 @@ test("composed trainStep: GPU gradients match the CPU composed backward oracle",
   const frame = packBrainFrame(buildFixtureFrame()).frame;
   const active = compileActiveFrame(frame);
   const { mask: recordMask } = compileRecordMask(active.activeTokens);
-  const mixerMask = compileMixerMask(active.queryRecords.length, active.bankRecords.length);
+  const mixerMask = compileMixerMask(frame, active);
   const selection: SelectionMasks = {
     intentMask: compileIntentMask(frame, active, ACTION_INTENT_SCHEMA_ID),
     argMask: compileArgumentMask(frame, active, [2, 1], [3, 8]),
@@ -61,7 +61,7 @@ test("composed trainStep: GPU gradients match the CPU composed backward oracle",
   const runner = new KrystalForward(weights, config);
   const trainer = new KrystalBackward(runner);
   await trainer.trainStep({
-    frame, selection, routeKinds: gold, argGold, learningRate: 0.1,
+    frame, selection, routeKinds: gold, argumentTargets: [argGold], learningRate: 0.1,
   });
   await h.device.queue.onSubmittedWorkDone();
 
@@ -89,7 +89,7 @@ test("composed trainStep: GPU gradients match the CPU composed backward oracle",
     frame, active, weights, config,
     recordMask, mixerMask,
     intentMask: selection.intentMask, argMask: selection.argMask,
-    routeKinds: Array.from(gold), argGold: Array.from(argGold),
+    routeKinds: Array.from(gold), argumentTargets: Array.from(argGold),
   });
 
   // Deep composed chain: activations use the same 1e-2 envelope as the

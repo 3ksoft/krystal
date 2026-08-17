@@ -33,6 +33,7 @@ import {
   compileActiveFrame,
   compileMixerMask,
   compileRecordMask,
+  type ActiveFrame,
 } from "../../krystal/src/forward/masks";
 import {
   BRAIN_FORWARD_CONFIG,
@@ -64,6 +65,7 @@ export interface SelectionMasks {
  */
 export interface PreparedForward {
   readonly frame: v1_0_0.BrainFrameGpu;
+  readonly active: ActiveFrame;
   readonly selection?: SelectionMasks;
   readonly t: number; // active tokens
   readonly r: number; // bank records
@@ -157,7 +159,7 @@ export class KrystalForward {
     validate(q > 0, "the frame must contain at least one query record for the mixer");
 
     const { mask: recordMask } = compileRecordMask(active.activeTokens);
-    const mixerMask = compileMixerMask(q, r);
+    const mixerMask = compileMixerMask(frame, active);
     if (selection) {
       validate(
         selection.intentMask.length === q * r && selection.argMask.length === q * r,
@@ -192,7 +194,7 @@ export class KrystalForward {
       uploadF32(A.argMask, selection.argMask);
     }
 
-    return { frame, selection, t, r, q };
+    return { frame, active, selection, t, r, q };
   }
 
   /**
@@ -219,8 +221,8 @@ export class KrystalForward {
     const queryKeys = this.region(A.queryKeys, q * h);
     const queryValues = this.region(A.queryValues, q * h);
     const mixerQ = this.region(A.mixerQ, q * h);
-    const mixerK = this.region(A.mixerK, q * h);
-    const mixerV = this.region(A.mixerV, q * h);
+    const mixerK = this.region(A.mixerK, r * h);
+    const mixerV = this.region(A.mixerV, r * h);
     const mixerH1 = this.region(A.mixerH1, q * ffn);
     const mixed = this.region(A.mixed, q * h);
     const mixerMaskOffset = this.region(A.mixerMask, q * r);
@@ -310,7 +312,13 @@ export class KrystalForward {
         encoder.compute((pass) => pass.run("krystal_attention_forward", {
           inputOffset: qOff, auxOffset: kOff, aux2Offset: vOff, aux3Offset: encMask,
           outputOffset: encOut, aux4Offset: pOff,
-          tokenCount: t, inputDim: h, outputDim: headDim, u0: t, u1: heads,
+          // Encoder attention is block-local by construction. Supplying the
+          // compact record ranges lets the shader skip all masked cross-record
+          // keys while retaining dense mode for generic/cross attention.
+          aux5Offset: this.region(A.activeTokens, t),
+          aux6Offset: this.region(A.recordCompactOffset, 128),
+          tokenCount: t, inputDim: h, outputDim: headDim,
+          u0: t, u1: heads, u2: this.region(A.recordCompactCount, 128), u3: 1,
         }));
         encoder.compute((pass) => pass.run("residual_add", {
           inputOffset: fieldStates, auxOffset: encOut, outputOffset: fieldStates,

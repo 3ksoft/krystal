@@ -289,7 +289,7 @@ test("composed forward: CPU/GPU parity on the canonical fixture frame", async ()
   const frame = packBrainFrame(buildFixtureFrame()).frame;
   const active = compileActiveFrame(frame);
   const { mask: recordMask } = compileRecordMask(active.activeTokens);
-  const mixerMask = compileMixerMask(active.queryRecords.length, active.bankRecords.length);
+  const mixerMask = compileMixerMask(frame, active);
   // Host-compiled selector masks from ABI metadata (answers 15/26): intent
   // candidates are the ActionIntent catalog records; the first reference
   // argument accepts Apple/VisionObject schemas in the vision/memory bands.

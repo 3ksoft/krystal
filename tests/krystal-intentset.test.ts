@@ -95,9 +95,11 @@ test("IntentSet: EAT selected with Apple argument resolves exact handles", () =>
   }
 });
 
-test("IntentSet: LOOK selected with Apple yields masked (Apple is not VisionObject)", () => {
+test("IntentSet: LOOK selected with Apple resolves (Apple is observable)", () => {
   const base = fixtureBase();
-  // LOOK accepts VisionObject (schema 1); the Apple record is schema 2.
+  // LOOK.target requires the "observable" capability (S7 contract); the Apple
+  // schema carries it, so the argument resolves even though Apple is not the
+  // VisionObject identity the descriptor names.
   const LOOK_BANK = base.active.bankRecords.indexOf(116);
   const APPLE_BANK = base.active.bankRecords.indexOf(24);
   const r = base.active.bankRecords.length;
@@ -114,8 +116,32 @@ test("IntentSet: LOOK selected with Apple yields masked (Apple is not VisionObje
   const proposal = set.proposals[0]!;
   expect(proposal.intentId).toBe(fixtureIntent("LOOK").intentId);
   const arg = proposal.arguments[0]!;
-  expect(arg.selector.status).toBe("masked");
-  expect(arg.handle.tokenId).toBe(0);
+  expect(arg.selector.status).toBe("selected");
+  expect(arg.handle.tokenId).toBe(FIXTURE_APPLE_REF);
+});
+
+test("IntentSet: incompatible required argument row yields no executable proposal", () => {
+  const base = fixtureBase();
+  // LOOK.target is a required reference argument. Pointing it at the
+  // homeostasis record (schema 3, no "observable" capability) must produce no
+  // fabricated handle and no executable proposal: the slot stays empty.
+  const LOOK_BANK = base.active.bankRecords.indexOf(116);
+  const HOMEOSTASIS_BANK = base.active.bankRecords.indexOf(4);
+  const r = base.active.bankRecords.length;
+
+  const set = emit({
+    frame: base.frame,
+    active: base.active,
+    catalog: base.catalog,
+    intent: peakedSlot(LOOK_BANK, r),
+    argument: peakedSlot(HOMEOSTASIS_BANK, r),
+  });
+
+  expect(set.count).toBe(0);
+  for (const proposal of set.proposals) {
+    expect(proposal.lifecycle).toBe("empty");
+    expect(proposal.arguments[0]!.handle.tokenId).toBe(0);
+  }
 });
 
 test("IntentSet: WAIT emits a proposal with no typed arguments", () => {
@@ -140,10 +166,12 @@ test("IntentSet: WAIT emits a proposal with no typed arguments", () => {
   expect(proposal.intensity).toBe(1);
 });
 
-test("IntentSet: argument selector landing on a wrong schema yields masked, not fabricated handle", () => {
+test("IntentSet: required-arg resolution error yields masked record, not fabricated handle", () => {
   const base = fixtureBase();
-  // LOOK accepts VisionObject (schema id 1). Memory is schema id 4.
-  const LOOK_BANK = base.active.bankRecords.indexOf(116);
+  // EAT.target requires "edible"; the memory record carries no edible
+  // capability. The argmax landing there yields a masked argument and — since
+  // EAT's argument is required — no executable proposal.
+  const EAT_BANK = base.active.bankRecords.indexOf(117);
   const MEMORY_BANK = base.active.bankRecords.indexOf(90);
   const r = base.active.bankRecords.length;
 
@@ -151,15 +179,15 @@ test("IntentSet: argument selector landing on a wrong schema yields masked, not 
     frame: base.frame,
     active: base.active,
     catalog: base.catalog,
-    intent: peakedSlot(LOOK_BANK, r),
+    intent: peakedSlot(EAT_BANK, r),
     argument: peakedSlot(MEMORY_BANK, r),
   });
 
-  expect(set.count).toBe(1);
-  const arg = set.proposals[0]!.arguments[0]!;
-  expect(arg.selector.status).toBe("masked");
-  expect(arg.handle.tokenId).toBe(0);
-  expect(arg.selector.selectedRecord).toBe(INVALID_U32);
+  expect(set.count).toBe(0);
+  for (const proposal of set.proposals) {
+    expect(proposal.lifecycle).toBe("empty");
+    expect(proposal.arguments[0]!.handle.tokenId).toBe(0);
+  }
 });
 
 test("IntentSet: masked/absent intent selection yields count 0", () => {
@@ -256,6 +284,7 @@ test("IntentSet: selector distributions with entropy/candidate counts", () => {
   const set = emit({ frame: base.frame, active: base.active, catalog: base.catalog, intent, argument });
   const proposal = set.proposals[0]!;
   expect(proposal.intentId).toBe(fixtureIntent("LOOK").intentId);
+  expect(proposal.arguments[0]!.selector.status).toBe("selected");
   expect(proposal.confidence).toBeGreaterThan(0.5);
   expect(proposal.arguments[0]!.selector.candidateCount).toBe(1);
   expect(proposal.arguments[0]!.selector.probability).toBe(1);

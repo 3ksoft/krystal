@@ -17,3 +17,8 @@ export * from "./forward/oracle.ts";
 export * from "./forward/backward.ts";
 export * from "./forward/intentset.ts";
 export * from "./bridge/comfort.ts";
+export * from "./bridge/policy.ts";
+export * from "./bridge/transition.ts";
+export * from "./bridge/curriculum.ts";
+export * from "./bridge/pira.ts";
+export * from "./fixtures/capabilities.ts";

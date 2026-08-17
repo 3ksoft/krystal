@@ -431,6 +431,25 @@ export function defineKrystal(bundle: KrystalShaderBundle = emptyKrystalShaderBu
       },
     }),
 
+    // Production training path: update only embedding rows referenced by the
+    // current frame. Unlike the dense debug gradient above, this avoids
+    // scanning every active token for every row in the 8k-row page.
+    krystal_field_embed_sgd: engine.compute({
+      label: "krystal_field_embed_sgd",
+      resources: {
+        op: r.op,
+        arena: r.arena,
+        weight32: { resource: weight32, group: 1, buffer: { type: "storage" }, representation: "native" },
+      },
+      includes: commonIncludes,
+      compute: {
+        entryPoint: "krystal_field_embed_sgd",
+        params: gid,
+        workgroupSize: 256,
+        code: sources.krystal_field_embed_sgd,
+      },
+    }),
+
     krystal_pool_backward: engine.compute({
       label: "krystal_pool_backward",
       resources: { op: r.op, arena: r.arena, weight32: r.weight32 },

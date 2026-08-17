@@ -20,14 +20,18 @@
 // krystal_selector_backward_qkv pass.
 //
 // OpParams:
-//   tokenCount = Q, inputDim = H, u0 = R
+//   tokenCount = Q, inputDim = H, u0 = R, u1 = zeroInvalidRows (0/1)
 //   inputOffset  = dGather [Q, H]
 //   auxOffset    = value   [R, H]
 //   aux2Offset   = p       [Q, R]
 //   aux3Offset   = gold    [Q] (u32 payloads; 0xffffffff = no pointer loss)
 //   outputOffset = dScore  [Q, R]
 //
-// One workgroup per query row (mirrors krystal_selector).
+// One workgroup per query row (mirrors krystal_selector). When
+// zeroInvalidRows is set, rows with an INVALID target contribute exactly
+// zero gradient (FOLLOW_UP2): an arity-0 / unlabelled argument row must not
+// push the shared selector parameters through its degenerate all-masked
+// softmax-backprop term.
 
   let i = wid.y;
   let Q = op.tokenCount;
@@ -63,6 +67,16 @@
 
   // Pass 2: dScore = p * (dP - rowSum) + pointer-loss gradient.
   let gold = bitcast<u32>(arena[op.aux3Offset + i]);
+  if (op.u1 != 0u && gold == 0xffffffffu) {
+    // No pointer target: the branch contributes exactly zero gradient.
+    j = lid.x;
+    loop {
+      if (j >= R) { break; }
+      arena[op.outputOffset + i * R + j] = 0.0;
+      j += WG;
+    }
+    return;
+  }
   j = lid.x;
   loop {
     if (j >= R) { break; }

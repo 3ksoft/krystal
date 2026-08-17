@@ -13,9 +13,11 @@
  * Schema id of the ActionIntent catalog records. Not part of the record-schema
  * manifest: the ActionIntent catalog (fixtures/action-intents.ts) is a separate
  * device manifest, and the selector masks use this id to mark catalog records
- * as intent candidates (first-forward fixture convention).
+ * as intent candidates (first-forward fixture convention). The id is derived
+ * from the record-manifest length so it can never collide with a record
+ * schema (e.g. the S2-S10 `Mother` schema occupies index 5).
  */
-export const ACTION_INTENT_SCHEMA_ID = 5;
+export const ACTION_INTENT_SCHEMA_ID = FIXTURE_RECORD_SCHEMAS.length;
 import {
   BRAIN_FIXED_RECORDS,
   BRAIN_FRAME_BANDS,
@@ -26,6 +28,7 @@ import {
 } from "../../../schema/src/krystal-engine-schema.ts";
 import type { v1_0_0 } from "../../../schema/generated/krystal.types.ts";
 import { PAD_TOKEN_ID } from "../frame/packer.ts";
+import { FIXTURE_RECORD_SCHEMAS } from "./record-schemas.ts";
 import { fixtureTokenId } from "./vocabulary.ts";
 
 function tokenMeta(roleToken: number, flags: number = 0): v1_0_0.BrainTokenMeta {

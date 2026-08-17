@@ -35,6 +35,9 @@
 //   outputOffset = dQ  [qRows, H]
 //   aux5Offset   = dK  [kRows, H]
 //   aux6Offset   = dV  [kRows, H]
+// Optional record-local mode for self-attention:
+//   u2 = activeTokens arena offset, u3 = recordCompactOffset arena offset,
+//   u4 = recordCompactCount arena offset, u5 != 0 enables it.
 
   let qRows = op.tokenCount;
   let kRows = op.u0;
@@ -54,8 +57,16 @@
   if (linear < qTotal) {
     // dQ[i, col] = scale * sum_j dScores[h,i,j] * K[j, col]
     let i = linear / H;
+    var keyStart = 0u;
+    var keyEnd = kRows;
+    if (op.u5 != 0u) {
+      let frameTok = bitcast<u32>(arena[op.u2 + i]);
+      let slot = frameTok >> 3u;
+      keyStart = bitcast<u32>(arena[op.u3 + slot]);
+      keyEnd = keyStart + bitcast<u32>(arena[op.u4 + slot]);
+    }
     var sum = 0.0;
-    for (var j = 0u; j < kRows; j++) {
+    for (var j = keyStart; j < keyEnd; j++) {
       let s = arena[op.inputOffset + (h * qRows + i) * kRows + j];
       let k = arena[op.aux2Offset + j * H + col];
       sum += s * k;
@@ -66,8 +77,16 @@
   if (linear < qTotal + kTotal) {
     // dK[j, col] = scale * sum_i dScores[h,i,j] * Q[i, col]
     let j = (linear - qTotal) / H;
+    var queryStart = 0u;
+    var queryEnd = qRows;
+    if (op.u5 != 0u) {
+      let frameTok = bitcast<u32>(arena[op.u2 + j]);
+      let slot = frameTok >> 3u;
+      queryStart = bitcast<u32>(arena[op.u3 + slot]);
+      queryEnd = queryStart + bitcast<u32>(arena[op.u4 + slot]);
+    }
     var sum = 0.0;
-    for (var i2 = 0u; i2 < qRows; i2++) {
+    for (var i2 = queryStart; i2 < queryEnd; i2++) {
       let s = arena[op.inputOffset + (h * qRows + i2) * kRows + j];
       let q = arena[op.auxOffset + i2 * H + col];
       sum += s * q;
@@ -77,8 +96,16 @@
   }
   // dV[j, col] = sum_i P[h,i,j] * dOut[i, col]
   let j = (linear - qTotal - kTotal) / H;
+  var queryStart = 0u;
+  var queryEnd = qRows;
+  if (op.u5 != 0u) {
+    let frameTok = bitcast<u32>(arena[op.u2 + j]);
+    let slot = frameTok >> 3u;
+    queryStart = bitcast<u32>(arena[op.u3 + slot]);
+    queryEnd = queryStart + bitcast<u32>(arena[op.u4 + slot]);
+  }
   var sum = 0.0;
-  for (var i2 = 0u; i2 < qRows; i2++) {
+  for (var i2 = queryStart; i2 < queryEnd; i2++) {
     let p = arena[op.aux3Offset + (h * qRows + i2) * kRows + j];
     let dy = arena[op.aux4Offset + i2 * H + col];
     sum += p * dy;

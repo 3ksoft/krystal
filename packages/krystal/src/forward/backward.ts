@@ -254,9 +254,19 @@ export function selectorBackwardScores(
   q: number,
   r: number,
   h: number,
+  /**
+   * Contract (FOLLOW_UP2): when true, rows with an INVALID target contribute
+   * exactly zero gradient. An arity-0 / unlabelled argument row must not
+   * push the shared selector parameters through its (degenerate, all-masked)
+   * softmax-backprop term — that term is bank-size dependent and leaks
+   * gradients onto fully-masked distractor records.
+   */
+  zeroInvalidRows = false,
 ): Float32Array {
   const dScore = new Float32Array(q * r);
   for (let i = 0; i < q; i++) {
+    const goldValid = gold[i] !== 0xffff_ffff;
+    if (zeroInvalidRows && !goldValid) continue; // row stays exactly zero
     const dP = new Float32Array(r);
     let rowSum = 0;
     for (let j = 0; j < r; j++) {
@@ -267,7 +277,6 @@ export function selectorBackwardScores(
       dP[j] = dp;
       rowSum += p[i * r + j]! * dp;
     }
-    const goldValid = gold[i] !== 0xffff_ffff;
     for (let j = 0; j < r; j++) {
       const pointerGrad = goldValid ? p[i * r + j]! - (j === gold[i] ? 1 : 0) : 0;
       dScore[i * r + j] = p[i * r + j]! * (dP[j]! - rowSum) + pointerGrad;
@@ -296,6 +305,16 @@ export function selectorBackwardQkv(
   q: number,
   r: number,
   h: number,
+  /**
+   * Contract (FOLLOW_UP2 Fix A, mirroring krystal_selector_backward_qkv):
+   * when provided, rows with an INVALID target are skipped in the dValue
+   * sum. dScore rows are already zeroed by selectorBackwardScores, so
+   * dQProj/dKProj need no guard; the p * dGather term in dValue must be
+   * skipped explicitly, otherwise the degenerate all-masked uniform p of an
+   * arity-0 / unlabelled row leaks onto distractor records and into the
+   * shared selector parameters.
+   */
+  gold?: readonly number[], // [Q] u32 payloads; 0xffffffff = none
 ): { dQProj: Float32Array; dKProj: Float32Array; dValue: Float32Array } {
   const scale = 1 / Math.sqrt(h);
   const dQProj = new Float32Array(q * h);
@@ -316,6 +335,7 @@ export function selectorBackwardQkv(
       let accV = 0;
       for (let i = 0; i < q; i++) {
         accK += dScore[i * r + j]! * qProj[i * h + col]!;
+        if (gold && gold[i] === 0xffff_ffff) continue;
         accV += p[i * r + j]! * dGather[i * h + col]!;
       }
       dKProj[j * h + col] = accK * scale;
@@ -479,7 +499,7 @@ function matmulBackWeight(dY: Float32Array, x: Float32Array, m: number, n: numbe
 }
 
 /** Multi-head masked attention returning both the output and P [heads,q,k]. */
-function attentionWithP(
+export function attentionWithP(
   q: Float32Array,
   k: Float32Array,
   v: Float32Array,
@@ -502,7 +522,9 @@ function attentionWithP(
         for (let d = 0; d < headDim; d++) s += q[i * h + hb + d]! * k[j * h + hb + d]!;
         scores[j] = s * scale + mask[i * kRows + j]!;
       }
-      softmaxRow(scores, 0, kRows);
+      const allBlocked = scores.every((score) => score < -1e29);
+      if (allBlocked) scores.fill(0);
+      else softmaxRow(scores, 0, kRows);
       for (let j = 0; j < kRows; j++) p[(head * qRows + i) * kRows + j] = scores[j]!;
       for (let d = 0; d < headDim; d++) {
         let value = 0;
@@ -609,8 +631,18 @@ export interface BrainBackwardOracleInput {
   readonly intentMask: Float32Array;
   readonly argMask: Float32Array;
   readonly routeKinds: readonly number[];
-  /** Pointer-loss targets [Q] for the argument selector; default none. */
-  readonly argGold?: readonly number[];
+  /**
+   * Pointer-loss targets [Q] for the argument selector (argument 0 of the
+   * selected intent; `argumentTarget[q][0]` in the S2-S10 shape); 0xffffffff
+   * = no pointer loss for that row. Default none.
+   */
+  readonly argumentTargets?: readonly number[];
+  /**
+   * Pointer-loss targets [Q] for the intent selector (bank indices of the
+   * catalog records; 0xffffffff = no pointer loss for that row). Default
+   * none, matching the GPU runner's `intentGold` option.
+   */
+  readonly intentTargets?: readonly number[];
 }
 
 /**
@@ -625,7 +657,7 @@ export function brainBackwardOracle(
   input: BrainBackwardOracleInput,
 ): BrainBackwardResult {
   const {
-    frame, active, weights, recordMask, mixerMask, intentMask, argMask, routeKinds, argGold,
+    frame, active, weights, recordMask, mixerMask, intentMask, argMask, routeKinds, argumentTargets,
   } = input;
   const config = input.config ?? BRAIN_FORWARD_CONFIG;
   const { hiddenSize: h, ffnSize: ffn, headCount: heads, headDim, encoderBlocks, mixerBlocks, routeKindCount: C } = config;
@@ -709,19 +741,22 @@ export function brainBackwardOracle(
   const dh = decisionHeadBackward(dLogits, queryOutput, intent.gather, argument.gather, weights.decisionHeadWh, q, h, C);
 
   // --- selectors (both slots accumulate into shared dQProj/dKProj/dValue) ---
-  const argTargets = argGold ?? new Array<number>(q).fill(0xffff_ffff);
-  const noTargets = new Array<number>(q).fill(0xffff_ffff);
+  const argTargets = argumentTargets ?? new Array<number>(q).fill(0xffff_ffff);
+  const intentTargets = input.intentTargets ?? new Array<number>(q).fill(0xffff_ffff);
   const dQProj = new Float32Array(q * h);
   const dKProj = new Float32Array(r * h);
   const dValue = new Float32Array(r * h);
   const selQProj = matmulOracle(queryOutput, selector.wq, h, h); // [Q, H]
   const selKProj = matmulOracle(bankKeys, selector.wk, h, h); // [R, H]
-  for (const [dGather, p, gold] of [
-    [dh.dIntentGather, intent.p, noTargets],
-    [dh.dArgGather, argument.p, argTargets],
+  for (const [dGather, p, gold, zeroInvalid] of [
+    // The intent slot keeps its softmax-backprop even without a target; the
+    // argument slot's INVALID (arity-0 / unlabelled) rows contribute exactly
+    // zero gradient (FOLLOW_UP2 argument-loss ablation).
+    [dh.dIntentGather, intent.p, intentTargets, false],
+    [dh.dArgGather, argument.p, argTargets, true],
   ] as const) {
-    const dScore = selectorBackwardScores(dGather, bankValues, p, gold as number[], q, r, h);
-    const g = selectorBackwardQkv(dScore, selQProj, selKProj, p, dGather, q, r, h);
+    const dScore = selectorBackwardScores(dGather, bankValues, p, gold as number[], q, r, h, zeroInvalid);
+    const g = selectorBackwardQkv(dScore, selQProj, selKProj, p, dGather, q, r, h, zeroInvalid ? (gold as number[]) : undefined);
     addInPlace(dQProj, g.dQProj);
     addInPlace(dKProj, g.dKProj);
     addInPlace(dValue, g.dValue);

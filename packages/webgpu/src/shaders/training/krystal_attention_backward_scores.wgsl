@@ -30,6 +30,9 @@
 //   auxOffset    = V      [kRows, H]
 //   aux2Offset   = P      [headCount, qRows, kRows]
 //   outputOffset = dScores [headCount, qRows, kRows]
+// Optional record-local mode mirrors krystal_attention_forward:
+//   aux5Offset = activeTokens, aux6Offset = recordCompactOffset,
+//   u2 = recordCompactCount arena offset, u3 != 0 enables it.
 //
 // One workgroup per (head, query row i); lanes cover the kRows keys.
 
@@ -43,12 +46,20 @@
   if (head >= headCount || i >= qRows) { return; }
 
   let dOutBase = op.inputOffset + i * H + head * headDim;
+  var keyStart = 0u;
+  var keyEnd = kRows;
+  if (op.u3 != 0u) {
+    let frameTok = bitcast<u32>(arena[op.aux5Offset + i]);
+    let slot = frameTok >> 3u;
+    keyStart = bitcast<u32>(arena[op.aux6Offset + slot]);
+    keyEnd = keyStart + bitcast<u32>(arena[op.u2 + slot]);
+  }
 
   // Pass 1: dP[j] = dot(dOut[i,h], V[j,h]) into workgroup memory + rowSum.
-  var j = lid.x;
+  var j = keyStart + lid.x;
   var localSum = 0.0;
   loop {
-    if (j >= kRows) { break; }
+    if (j >= keyEnd) { break; }
     var dp = 0.0;
     for (var d = 0u; d < headDim; d++) {
       let dy = arena[dOutBase + d];
@@ -73,9 +84,9 @@
   workgroupBarrier();
 
   // Pass 2: dScores = P * (dP - rowSum).
-  j = lid.x;
+  j = keyStart + lid.x;
   loop {
-    if (j >= kRows) { break; }
+    if (j >= keyEnd) { break; }
     let p = arena[op.aux2Offset + (head * qRows + i) * kRows + j];
     arena[op.outputOffset + (head * qRows + i) * kRows + j] = p * (attentionScores[j] - rowSum);
     j += WG;

@@ -63,6 +63,11 @@ export const FIXTURE_TOKENS: readonly FixtureTokenSpec[] = [
   // Basic object concepts (0x3xx)
   { id: 0x300, symbol: "APPLE", tokenClass: "object" },
   { id: 0x301, symbol: "SELF", tokenClass: "object" },
+  { id: 0x302, symbol: "BERRY", tokenClass: "object" },
+  { id: 0x303, symbol: "BREAD", tokenClass: "object" },
+  { id: 0x304, symbol: "MOTHER", tokenClass: "object" },
+  { id: 0x305, symbol: "STONE", tokenClass: "object" },
+  { id: 0x306, symbol: "FECES", tokenClass: "object" },
 
   // Properties / qualities (0x4xx)
   { id: 0x400, symbol: "RED", tokenClass: "property" },
@@ -73,6 +78,9 @@ export const FIXTURE_TOKENS: readonly FixtureTokenSpec[] = [
   { id: 0x405, symbol: "FEEL_BAD", tokenClass: "property" },
   { id: 0x406, symbol: "NEED", tokenClass: "property" },
   { id: 0x407, symbol: "FEEL_GOOD", tokenClass: "property", doc: "positive homeostasis valence (comfort > 0)" },
+  { id: 0x408, symbol: "NEAR", tokenClass: "property", doc: "object is within reach (S5 spatial availability)" },
+  { id: 0x409, symbol: "FAR", tokenClass: "property", doc: "object is out of reach (S5 spatial availability)" },
+  { id: 0x40a, symbol: "POISONED", tokenClass: "property", doc: "consumable carries a negative consequence (S8)" },
 
   // Quantities / projected channels (0x5xx)
   { id: 0x500, symbol: "COMFORT", tokenClass: "quantity", doc: "homeostasis comfort channel token" },
@@ -88,6 +96,7 @@ export const FIXTURE_TOKENS: readonly FixtureTokenSpec[] = [
   { id: 0x604, symbol: "REMEMBER", tokenClass: "action", arity: 2 },
   { id: 0x605, symbol: "CRY", tokenClass: "action", arity: 0, doc: "communicative CRY() — negative homeostasis valence" },
   { id: 0x606, symbol: "LAUGH", tokenClass: "action", arity: 0, doc: "communicative LAUGH() — positive homeostasis valence" },
+  { id: 0x607, symbol: "MOVE_TOWARDS", tokenClass: "action", arity: 1, doc: "MOVE_TOWARDS(ref) — approach a spatially distant target (S5)" },
 
   // Relations (0x8xx)
   { id: 0x800, symbol: "STICK", tokenClass: "relation", doc: "persistent attachment relation" },

@@ -115,6 +115,9 @@ bun test
 
 The suite includes real-engine checkpoint tests, structured-generation E2E tests, transport tests, and WebGPU/Sandblaster regression coverage.
 
+For the current Krystal policy connected to the Pirapitinga Village GUI, see
+[docs/PIRA_SIMULATION.md](docs/PIRA_SIMULATION.md).
+
 ## Publishing the developer GUI
 
 ```bash

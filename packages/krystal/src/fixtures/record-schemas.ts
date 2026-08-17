@@ -110,6 +110,74 @@ export const FIXTURE_RECORD_SCHEMAS: readonly RecordSchemaAuthoringSpec[] = [
     ],
     doc: "[REMEMBER, #ref, STICK, LAST_ACTION, HOLD, PAD, ...]",
   },
+  {
+    name: "Berry",
+    familyToken: fixtureTokenId("BERRY"),
+    defaultBand: "vision",
+    fields: [
+      { name: "family", localTokenIndex: 0, roleToken: fixtureTokenId("BERRY"), valueKind: "token", required: true },
+      { name: "referent", localTokenIndex: 1, roleToken: 0, valueKind: "context_ref", required: true, exactRuntime: true },
+      { name: "color", localTokenIndex: 2, roleToken: fixtureTokenId("RED"), valueKind: "token" },
+      { name: "size", localTokenIndex: 3, roleToken: fixtureTokenId("SMALL"), valueKind: "token" },
+    ],
+    doc: "concrete berry instance schema (vision band); S7 edible candidate",
+  },
+  {
+    name: "Bread",
+    familyToken: fixtureTokenId("BREAD"),
+    defaultBand: "vision",
+    fields: [
+      { name: "family", localTokenIndex: 0, roleToken: fixtureTokenId("BREAD"), valueKind: "token", required: true },
+      { name: "referent", localTokenIndex: 1, roleToken: 0, valueKind: "context_ref", required: true, exactRuntime: true },
+      { name: "color", localTokenIndex: 2, roleToken: fixtureTokenId("RED"), valueKind: "token" },
+      { name: "size", localTokenIndex: 3, roleToken: fixtureTokenId("SMALL"), valueKind: "token" },
+    ],
+    doc: "concrete bread instance schema (vision band); S7 edible candidate",
+  },
+  {
+    name: "Mother",
+    familyToken: fixtureTokenId("MOTHER"),
+    defaultBand: "vision",
+    fields: [
+      { name: "family", localTokenIndex: 0, roleToken: fixtureTokenId("MOTHER"), valueKind: "token", required: true },
+      { name: "referent", localTokenIndex: 1, roleToken: 0, valueKind: "context_ref", required: true, exactRuntime: true },
+      { name: "role", localTokenIndex: 2, roleToken: fixtureTokenId("MOTHER"), valueKind: "token" },
+    ],
+    doc: "agent record; never a valid EAT argument (S4 distractor, S3 deliverer)",
+  },
+  {
+    name: "Stone",
+    familyToken: fixtureTokenId("STONE"),
+    defaultBand: "vision",
+    fields: [
+      { name: "family", localTokenIndex: 0, roleToken: fixtureTokenId("STONE"), valueKind: "token", required: true },
+      { name: "referent", localTokenIndex: 1, roleToken: 0, valueKind: "context_ref", required: true, exactRuntime: true },
+      { name: "shape", localTokenIndex: 2, roleToken: fixtureTokenId("ROUND"), valueKind: "token" },
+    ],
+    doc: "negative EAT candidate (S7); LOOK-observable",
+  },
+  {
+    name: "Feces",
+    familyToken: fixtureTokenId("FECES"),
+    defaultBand: "vision",
+    fields: [
+      { name: "family", localTokenIndex: 0, roleToken: fixtureTokenId("FECES"), valueKind: "token", required: true },
+      { name: "referent", localTokenIndex: 1, roleToken: 0, valueKind: "context_ref", required: true, exactRuntime: true },
+      { name: "shape", localTokenIndex: 2, roleToken: fixtureTokenId("ROUND"), valueKind: "token" },
+    ],
+    doc: "negative EAT candidate (S7/S8); consequence-worsening consumable",
+  },
+  {
+    name: "UnknownObject",
+    familyToken: fixtureTokenId("UNKNOWN"),
+    defaultBand: "vision",
+    fields: [
+      { name: "family", localTokenIndex: 0, roleToken: fixtureTokenId("UNKNOWN"), valueKind: "token", required: true },
+      { name: "referent", localTokenIndex: 1, roleToken: 0, valueKind: "context_ref", required: true, exactRuntime: true },
+      { name: "surface", localTokenIndex: 2, roleToken: fixtureTokenId("SHINY"), valueKind: "token" },
+    ],
+    doc: "partially/not-yet observed record; LOOK argument candidate (S6)",
+  },
 ];
 
 export class FixtureRecordCatalogError extends Error {

@@ -1,7 +1,3 @@
-Oto precyzyjne, techniczne tłumaczenie całej specyfikacji architektonicznej na język angielski:
-
-***
-
 # Krystal Brain Architecture v2
 
 **Status:** Architectural Contract Draft 2.0  

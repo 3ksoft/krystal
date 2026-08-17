@@ -28,6 +28,18 @@
 //   outputOffset = dQProj  [Q, H]
 //   aux5Offset   = dKProj  [R, H]
 //   aux6Offset   = dValue  [R, H]
+//
+// OpParams extras:
+//   u0 = R
+//   u1 = gold offset in arena f32 elements ([Q] u32 payloads; only read
+//        when u2 != 0)
+//   u2 = skipInvalidRows (0/1): when set, query rows with an INVALID
+//        pointer target are skipped in the dValue sum (FOLLOW_UP2 Fix A).
+//        dScore rows are already zeroed for those rows by the companion
+//        scores pass, so dQProj/dKProj need no guard; the p * dGather term
+//        in dValue must be skipped explicitly, otherwise the degenerate
+//        all-masked uniform p of an arity-0 / unlabelled row leaks onto
+//        distractor records and into the shared selector parameters.
 
   let Q = op.tokenCount;
   let R = op.u0;
@@ -60,10 +72,15 @@
     arena[op.aux5Offset + j * H + col] = sum * scale;
     return;
   }
-  // dValue[j, col] = sum_i p[i,j] * dGather[i, col]
+  // dValue[j, col] = sum_i p[i,j] * dGather[i, col], skipping rows with an
+  // INVALID pointer target when u2 != 0 (FOLLOW_UP2 Fix A).
   let j = (linear - qTotal - rTotal) / H;
   var sum = 0.0;
   for (var i2 = 0u; i2 < Q; i2++) {
+    if (op.u2 != 0u) {
+      let gold = bitcast<u32>(arena[op.u1 + i2]);
+      if (gold == 0xffffffffu) { continue; }
+    }
     sum += arena[op.aux3Offset + i2 * R + j] * arena[op.aux4Offset + i2 * H + col];
   }
   arena[op.aux6Offset + j * H + col] = sum;

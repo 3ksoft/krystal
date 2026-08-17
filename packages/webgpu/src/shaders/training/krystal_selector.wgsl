@@ -52,17 +52,24 @@
   }
   workgroupBarrier();
 
-  // Pass 2: row softmax + first-max argmax (single lane).
+  // Pass 2: row softmax + first-max argmax (single lane). An entirely
+  // blocked row (every score ~= -1e30, no open mask position) produces a zero
+  // distribution and an INVALID pointer instead of the degenerate
+  // uniform-over-everything softmax: the gather is zero and the emit side
+  // never fabricates a reference (S2-S10 contract, FOLLOW_UP2 metamorphic
+  // equivalence). Real unblocked scores are bounded well above -1e29.
   if (lid.x == 0u) {
     var rowMax = -3.402823466e+38;
     for (var k = 0u; k < R; k++) { rowMax = max(rowMax, attentionScores[k]); }
+    let allBlocked = rowMax < -1e29;
     var sumExp = 0.0;
     for (var k = 0u; k < R; k++) {
       let e = exp(attentionScores[k] - rowMax);
       attentionScores[k] = e;
       sumExp += e;
     }
-    let inv = 1.0 / max(sumExp, 1e-20);
+    var inv = 1.0 / max(sumExp, 1e-20);
+    if (allBlocked) { inv = 0.0; }
     var best = 0u;
     var bestScore = attentionScores[0] * inv;
     for (var k = 0u; k < R; k++) {
@@ -70,6 +77,7 @@
       attentionScores[k] = normalized;
       if (normalized > bestScore) { bestScore = normalized; best = k; }
     }
+    if (allBlocked) { best = 0xffffffffu; }
     arena[op.aux5Offset + i] = bitcast<f32>(best);
   }
   workgroupBarrier();

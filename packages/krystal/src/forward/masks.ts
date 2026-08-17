@@ -13,11 +13,18 @@
  *   - streamIds: per-slot stream id (query band -> 1, else 0);
  *   - the block-diagonal record mask for the local encoder attention.
  */
-import { BRAIN_LIMITS } from "../../../schema/src/krystal-engine-schema.ts";
+import { BRAIN_LIMITS, INVALID_U32 } from "../../../schema/src/krystal-engine-schema.ts";
 import type { v1_0_0 } from "../../../schema/generated/krystal.types.ts";
 import { bandIndex } from "../binary-layout-plan.ts";
 import { PAD_TOKEN_ID } from "../frame/packer.ts";
 import { STREAM_QUERY } from "./model.ts";
+import {
+  argumentRequiredCapability,
+  argumentNameById,
+  intentNameById,
+  schemaIdsWithCapability,
+} from "../fixtures/capabilities.ts";
+import type { CompiledActionCatalog } from "../fixtures/action-intents.ts";
 
 export const QUERY_BAND_INDEX = bandIndex("query");
 const RECORD_WIDTH = BRAIN_LIMITS.recordWidth;
@@ -104,11 +111,34 @@ export function compileRecordMask(
 }
 
 /**
- * Compile the mixer cross-attention mask [Q, R]: the query may attend to every
- * bank record in the first forward (no candidate filtering at the mixer).
+ * Compile the typed mixer cross-attention mask [Q, R] (S2-S10 contract,
+ * FOLLOW_UP.md §5): the query mixer may attend only to dynamic bank records
+ * that carry an exact runtime-ref binding — real world entities relevant to
+ * current state, needs and perception. Static ActionIntent catalog records
+ * and unrelated distractor/noise records (no runtime ref) do not participate
+ * in query-state mixing, so their bulk cannot dilute the decision-relevant
+ * signal in the query state.
+ *
+ * This filters only the query-state mixing: intent selection still addresses
+ * the ActionIntent catalog (`compileIntentMask`) and argument selection its
+ * normal candidate bank (`argMaskFor`); neither is feasibility-masked as a
+ * workaround.
  */
-export function compileMixerMask(qRows: number, bankRows: number): Float32Array {
-  return new Float32Array(qRows * bankRows); // zeros = all allowed
+export function compileMixerMask(
+  frame: v1_0_0.BrainFrameGpu,
+  active: ActiveFrame,
+): Float32Array {
+  const q = active.queryRecords.length;
+  const r = active.bankRecords.length;
+  const maxRefs = BRAIN_LIMITS.maxReferencesPerRecord;
+  const mask = new Float32Array(q * r); // zeros by default; fill blocked cells
+  for (let i = 0; i < q; i++) {
+    for (let j = 0; j < r; j++) {
+      const slot = active.bankRecords[j]!;
+      if (frame.runtimeRefs[slot * maxRefs] === INVALID_U32) mask[i * r + j] = -1e30;
+    }
+  }
+  return mask;
 }
 
 /**
@@ -158,6 +188,107 @@ export function compileArgumentMask(
         mask[i * r + j] = -1e30;
       }
     }
+  }
+  return mask;
+}
+
+// ---------------------------------------------------------------------------
+// Selected-intent conditional argument masks (S2-S10 contract)
+// ---------------------------------------------------------------------------
+//
+// The three-part supervision contract (S2_S10_CURRICULUM_TASK.md):
+//   intentMask        structural legality only (ActionIntent catalog records);
+//   argMask           conditioned on (selectedIntent, argumentIndex) and the
+//                     catalog argument descriptor — it must exclude Mother,
+//                     distractors and incompatible records;
+//   argumentTarget    gold bank record / exact runtime-ref sidecar, INVALID_U32
+//                     only for arity-0 or explicitly unlabelled rows.
+//
+// The temporary implementation keeps one pointer head (one argument selector
+// dispatch) while every training action has at most one reference argument;
+// its mask and loss target are nevertheless selected-intent conditional. The
+// public shape is `argMaskFor(intentId, argumentIndex)` (the equivalent of
+// argMask[q][intent][argument][record], flattened to the concrete lowering)
+// plus `argumentTarget[q][argument]` per query row. See bridge/policy.ts for
+// the curriculum wiring that feeds these host-compiled masks into the runner.
+
+function allBlocked(q: number, r: number): Float32Array {
+  return new Float32Array(q * r).fill(-1e30);
+}
+
+/** Band ids (bit positions) set in a compiled candidateBandMask. */
+export function bandIdsFromMask(candidateBandMask: number): number[] {
+  const ids: number[] = [];
+  for (let bit = 0; bit < 32; bit++) {
+    if ((candidateBandMask >>> bit) & 1) ids.push(bit);
+  }
+  return ids;
+}
+
+/**
+ * Compile the [Q, R] argument mask for one (selectedIntent, argumentIndex)
+ * pair from its compiled catalog argument descriptor: 0.0 for bank records
+ * whose schema is accepted by the argument's capability/identity set and
+ * whose band is a candidate band, -1e30 otherwise. Arity-0 intents and
+ * out-of-range argument indexes produce an all-blocked row (the selector can
+ * never fabricate a pointer for them).
+ */
+export function argMaskFor(
+  frame: v1_0_0.BrainFrameGpu,
+  active: ActiveFrame,
+  catalog: CompiledActionCatalog,
+  intentId: number,
+  argumentIndex: number,
+): Float32Array {
+  const q = active.queryRecords.length;
+  const r = active.bankRecords.length;
+  const descriptor = catalog.descriptors.find((candidate) => candidate.intentId === intentId);
+  if (!descriptor || argumentIndex >= descriptor.argumentCount) return allBlocked(q, r);
+  const argDesc = catalog.arguments[descriptor.argumentOffset + argumentIndex]!;
+  const accepted = argAcceptedSchemaIds(catalog, intentId, argumentIndex, argDesc);
+  return compileArgumentMask(frame, active, accepted, bandIdsFromMask(argDesc.candidateBandMask));
+}
+
+/**
+ * Accepted schema ids for one argument: capability-derived when the argument
+ * declares a required capability (S7 `TARGET_OF(EAT)`), else the single
+ * acceptedSchema identity from the compiled descriptor.
+ */
+export function argAcceptedSchemaIds(
+  catalog: CompiledActionCatalog,
+  intentId: number,
+  argumentIndex: number,
+  argDesc?: v1_0_0.ActionArgumentDescriptor,
+): number[] {
+  const descriptor = catalog.descriptors.find((candidate) => candidate.intentId === intentId);
+  if (!descriptor || argumentIndex >= descriptor.argumentCount) return [];
+  const desc = argDesc ?? catalog.arguments[descriptor.argumentOffset + argumentIndex]!;
+  const intentName = intentNameById(intentId);
+  const argName = argumentNameById(intentId, argumentIndex);
+  const capability = argumentRequiredCapability(intentName, argName);
+  if (capability) return schemaIdsWithCapability(capability);
+  return desc.acceptedSchemaId === 0 && desc.valueKind === "context_ref" ? [] : [desc.acceptedSchemaId];
+}
+
+/**
+ * Compile a per-query-row argument mask: row i uses `intents[i]`'s argument
+ * descriptor (all rows share one selector dispatch, but the mask is
+ * conditioned per query on its own selected intent).
+ */
+export function compilePerRowArgumentMask(
+  frame: v1_0_0.BrainFrameGpu,
+  active: ActiveFrame,
+  catalog: CompiledActionCatalog,
+  intents: readonly number[],
+  argumentIndex = 0,
+): Float32Array {
+  const q = active.queryRecords.length;
+  const r = active.bankRecords.length;
+  if (intents.length !== q) throw new ForwardMasksError(`per-row intents must be [Q] = ${q}`);
+  const mask = new Float32Array(q * r);
+  for (let i = 0; i < q; i++) {
+    const row = argMaskFor(frame, active, catalog, intents[i]!, argumentIndex);
+    for (let j = 0; j < r; j++) mask[i * r + j] = row[j]!;
   }
   return mask;
 }
