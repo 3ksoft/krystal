@@ -10,9 +10,11 @@
  * v0 envelope (answer 27): at most one proposal per query row — `count`,
  * `lifecycle: 'start'`, resolved `intentId`, and typed arguments whose exact
  * handles are read from the selected records' runtime-ref sidecars.
- * Confidence and entropy are emitted as debug/diagnostic values. intentRef /
- * purposeGoal / controllerHint / topic are left invalid: the runtime assigns
- * an exact intentRef when a proposal is accepted.
+ * Confidence and entropy are emitted as debug/diagnostic values, and
+ * `intensity` is computed from the selection heads (intent top-1 probability
+ * × distribution peakedness × argument support) rather than a constant.
+ * intentRef / purposeGoal / controllerHint / topic are left invalid: the
+ * runtime assigns an exact intentRef when a proposal is accepted.
  */
 import {
   BRAIN_LIMITS,
@@ -67,6 +69,8 @@ export function emptyProposal(proposalSlot: number): v1_0_0.IntentProposal {
     topic: invalidRef(),
     activation: 0,
     priority: 0,
+    // Schema default: an empty slot carries no selection signal, so the ABI
+    // default stands (real proposals get a head-computed value below).
     intensity: 0.5,
     persistence: 0,
     confidence: 0,
@@ -168,6 +172,9 @@ export function emitIntentSet(input: IntentSetEmissionInput): IntentSetEmissionR
         entropy -= p * Math.log(p);
       }
     }
+    // Peakedness of the intent distribution: 1 - normalized entropy, so a
+    // single unambiguous candidate scores 1 and a uniform row scores 0.
+    const peakedness = candidateCount <= 1 ? 1 : Math.max(0, 1 - entropy / Math.log(candidateCount));
 
     const proposal: v1_0_0.IntentProposal = {
       proposalSlot: i,
@@ -180,7 +187,7 @@ export function emitIntentSet(input: IntentSetEmissionInput): IntentSetEmissionR
       topic: invalidRef(),
       activation: intentProb,
       priority: 0,
-      intensity: 0.5,
+      intensity: 0, // overwritten below once argument support is known
       persistence: 0,
       confidence: intentProb,
       arguments: Array.from({ length: BRAIN_LIMITS.maxActionArguments }, () => emptyArgument()),
@@ -240,6 +247,21 @@ export function emitIntentSet(input: IntentSetEmissionInput): IntentSetEmissionR
         },
       };
     }
+
+    // Argument support: mean selector probability across the intent's typed
+    // arguments (1 when the intent declares none). Masked/error arguments
+    // keep their selector probability — the head's commitment, independent of
+    // the accepted-schema check. Intensity is the product of the two heads:
+    // a decisive, well-supported selection is intense; a flat or poorly
+    // supported one is not.
+    let argSupport = 1;
+    const argCount = Math.min(descriptor.argumentCount, BRAIN_LIMITS.maxActionArguments);
+    if (argCount > 0) {
+      let sum = 0;
+      for (let k = 0; k < argCount; k++) sum += proposal.arguments[k]!.selector.probability;
+      argSupport = sum / argCount;
+    }
+    proposal.intensity = intentProb * peakedness * argSupport;
 
     proposals[i] = proposal;
     emitted++;

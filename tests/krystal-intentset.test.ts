@@ -75,6 +75,8 @@ test("IntentSet: EAT selected with Apple argument resolves exact handles", () =>
   // EAT is the second intent in the fixture catalog.
   expect(proposal.intentId).toBe(fixtureIntent("EAT").intentId);
   expect(proposal.confidence).toBe(1);
+  // Peaked intent (p=1) × peakedness 1 × peaked argument (p=1) -> intensity 1.
+  expect(proposal.intensity).toBe(1);
 
   // One typed argument: EAT(target: Apple context_ref).
   const arg = proposal.arguments[0]!;
@@ -134,6 +136,8 @@ test("IntentSet: WAIT emits a proposal with no typed arguments", () => {
   expect(proposal.intentId).toBe(fixtureIntent("WAIT").intentId);
   expect(proposal.arguments[0]!.kind).toBe("none");
   expect(proposal.arguments[0]!.selector.status).toBe("empty");
+  // No typed arguments -> argument support is 1; peaked intent -> intensity 1.
+  expect(proposal.intensity).toBe(1);
 });
 
 test("IntentSet: argument selector landing on a wrong schema yields masked, not fabricated handle", () => {
@@ -257,6 +261,48 @@ test("IntentSet: selector distributions with entropy/candidate counts", () => {
   expect(proposal.arguments[0]!.selector.probability).toBe(1);
   // Entropy is strictly positive on a non-degenerate distribution.
   expect(proposal.arguments[0]!.selector.entropy).toBe(0);
+  // Non-degenerate intent distribution: peakedness < 1 drags intensity below
+  // the top-1 confidence (argument here is peaked, so support is 1).
+  expect(proposal.intensity).toBeGreaterThan(0);
+  expect(proposal.intensity).toBeLessThan(proposal.confidence);
+});
+
+test("IntentSet: intensity reflects peakedness and argument support", () => {
+  const base = fixtureBase();
+  const EAT_BANK = base.active.bankRecords.indexOf(117);
+  const APPLE_BANK = base.active.bankRecords.indexOf(24);
+  const WAIT_BANK = base.active.bankRecords.indexOf(118);
+  const r = base.active.bankRecords.length;
+
+  // Case 1: peaked intent + peaked argument -> intensity 1 (already covered by
+  // the EAT test, restated here for the trio of cases).
+  let set = emit({
+    frame: base.frame, active: base.active, catalog: base.catalog,
+    intent: peakedSlot(EAT_BANK, r), argument: peakedSlot(APPLE_BANK, r),
+  });
+  expect(set.proposals[0]!.intensity).toBe(1);
+
+  // Case 2: uniform intent over two catalog records -> peakedness 0 -> intensity 0.
+  const uniform = new Float32Array(r);
+  uniform[EAT_BANK] = 0.5;
+  uniform[WAIT_BANK] = 0.5;
+  set = emit({
+    frame: base.frame, active: base.active, catalog: base.catalog,
+    intent: { p: uniform, gather: new Float32Array(H), index: new Uint32Array([EAT_BANK]) },
+    argument: peakedSlot(APPLE_BANK, r),
+  });
+  expect(set.proposals[0]!.intensity).toBe(0);
+
+  // Case 3: peaked intent, argument selector split 50/50 -> intensity = 0.5.
+  const softArg = new Float32Array(r);
+  softArg[APPLE_BANK] = 0.5;
+  softArg[base.active.bankRecords.indexOf(90)] = 0.5;
+  set = emit({
+    frame: base.frame, active: base.active, catalog: base.catalog,
+    intent: peakedSlot(EAT_BANK, r),
+    argument: { p: softArg, gather: new Float32Array(H), index: new Uint32Array([APPLE_BANK]) },
+  });
+  expect(set.proposals[0]!.intensity).toBeCloseTo(0.5, 6);
 });
 
 test("IntentSet: emptyProposal factory matches the schema envelope", () => {

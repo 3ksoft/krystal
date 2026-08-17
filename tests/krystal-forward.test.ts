@@ -384,6 +384,9 @@ test("composed forward: CPU/GPU parity on the canonical fixture frame", async ()
   expect(gpuProposal.lifecycle).toBe(cpuProposal.lifecycle);
   expect(gpuProposal.intentId).toBe(cpuProposal.intentId);
   expect(gpuProposal.confidence).toBeCloseTo(cpuProposal.confidence, 4);
+  // intensity is derived from the same selection heads on both sides, so it
+  // must agree within the GPU/CPU distribution tolerance.
+  expect(gpuProposal.intensity).toBeCloseTo(cpuProposal.intensity, 4);
   for (let k = 0; k < BRAIN_LIMITS.maxActionArguments; k++) {
     expect(gpuProposal.arguments[k]!.kind).toBe(cpuProposal.arguments[k]!.kind);
     expect(gpuProposal.arguments[k]!.selector.status).toBe(cpuProposal.arguments[k]!.selector.status);

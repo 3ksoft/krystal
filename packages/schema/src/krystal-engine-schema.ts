@@ -871,6 +871,10 @@ export const schema = scope({
 
     activation: "f32 = 0",
     priority: "f32 = 0",
+    // Commitment strength from the selection heads: intent top-1 probability ×
+    // distribution peakedness × argument support. 0.5 is the ABI default for
+    // empty slots (no selection exists); emitted proposals carry a computed
+    // value (intentset.ts).
     intensity: "f32 = 0.5",
     persistence: "f32 = 0",
     confidence: "f32 = 0",
