@@ -98,10 +98,10 @@ test("record schemas: manifest hash is deterministic", () => {
   expect(a.header.schemaHashHi).toBe(b.header.schemaHashHi);
 });
 
-test("action catalog: LOOK(ref), EAT(ref) and WAIT compile with resolved arguments", () => {
+test("action catalog: LOOK/EAT/WAIT/CRY/LAUGH compile with resolved arguments", () => {
   const catalog = buildFixtureActionCatalog();
   expect(catalog.header.intentCount).toBe(FIXTURE_ACTION_INTENTS.length);
-  expect(catalog.descriptors).toHaveLength(3);
+  expect(catalog.descriptors).toHaveLength(5);
 
   const look = fixtureIntent("LOOK");
   expect(look.argumentCount).toBe(1);
@@ -117,6 +117,14 @@ test("action catalog: LOOK(ref), EAT(ref) and WAIT compile with resolved argumen
   const wait = fixtureIntent("WAIT");
   expect(wait.argumentCount).toBe(0);
   expect(wait.flags & 1).toBe(1); // durative
+
+  // Step-1 communicative intents: zero-arity, non-durative, communicative flag.
+  const cry = fixtureIntent("CRY");
+  expect(cry.argumentCount).toBe(0);
+  expect(cry.flags & 1).toBe(0); // not durative
+  const laugh = fixtureIntent("LAUGH");
+  expect(laugh.argumentCount).toBe(0);
+  expect(laugh.flags & 1).toBe(0);
 });
 
 test("action catalog: argument band masks and hash are deterministic", () => {

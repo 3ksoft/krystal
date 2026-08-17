@@ -16,3 +16,4 @@ export * from "./forward/masks.ts";
 export * from "./forward/oracle.ts";
 export * from "./forward/backward.ts";
 export * from "./forward/intentset.ts";
+export * from "./bridge/comfort.ts";

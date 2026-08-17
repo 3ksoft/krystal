@@ -72,6 +72,13 @@ export const FIXTURE_TOKENS: readonly FixtureTokenSpec[] = [
   { id: 0x404, symbol: "SATIATED", tokenClass: "property" },
   { id: 0x405, symbol: "FEEL_BAD", tokenClass: "property" },
   { id: 0x406, symbol: "NEED", tokenClass: "property" },
+  { id: 0x407, symbol: "FEEL_GOOD", tokenClass: "property", doc: "positive homeostasis valence (comfort > 0)" },
+
+  // Quantities / projected channels (0x5xx)
+  { id: 0x500, symbol: "COMFORT", tokenClass: "quantity", doc: "homeostasis comfort channel token" },
+  { id: 0x501, symbol: "MILD", tokenClass: "quantity", doc: "comfort magnitude band (0.25 < |c| <= 0.5)" },
+  { id: 0x502, symbol: "MODERATE", tokenClass: "quantity", doc: "comfort magnitude band (0.5 < |c| <= 0.75)" },
+  { id: 0x503, symbol: "SEVERE", tokenClass: "quantity", doc: "comfort magnitude band (0.75 < |c| <= 1)" },
 
   // Actions / state changes (0x6xx)
   { id: 0x600, symbol: "LOOK", tokenClass: "action", arity: 1, doc: "perceptual LOOK(ref)" },
@@ -79,6 +86,8 @@ export const FIXTURE_TOKENS: readonly FixtureTokenSpec[] = [
   { id: 0x602, symbol: "WAIT", tokenClass: "action", arity: 0 },
   { id: 0x603, symbol: "HOLD", tokenClass: "action", arity: 1 },
   { id: 0x604, symbol: "REMEMBER", tokenClass: "action", arity: 2 },
+  { id: 0x605, symbol: "CRY", tokenClass: "action", arity: 0, doc: "communicative CRY() — negative homeostasis valence" },
+  { id: 0x606, symbol: "LAUGH", tokenClass: "action", arity: 0, doc: "communicative LAUGH() — positive homeostasis valence" },
 
   // Relations (0x8xx)
   { id: 0x800, symbol: "STICK", tokenClass: "relation", doc: "persistent attachment relation" },

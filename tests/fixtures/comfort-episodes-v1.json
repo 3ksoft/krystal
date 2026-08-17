@@ -1,0 +1,9291 @@
+{
+  "contract": "comfort-episodes@1",
+  "curriculumVersion": "comfort-v1",
+  "stages": [
+    "1A-extremes",
+    "1B-scale"
+  ],
+  "seedCount": 40,
+  "episodes": [
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 0,
+      "comfort": -1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 2211570529
+        },
+        {
+          "band": "body",
+          "seed": 1930892167
+        },
+        {
+          "band": "vision",
+          "seed": 2673536542
+        },
+        {
+          "band": "audio",
+          "seed": 2534652227
+        },
+        {
+          "band": "olfaction",
+          "seed": 3130418820
+        },
+        {
+          "band": "taste",
+          "seed": 353712894
+        },
+        {
+          "band": "touch",
+          "seed": 1287662817
+        },
+        {
+          "band": "memory",
+          "seed": 915221460
+        },
+        {
+          "band": "focus",
+          "seed": 265005231
+        },
+        {
+          "band": "query",
+          "seed": 2488489735
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 0,
+      "comfort": 1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 2211570529
+        },
+        {
+          "band": "body",
+          "seed": 1930892167
+        },
+        {
+          "band": "vision",
+          "seed": 2673536542
+        },
+        {
+          "band": "audio",
+          "seed": 2534652227
+        },
+        {
+          "band": "olfaction",
+          "seed": 3130418820
+        },
+        {
+          "band": "taste",
+          "seed": 353712894
+        },
+        {
+          "band": "touch",
+          "seed": 1287662817
+        },
+        {
+          "band": "memory",
+          "seed": 915221460
+        },
+        {
+          "band": "focus",
+          "seed": 265005231
+        },
+        {
+          "band": "query",
+          "seed": 2488489735
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 1,
+      "comfort": -1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 3875847014
+        },
+        {
+          "band": "body",
+          "seed": 1444569047
+        },
+        {
+          "band": "vision",
+          "seed": 2766484640
+        },
+        {
+          "band": "audio",
+          "seed": 1189628549
+        },
+        {
+          "band": "olfaction",
+          "seed": 2568509496
+        },
+        {
+          "band": "taste",
+          "seed": 3383896544
+        },
+        {
+          "band": "touch",
+          "seed": 3131701660
+        },
+        {
+          "band": "memory",
+          "seed": 4278013117
+        },
+        {
+          "band": "focus",
+          "seed": 3959709473
+        },
+        {
+          "band": "query",
+          "seed": 3535578997
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 1,
+      "comfort": 1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 3875847014
+        },
+        {
+          "band": "body",
+          "seed": 1444569047
+        },
+        {
+          "band": "vision",
+          "seed": 2766484640
+        },
+        {
+          "band": "audio",
+          "seed": 1189628549
+        },
+        {
+          "band": "olfaction",
+          "seed": 2568509496
+        },
+        {
+          "band": "taste",
+          "seed": 3383896544
+        },
+        {
+          "band": "touch",
+          "seed": 3131701660
+        },
+        {
+          "band": "memory",
+          "seed": 4278013117
+        },
+        {
+          "band": "focus",
+          "seed": 3959709473
+        },
+        {
+          "band": "query",
+          "seed": 3535578997
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 2,
+      "comfort": -1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 3348245848
+        },
+        {
+          "band": "body",
+          "seed": 3770264486
+        },
+        {
+          "band": "vision",
+          "seed": 2867336294
+        },
+        {
+          "band": "audio",
+          "seed": 610391358
+        },
+        {
+          "band": "olfaction",
+          "seed": 3300510234
+        },
+        {
+          "band": "taste",
+          "seed": 2091048568
+        },
+        {
+          "band": "touch",
+          "seed": 3881810977
+        },
+        {
+          "band": "memory",
+          "seed": 970853554
+        },
+        {
+          "band": "focus",
+          "seed": 3872603618
+        },
+        {
+          "band": "query",
+          "seed": 847604790
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 2,
+      "comfort": 1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 3348245848
+        },
+        {
+          "band": "body",
+          "seed": 3770264486
+        },
+        {
+          "band": "vision",
+          "seed": 2867336294
+        },
+        {
+          "band": "audio",
+          "seed": 610391358
+        },
+        {
+          "band": "olfaction",
+          "seed": 3300510234
+        },
+        {
+          "band": "taste",
+          "seed": 2091048568
+        },
+        {
+          "band": "touch",
+          "seed": 3881810977
+        },
+        {
+          "band": "memory",
+          "seed": 970853554
+        },
+        {
+          "band": "focus",
+          "seed": 3872603618
+        },
+        {
+          "band": "query",
+          "seed": 847604790
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 3,
+      "comfort": -1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 3517840638
+        },
+        {
+          "band": "body",
+          "seed": 2531635862
+        },
+        {
+          "band": "vision",
+          "seed": 1964636121
+        },
+        {
+          "band": "audio",
+          "seed": 1401277295
+        },
+        {
+          "band": "olfaction",
+          "seed": 2889138094
+        },
+        {
+          "band": "taste",
+          "seed": 3034756737
+        },
+        {
+          "band": "touch",
+          "seed": 2929769760
+        },
+        {
+          "band": "memory",
+          "seed": 2293716298
+        },
+        {
+          "band": "focus",
+          "seed": 526466393
+        },
+        {
+          "band": "query",
+          "seed": 3057483691
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 3,
+      "comfort": 1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 3517840638
+        },
+        {
+          "band": "body",
+          "seed": 2531635862
+        },
+        {
+          "band": "vision",
+          "seed": 1964636121
+        },
+        {
+          "band": "audio",
+          "seed": 1401277295
+        },
+        {
+          "band": "olfaction",
+          "seed": 2889138094
+        },
+        {
+          "band": "taste",
+          "seed": 3034756737
+        },
+        {
+          "band": "touch",
+          "seed": 2929769760
+        },
+        {
+          "band": "memory",
+          "seed": 2293716298
+        },
+        {
+          "band": "focus",
+          "seed": 526466393
+        },
+        {
+          "band": "query",
+          "seed": 3057483691
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 4,
+      "comfort": -1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 1686660277
+        },
+        {
+          "band": "body",
+          "seed": 3095683926
+        },
+        {
+          "band": "vision",
+          "seed": 477749098
+        },
+        {
+          "band": "audio",
+          "seed": 3944075399
+        },
+        {
+          "band": "olfaction",
+          "seed": 3952880071
+        },
+        {
+          "band": "taste",
+          "seed": 3621156763
+        },
+        {
+          "band": "touch",
+          "seed": 1189500325
+        },
+        {
+          "band": "memory",
+          "seed": 487701674
+        },
+        {
+          "band": "focus",
+          "seed": 432658115
+        },
+        {
+          "band": "query",
+          "seed": 3692896499
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 4,
+      "comfort": 1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 1686660277
+        },
+        {
+          "band": "body",
+          "seed": 3095683926
+        },
+        {
+          "band": "vision",
+          "seed": 477749098
+        },
+        {
+          "band": "audio",
+          "seed": 3944075399
+        },
+        {
+          "band": "olfaction",
+          "seed": 3952880071
+        },
+        {
+          "band": "taste",
+          "seed": 3621156763
+        },
+        {
+          "band": "touch",
+          "seed": 1189500325
+        },
+        {
+          "band": "memory",
+          "seed": 487701674
+        },
+        {
+          "band": "focus",
+          "seed": 432658115
+        },
+        {
+          "band": "query",
+          "seed": 3692896499
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 5,
+      "comfort": -1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 825764836
+        },
+        {
+          "band": "body",
+          "seed": 3017227371
+        },
+        {
+          "band": "vision",
+          "seed": 1189462106
+        },
+        {
+          "band": "audio",
+          "seed": 1418080762
+        },
+        {
+          "band": "olfaction",
+          "seed": 243833014
+        },
+        {
+          "band": "taste",
+          "seed": 135105409
+        },
+        {
+          "band": "touch",
+          "seed": 4272142725
+        },
+        {
+          "band": "memory",
+          "seed": 987437924
+        },
+        {
+          "band": "focus",
+          "seed": 212946769
+        },
+        {
+          "band": "query",
+          "seed": 532161763
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 5,
+      "comfort": 1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 825764836
+        },
+        {
+          "band": "body",
+          "seed": 3017227371
+        },
+        {
+          "band": "vision",
+          "seed": 1189462106
+        },
+        {
+          "band": "audio",
+          "seed": 1418080762
+        },
+        {
+          "band": "olfaction",
+          "seed": 243833014
+        },
+        {
+          "band": "taste",
+          "seed": 135105409
+        },
+        {
+          "band": "touch",
+          "seed": 4272142725
+        },
+        {
+          "band": "memory",
+          "seed": 987437924
+        },
+        {
+          "band": "focus",
+          "seed": 212946769
+        },
+        {
+          "band": "query",
+          "seed": 532161763
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 6,
+      "comfort": -1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 2547317644
+        },
+        {
+          "band": "body",
+          "seed": 2915957749
+        },
+        {
+          "band": "vision",
+          "seed": 1638332498
+        },
+        {
+          "band": "audio",
+          "seed": 3753320914
+        },
+        {
+          "band": "olfaction",
+          "seed": 3833655157
+        },
+        {
+          "band": "taste",
+          "seed": 1450204728
+        },
+        {
+          "band": "touch",
+          "seed": 2332493315
+        },
+        {
+          "band": "memory",
+          "seed": 2412412968
+        },
+        {
+          "band": "focus",
+          "seed": 2320768711
+        },
+        {
+          "band": "query",
+          "seed": 3711633962
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 6,
+      "comfort": 1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 2547317644
+        },
+        {
+          "band": "body",
+          "seed": 2915957749
+        },
+        {
+          "band": "vision",
+          "seed": 1638332498
+        },
+        {
+          "band": "audio",
+          "seed": 3753320914
+        },
+        {
+          "band": "olfaction",
+          "seed": 3833655157
+        },
+        {
+          "band": "taste",
+          "seed": 1450204728
+        },
+        {
+          "band": "touch",
+          "seed": 2332493315
+        },
+        {
+          "band": "memory",
+          "seed": 2412412968
+        },
+        {
+          "band": "focus",
+          "seed": 2320768711
+        },
+        {
+          "band": "query",
+          "seed": 3711633962
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 7,
+      "comfort": -1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 860550091
+        },
+        {
+          "band": "body",
+          "seed": 3370477380
+        },
+        {
+          "band": "vision",
+          "seed": 2766805620
+        },
+        {
+          "band": "audio",
+          "seed": 2061634211
+        },
+        {
+          "band": "olfaction",
+          "seed": 2989907271
+        },
+        {
+          "band": "taste",
+          "seed": 3444344797
+        },
+        {
+          "band": "touch",
+          "seed": 3069943970
+        },
+        {
+          "band": "memory",
+          "seed": 1094754824
+        },
+        {
+          "band": "focus",
+          "seed": 3824638277
+        },
+        {
+          "band": "query",
+          "seed": 1744498270
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 7,
+      "comfort": 1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 860550091
+        },
+        {
+          "band": "body",
+          "seed": 3370477380
+        },
+        {
+          "band": "vision",
+          "seed": 2766805620
+        },
+        {
+          "band": "audio",
+          "seed": 2061634211
+        },
+        {
+          "band": "olfaction",
+          "seed": 2989907271
+        },
+        {
+          "band": "taste",
+          "seed": 3444344797
+        },
+        {
+          "band": "touch",
+          "seed": 3069943970
+        },
+        {
+          "band": "memory",
+          "seed": 1094754824
+        },
+        {
+          "band": "focus",
+          "seed": 3824638277
+        },
+        {
+          "band": "query",
+          "seed": 1744498270
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 8,
+      "comfort": -1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 634042270
+        },
+        {
+          "band": "body",
+          "seed": 1889552885
+        },
+        {
+          "band": "vision",
+          "seed": 3986179392
+        },
+        {
+          "band": "audio",
+          "seed": 3193603471
+        },
+        {
+          "band": "olfaction",
+          "seed": 2219489107
+        },
+        {
+          "band": "taste",
+          "seed": 2573836045
+        },
+        {
+          "band": "touch",
+          "seed": 2897503497
+        },
+        {
+          "band": "memory",
+          "seed": 4048449132
+        },
+        {
+          "band": "focus",
+          "seed": 502948801
+        },
+        {
+          "band": "query",
+          "seed": 3180986032
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 8,
+      "comfort": 1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 634042270
+        },
+        {
+          "band": "body",
+          "seed": 1889552885
+        },
+        {
+          "band": "vision",
+          "seed": 3986179392
+        },
+        {
+          "band": "audio",
+          "seed": 3193603471
+        },
+        {
+          "band": "olfaction",
+          "seed": 2219489107
+        },
+        {
+          "band": "taste",
+          "seed": 2573836045
+        },
+        {
+          "band": "touch",
+          "seed": 2897503497
+        },
+        {
+          "band": "memory",
+          "seed": 4048449132
+        },
+        {
+          "band": "focus",
+          "seed": 502948801
+        },
+        {
+          "band": "query",
+          "seed": 3180986032
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 9,
+      "comfort": -1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 3378992558
+        },
+        {
+          "band": "body",
+          "seed": 1219213890
+        },
+        {
+          "band": "vision",
+          "seed": 3904657034
+        },
+        {
+          "band": "audio",
+          "seed": 3964217760
+        },
+        {
+          "band": "olfaction",
+          "seed": 3189705147
+        },
+        {
+          "band": "taste",
+          "seed": 2858957617
+        },
+        {
+          "band": "touch",
+          "seed": 2488394969
+        },
+        {
+          "band": "memory",
+          "seed": 422293484
+        },
+        {
+          "band": "focus",
+          "seed": 2155129946
+        },
+        {
+          "band": "query",
+          "seed": 1267001252
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 9,
+      "comfort": 1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 3378992558
+        },
+        {
+          "band": "body",
+          "seed": 1219213890
+        },
+        {
+          "band": "vision",
+          "seed": 3904657034
+        },
+        {
+          "band": "audio",
+          "seed": 3964217760
+        },
+        {
+          "band": "olfaction",
+          "seed": 3189705147
+        },
+        {
+          "band": "taste",
+          "seed": 2858957617
+        },
+        {
+          "band": "touch",
+          "seed": 2488394969
+        },
+        {
+          "band": "memory",
+          "seed": 422293484
+        },
+        {
+          "band": "focus",
+          "seed": 2155129946
+        },
+        {
+          "band": "query",
+          "seed": 1267001252
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 10,
+      "comfort": -1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 1547842545
+        },
+        {
+          "band": "body",
+          "seed": 1460789698
+        },
+        {
+          "band": "vision",
+          "seed": 2939028915
+        },
+        {
+          "band": "audio",
+          "seed": 2825255213
+        },
+        {
+          "band": "olfaction",
+          "seed": 4039333333
+        },
+        {
+          "band": "taste",
+          "seed": 3019675583
+        },
+        {
+          "band": "touch",
+          "seed": 3311759758
+        },
+        {
+          "band": "memory",
+          "seed": 2276056988
+        },
+        {
+          "band": "focus",
+          "seed": 2307689057
+        },
+        {
+          "band": "query",
+          "seed": 1382036524
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 10,
+      "comfort": 1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 1547842545
+        },
+        {
+          "band": "body",
+          "seed": 1460789698
+        },
+        {
+          "band": "vision",
+          "seed": 2939028915
+        },
+        {
+          "band": "audio",
+          "seed": 2825255213
+        },
+        {
+          "band": "olfaction",
+          "seed": 4039333333
+        },
+        {
+          "band": "taste",
+          "seed": 3019675583
+        },
+        {
+          "band": "touch",
+          "seed": 3311759758
+        },
+        {
+          "band": "memory",
+          "seed": 2276056988
+        },
+        {
+          "band": "focus",
+          "seed": 2307689057
+        },
+        {
+          "band": "query",
+          "seed": 1382036524
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 11,
+      "comfort": -1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 196518736
+        },
+        {
+          "band": "body",
+          "seed": 3686476413
+        },
+        {
+          "band": "vision",
+          "seed": 291868588
+        },
+        {
+          "band": "audio",
+          "seed": 2351397
+        },
+        {
+          "band": "olfaction",
+          "seed": 3961203224
+        },
+        {
+          "band": "taste",
+          "seed": 2695832697
+        },
+        {
+          "band": "touch",
+          "seed": 1210912210
+        },
+        {
+          "band": "memory",
+          "seed": 3935263494
+        },
+        {
+          "band": "focus",
+          "seed": 342294327
+        },
+        {
+          "band": "query",
+          "seed": 3880279925
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 11,
+      "comfort": 1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 196518736
+        },
+        {
+          "band": "body",
+          "seed": 3686476413
+        },
+        {
+          "band": "vision",
+          "seed": 291868588
+        },
+        {
+          "band": "audio",
+          "seed": 2351397
+        },
+        {
+          "band": "olfaction",
+          "seed": 3961203224
+        },
+        {
+          "band": "taste",
+          "seed": 2695832697
+        },
+        {
+          "band": "touch",
+          "seed": 1210912210
+        },
+        {
+          "band": "memory",
+          "seed": 3935263494
+        },
+        {
+          "band": "focus",
+          "seed": 342294327
+        },
+        {
+          "band": "query",
+          "seed": 3880279925
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 12,
+      "comfort": -1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 2214924427
+        },
+        {
+          "band": "body",
+          "seed": 1409976676
+        },
+        {
+          "band": "vision",
+          "seed": 4227613846
+        },
+        {
+          "band": "audio",
+          "seed": 625504326
+        },
+        {
+          "band": "olfaction",
+          "seed": 3117272178
+        },
+        {
+          "band": "taste",
+          "seed": 1117876959
+        },
+        {
+          "band": "touch",
+          "seed": 3055886713
+        },
+        {
+          "band": "memory",
+          "seed": 3993065837
+        },
+        {
+          "band": "focus",
+          "seed": 3018696996
+        },
+        {
+          "band": "query",
+          "seed": 1578043988
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 12,
+      "comfort": 1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 2214924427
+        },
+        {
+          "band": "body",
+          "seed": 1409976676
+        },
+        {
+          "band": "vision",
+          "seed": 4227613846
+        },
+        {
+          "band": "audio",
+          "seed": 625504326
+        },
+        {
+          "band": "olfaction",
+          "seed": 3117272178
+        },
+        {
+          "band": "taste",
+          "seed": 1117876959
+        },
+        {
+          "band": "touch",
+          "seed": 3055886713
+        },
+        {
+          "band": "memory",
+          "seed": 3993065837
+        },
+        {
+          "band": "focus",
+          "seed": 3018696996
+        },
+        {
+          "band": "query",
+          "seed": 1578043988
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 13,
+      "comfort": -1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 3159153159
+        },
+        {
+          "band": "body",
+          "seed": 4120768246
+        },
+        {
+          "band": "vision",
+          "seed": 682819329
+        },
+        {
+          "band": "audio",
+          "seed": 577304035
+        },
+        {
+          "band": "olfaction",
+          "seed": 756908006
+        },
+        {
+          "band": "taste",
+          "seed": 1356965233
+        },
+        {
+          "band": "touch",
+          "seed": 3668453450
+        },
+        {
+          "band": "memory",
+          "seed": 1923728471
+        },
+        {
+          "band": "focus",
+          "seed": 1172839956
+        },
+        {
+          "band": "query",
+          "seed": 1430317519
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 13,
+      "comfort": 1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 3159153159
+        },
+        {
+          "band": "body",
+          "seed": 4120768246
+        },
+        {
+          "band": "vision",
+          "seed": 682819329
+        },
+        {
+          "band": "audio",
+          "seed": 577304035
+        },
+        {
+          "band": "olfaction",
+          "seed": 756908006
+        },
+        {
+          "band": "taste",
+          "seed": 1356965233
+        },
+        {
+          "band": "touch",
+          "seed": 3668453450
+        },
+        {
+          "band": "memory",
+          "seed": 1923728471
+        },
+        {
+          "band": "focus",
+          "seed": 1172839956
+        },
+        {
+          "band": "query",
+          "seed": 1430317519
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 14,
+      "comfort": -1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 2918153870
+        },
+        {
+          "band": "body",
+          "seed": 2056881944
+        },
+        {
+          "band": "vision",
+          "seed": 4026340006
+        },
+        {
+          "band": "audio",
+          "seed": 3987325704
+        },
+        {
+          "band": "olfaction",
+          "seed": 2816570153
+        },
+        {
+          "band": "taste",
+          "seed": 1018680966
+        },
+        {
+          "band": "touch",
+          "seed": 2136321644
+        },
+        {
+          "band": "memory",
+          "seed": 24633913
+        },
+        {
+          "band": "focus",
+          "seed": 577107379
+        },
+        {
+          "band": "query",
+          "seed": 949713753
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 14,
+      "comfort": 1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 2918153870
+        },
+        {
+          "band": "body",
+          "seed": 2056881944
+        },
+        {
+          "band": "vision",
+          "seed": 4026340006
+        },
+        {
+          "band": "audio",
+          "seed": 3987325704
+        },
+        {
+          "band": "olfaction",
+          "seed": 2816570153
+        },
+        {
+          "band": "taste",
+          "seed": 1018680966
+        },
+        {
+          "band": "touch",
+          "seed": 2136321644
+        },
+        {
+          "band": "memory",
+          "seed": 24633913
+        },
+        {
+          "band": "focus",
+          "seed": 577107379
+        },
+        {
+          "band": "query",
+          "seed": 949713753
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 15,
+      "comfort": -1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 416159371
+        },
+        {
+          "band": "body",
+          "seed": 2575856972
+        },
+        {
+          "band": "vision",
+          "seed": 1334726124
+        },
+        {
+          "band": "audio",
+          "seed": 154990104
+        },
+        {
+          "band": "olfaction",
+          "seed": 372773877
+        },
+        {
+          "band": "taste",
+          "seed": 3564699724
+        },
+        {
+          "band": "touch",
+          "seed": 1947268533
+        },
+        {
+          "band": "memory",
+          "seed": 2748962078
+        },
+        {
+          "band": "focus",
+          "seed": 2765264337
+        },
+        {
+          "band": "query",
+          "seed": 4187445743
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 15,
+      "comfort": 1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 416159371
+        },
+        {
+          "band": "body",
+          "seed": 2575856972
+        },
+        {
+          "band": "vision",
+          "seed": 1334726124
+        },
+        {
+          "band": "audio",
+          "seed": 154990104
+        },
+        {
+          "band": "olfaction",
+          "seed": 372773877
+        },
+        {
+          "band": "taste",
+          "seed": 3564699724
+        },
+        {
+          "band": "touch",
+          "seed": 1947268533
+        },
+        {
+          "band": "memory",
+          "seed": 2748962078
+        },
+        {
+          "band": "focus",
+          "seed": 2765264337
+        },
+        {
+          "band": "query",
+          "seed": 4187445743
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 16,
+      "comfort": -1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 2582649305
+        },
+        {
+          "band": "body",
+          "seed": 1197061136
+        },
+        {
+          "band": "vision",
+          "seed": 480808847
+        },
+        {
+          "band": "audio",
+          "seed": 1885001497
+        },
+        {
+          "band": "olfaction",
+          "seed": 4244510305
+        },
+        {
+          "band": "taste",
+          "seed": 1665482159
+        },
+        {
+          "band": "touch",
+          "seed": 2691685864
+        },
+        {
+          "band": "memory",
+          "seed": 2822524604
+        },
+        {
+          "band": "focus",
+          "seed": 2426653797
+        },
+        {
+          "band": "query",
+          "seed": 1386739936
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 16,
+      "comfort": 1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 2582649305
+        },
+        {
+          "band": "body",
+          "seed": 1197061136
+        },
+        {
+          "band": "vision",
+          "seed": 480808847
+        },
+        {
+          "band": "audio",
+          "seed": 1885001497
+        },
+        {
+          "band": "olfaction",
+          "seed": 4244510305
+        },
+        {
+          "band": "taste",
+          "seed": 1665482159
+        },
+        {
+          "band": "touch",
+          "seed": 2691685864
+        },
+        {
+          "band": "memory",
+          "seed": 2822524604
+        },
+        {
+          "band": "focus",
+          "seed": 2426653797
+        },
+        {
+          "band": "query",
+          "seed": 1386739936
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 17,
+      "comfort": -1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 478699768
+        },
+        {
+          "band": "body",
+          "seed": 1895998802
+        },
+        {
+          "band": "vision",
+          "seed": 2969576370
+        },
+        {
+          "band": "audio",
+          "seed": 2316974165
+        },
+        {
+          "band": "olfaction",
+          "seed": 777411836
+        },
+        {
+          "band": "taste",
+          "seed": 4155431153
+        },
+        {
+          "band": "touch",
+          "seed": 135938824
+        },
+        {
+          "band": "memory",
+          "seed": 2213564002
+        },
+        {
+          "band": "focus",
+          "seed": 3281928018
+        },
+        {
+          "band": "query",
+          "seed": 3636657940
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 17,
+      "comfort": 1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 478699768
+        },
+        {
+          "band": "body",
+          "seed": 1895998802
+        },
+        {
+          "band": "vision",
+          "seed": 2969576370
+        },
+        {
+          "band": "audio",
+          "seed": 2316974165
+        },
+        {
+          "band": "olfaction",
+          "seed": 777411836
+        },
+        {
+          "band": "taste",
+          "seed": 4155431153
+        },
+        {
+          "band": "touch",
+          "seed": 135938824
+        },
+        {
+          "band": "memory",
+          "seed": 2213564002
+        },
+        {
+          "band": "focus",
+          "seed": 3281928018
+        },
+        {
+          "band": "query",
+          "seed": 3636657940
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 18,
+      "comfort": -1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 3387948915
+        },
+        {
+          "band": "body",
+          "seed": 1683835681
+        },
+        {
+          "band": "vision",
+          "seed": 1969548260
+        },
+        {
+          "band": "audio",
+          "seed": 3882697967
+        },
+        {
+          "band": "olfaction",
+          "seed": 1669745382
+        },
+        {
+          "band": "taste",
+          "seed": 253737986
+        },
+        {
+          "band": "touch",
+          "seed": 144208889
+        },
+        {
+          "band": "memory",
+          "seed": 2228590970
+        },
+        {
+          "band": "focus",
+          "seed": 798403937
+        },
+        {
+          "band": "query",
+          "seed": 453074135
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 18,
+      "comfort": 1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 3387948915
+        },
+        {
+          "band": "body",
+          "seed": 1683835681
+        },
+        {
+          "band": "vision",
+          "seed": 1969548260
+        },
+        {
+          "band": "audio",
+          "seed": 3882697967
+        },
+        {
+          "band": "olfaction",
+          "seed": 1669745382
+        },
+        {
+          "band": "taste",
+          "seed": 253737986
+        },
+        {
+          "band": "touch",
+          "seed": 144208889
+        },
+        {
+          "band": "memory",
+          "seed": 2228590970
+        },
+        {
+          "band": "focus",
+          "seed": 798403937
+        },
+        {
+          "band": "query",
+          "seed": 453074135
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 19,
+      "comfort": -1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 3245634070
+        },
+        {
+          "band": "body",
+          "seed": 1806752701
+        },
+        {
+          "band": "vision",
+          "seed": 3113307396
+        },
+        {
+          "band": "audio",
+          "seed": 2075048254
+        },
+        {
+          "band": "olfaction",
+          "seed": 365205913
+        },
+        {
+          "band": "taste",
+          "seed": 2614947964
+        },
+        {
+          "band": "touch",
+          "seed": 3230430921
+        },
+        {
+          "band": "memory",
+          "seed": 1658463321
+        },
+        {
+          "band": "focus",
+          "seed": 4086998433
+        },
+        {
+          "band": "query",
+          "seed": 4255104088
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 19,
+      "comfort": 1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 3245634070
+        },
+        {
+          "band": "body",
+          "seed": 1806752701
+        },
+        {
+          "band": "vision",
+          "seed": 3113307396
+        },
+        {
+          "band": "audio",
+          "seed": 2075048254
+        },
+        {
+          "band": "olfaction",
+          "seed": 365205913
+        },
+        {
+          "band": "taste",
+          "seed": 2614947964
+        },
+        {
+          "band": "touch",
+          "seed": 3230430921
+        },
+        {
+          "band": "memory",
+          "seed": 1658463321
+        },
+        {
+          "band": "focus",
+          "seed": 4086998433
+        },
+        {
+          "band": "query",
+          "seed": 4255104088
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 20,
+      "comfort": -1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 3131713537
+        },
+        {
+          "band": "body",
+          "seed": 2794837342
+        },
+        {
+          "band": "vision",
+          "seed": 2489707380
+        },
+        {
+          "band": "audio",
+          "seed": 1402815369
+        },
+        {
+          "band": "olfaction",
+          "seed": 4151893245
+        },
+        {
+          "band": "taste",
+          "seed": 1342698787
+        },
+        {
+          "band": "touch",
+          "seed": 3198491875
+        },
+        {
+          "band": "memory",
+          "seed": 2118779816
+        },
+        {
+          "band": "focus",
+          "seed": 3809494199
+        },
+        {
+          "band": "query",
+          "seed": 2865583228
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 20,
+      "comfort": 1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 3131713537
+        },
+        {
+          "band": "body",
+          "seed": 2794837342
+        },
+        {
+          "band": "vision",
+          "seed": 2489707380
+        },
+        {
+          "band": "audio",
+          "seed": 1402815369
+        },
+        {
+          "band": "olfaction",
+          "seed": 4151893245
+        },
+        {
+          "band": "taste",
+          "seed": 1342698787
+        },
+        {
+          "band": "touch",
+          "seed": 3198491875
+        },
+        {
+          "band": "memory",
+          "seed": 2118779816
+        },
+        {
+          "band": "focus",
+          "seed": 3809494199
+        },
+        {
+          "band": "query",
+          "seed": 2865583228
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 21,
+      "comfort": -1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 2976956159
+        },
+        {
+          "band": "body",
+          "seed": 614266278
+        },
+        {
+          "band": "vision",
+          "seed": 3627111837
+        },
+        {
+          "band": "audio",
+          "seed": 3402579150
+        },
+        {
+          "band": "olfaction",
+          "seed": 2141612951
+        },
+        {
+          "band": "taste",
+          "seed": 2262655931
+        },
+        {
+          "band": "touch",
+          "seed": 2602250487
+        },
+        {
+          "band": "memory",
+          "seed": 803453519
+        },
+        {
+          "band": "focus",
+          "seed": 2383373053
+        },
+        {
+          "band": "query",
+          "seed": 3769972224
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 21,
+      "comfort": 1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 2976956159
+        },
+        {
+          "band": "body",
+          "seed": 614266278
+        },
+        {
+          "band": "vision",
+          "seed": 3627111837
+        },
+        {
+          "band": "audio",
+          "seed": 3402579150
+        },
+        {
+          "band": "olfaction",
+          "seed": 2141612951
+        },
+        {
+          "band": "taste",
+          "seed": 2262655931
+        },
+        {
+          "band": "touch",
+          "seed": 2602250487
+        },
+        {
+          "band": "memory",
+          "seed": 803453519
+        },
+        {
+          "band": "focus",
+          "seed": 2383373053
+        },
+        {
+          "band": "query",
+          "seed": 3769972224
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 22,
+      "comfort": -1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 1526882832
+        },
+        {
+          "band": "body",
+          "seed": 1371159112
+        },
+        {
+          "band": "vision",
+          "seed": 3091294614
+        },
+        {
+          "band": "audio",
+          "seed": 2864734763
+        },
+        {
+          "band": "olfaction",
+          "seed": 1189380582
+        },
+        {
+          "band": "taste",
+          "seed": 888530766
+        },
+        {
+          "band": "touch",
+          "seed": 574420715
+        },
+        {
+          "band": "memory",
+          "seed": 283327851
+        },
+        {
+          "band": "focus",
+          "seed": 1664851419
+        },
+        {
+          "band": "query",
+          "seed": 3098141605
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 22,
+      "comfort": 1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 1526882832
+        },
+        {
+          "band": "body",
+          "seed": 1371159112
+        },
+        {
+          "band": "vision",
+          "seed": 3091294614
+        },
+        {
+          "band": "audio",
+          "seed": 2864734763
+        },
+        {
+          "band": "olfaction",
+          "seed": 1189380582
+        },
+        {
+          "band": "taste",
+          "seed": 888530766
+        },
+        {
+          "band": "touch",
+          "seed": 574420715
+        },
+        {
+          "band": "memory",
+          "seed": 283327851
+        },
+        {
+          "band": "focus",
+          "seed": 1664851419
+        },
+        {
+          "band": "query",
+          "seed": 3098141605
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 23,
+      "comfort": -1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 1458489590
+        },
+        {
+          "band": "body",
+          "seed": 2226556750
+        },
+        {
+          "band": "vision",
+          "seed": 1229805750
+        },
+        {
+          "band": "audio",
+          "seed": 1691143090
+        },
+        {
+          "band": "olfaction",
+          "seed": 1004843507
+        },
+        {
+          "band": "taste",
+          "seed": 1521971192
+        },
+        {
+          "band": "touch",
+          "seed": 1093494678
+        },
+        {
+          "band": "memory",
+          "seed": 3882102773
+        },
+        {
+          "band": "focus",
+          "seed": 4216273242
+        },
+        {
+          "band": "query",
+          "seed": 2991120586
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 23,
+      "comfort": 1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 1458489590
+        },
+        {
+          "band": "body",
+          "seed": 2226556750
+        },
+        {
+          "band": "vision",
+          "seed": 1229805750
+        },
+        {
+          "band": "audio",
+          "seed": 1691143090
+        },
+        {
+          "band": "olfaction",
+          "seed": 1004843507
+        },
+        {
+          "band": "taste",
+          "seed": 1521971192
+        },
+        {
+          "band": "touch",
+          "seed": 1093494678
+        },
+        {
+          "band": "memory",
+          "seed": 3882102773
+        },
+        {
+          "band": "focus",
+          "seed": 4216273242
+        },
+        {
+          "band": "query",
+          "seed": 2991120586
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 24,
+      "comfort": -1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 947654958
+        },
+        {
+          "band": "body",
+          "seed": 1863546401
+        },
+        {
+          "band": "vision",
+          "seed": 1150704352
+        },
+        {
+          "band": "audio",
+          "seed": 2350310465
+        },
+        {
+          "band": "olfaction",
+          "seed": 762936239
+        },
+        {
+          "band": "taste",
+          "seed": 136514180
+        },
+        {
+          "band": "touch",
+          "seed": 3777703907
+        },
+        {
+          "band": "memory",
+          "seed": 1109750080
+        },
+        {
+          "band": "focus",
+          "seed": 759030160
+        },
+        {
+          "band": "query",
+          "seed": 1315880782
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 24,
+      "comfort": 1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 947654958
+        },
+        {
+          "band": "body",
+          "seed": 1863546401
+        },
+        {
+          "band": "vision",
+          "seed": 1150704352
+        },
+        {
+          "band": "audio",
+          "seed": 2350310465
+        },
+        {
+          "band": "olfaction",
+          "seed": 762936239
+        },
+        {
+          "band": "taste",
+          "seed": 136514180
+        },
+        {
+          "band": "touch",
+          "seed": 3777703907
+        },
+        {
+          "band": "memory",
+          "seed": 1109750080
+        },
+        {
+          "band": "focus",
+          "seed": 759030160
+        },
+        {
+          "band": "query",
+          "seed": 1315880782
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 25,
+      "comfort": -1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 2308548917
+        },
+        {
+          "band": "body",
+          "seed": 846724128
+        },
+        {
+          "band": "vision",
+          "seed": 1965937586
+        },
+        {
+          "band": "audio",
+          "seed": 44798061
+        },
+        {
+          "band": "olfaction",
+          "seed": 2040011007
+        },
+        {
+          "band": "taste",
+          "seed": 1662086426
+        },
+        {
+          "band": "touch",
+          "seed": 3956141772
+        },
+        {
+          "band": "memory",
+          "seed": 3729592628
+        },
+        {
+          "band": "focus",
+          "seed": 3417653124
+        },
+        {
+          "band": "query",
+          "seed": 3223041641
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 25,
+      "comfort": 1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 2308548917
+        },
+        {
+          "band": "body",
+          "seed": 846724128
+        },
+        {
+          "band": "vision",
+          "seed": 1965937586
+        },
+        {
+          "band": "audio",
+          "seed": 44798061
+        },
+        {
+          "band": "olfaction",
+          "seed": 2040011007
+        },
+        {
+          "band": "taste",
+          "seed": 1662086426
+        },
+        {
+          "band": "touch",
+          "seed": 3956141772
+        },
+        {
+          "band": "memory",
+          "seed": 3729592628
+        },
+        {
+          "band": "focus",
+          "seed": 3417653124
+        },
+        {
+          "band": "query",
+          "seed": 3223041641
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 26,
+      "comfort": -1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 3758783919
+        },
+        {
+          "band": "body",
+          "seed": 3022409443
+        },
+        {
+          "band": "vision",
+          "seed": 1946768797
+        },
+        {
+          "band": "audio",
+          "seed": 3950336435
+        },
+        {
+          "band": "olfaction",
+          "seed": 2569856880
+        },
+        {
+          "band": "taste",
+          "seed": 2473794277
+        },
+        {
+          "band": "touch",
+          "seed": 3052539151
+        },
+        {
+          "band": "memory",
+          "seed": 1166585579
+        },
+        {
+          "band": "focus",
+          "seed": 3703358502
+        },
+        {
+          "band": "query",
+          "seed": 779958082
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 26,
+      "comfort": 1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 3758783919
+        },
+        {
+          "band": "body",
+          "seed": 3022409443
+        },
+        {
+          "band": "vision",
+          "seed": 1946768797
+        },
+        {
+          "band": "audio",
+          "seed": 3950336435
+        },
+        {
+          "band": "olfaction",
+          "seed": 2569856880
+        },
+        {
+          "band": "taste",
+          "seed": 2473794277
+        },
+        {
+          "band": "touch",
+          "seed": 3052539151
+        },
+        {
+          "band": "memory",
+          "seed": 1166585579
+        },
+        {
+          "band": "focus",
+          "seed": 3703358502
+        },
+        {
+          "band": "query",
+          "seed": 779958082
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 27,
+      "comfort": -1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 2205109046
+        },
+        {
+          "band": "body",
+          "seed": 119265378
+        },
+        {
+          "band": "vision",
+          "seed": 39255072
+        },
+        {
+          "band": "audio",
+          "seed": 3151272995
+        },
+        {
+          "band": "olfaction",
+          "seed": 3946503660
+        },
+        {
+          "band": "taste",
+          "seed": 1244137780
+        },
+        {
+          "band": "touch",
+          "seed": 2216311430
+        },
+        {
+          "band": "memory",
+          "seed": 2697374320
+        },
+        {
+          "band": "focus",
+          "seed": 4011438582
+        },
+        {
+          "band": "query",
+          "seed": 1077288549
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 27,
+      "comfort": 1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 2205109046
+        },
+        {
+          "band": "body",
+          "seed": 119265378
+        },
+        {
+          "band": "vision",
+          "seed": 39255072
+        },
+        {
+          "band": "audio",
+          "seed": 3151272995
+        },
+        {
+          "band": "olfaction",
+          "seed": 3946503660
+        },
+        {
+          "band": "taste",
+          "seed": 1244137780
+        },
+        {
+          "band": "touch",
+          "seed": 2216311430
+        },
+        {
+          "band": "memory",
+          "seed": 2697374320
+        },
+        {
+          "band": "focus",
+          "seed": 4011438582
+        },
+        {
+          "band": "query",
+          "seed": 1077288549
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 28,
+      "comfort": -1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 4130999581
+        },
+        {
+          "band": "body",
+          "seed": 1403488987
+        },
+        {
+          "band": "vision",
+          "seed": 611515967
+        },
+        {
+          "band": "audio",
+          "seed": 790511871
+        },
+        {
+          "band": "olfaction",
+          "seed": 1110009701
+        },
+        {
+          "band": "taste",
+          "seed": 3506828885
+        },
+        {
+          "band": "touch",
+          "seed": 2212187937
+        },
+        {
+          "band": "memory",
+          "seed": 2572644841
+        },
+        {
+          "band": "focus",
+          "seed": 1962129784
+        },
+        {
+          "band": "query",
+          "seed": 2145892202
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 28,
+      "comfort": 1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 4130999581
+        },
+        {
+          "band": "body",
+          "seed": 1403488987
+        },
+        {
+          "band": "vision",
+          "seed": 611515967
+        },
+        {
+          "band": "audio",
+          "seed": 790511871
+        },
+        {
+          "band": "olfaction",
+          "seed": 1110009701
+        },
+        {
+          "band": "taste",
+          "seed": 3506828885
+        },
+        {
+          "band": "touch",
+          "seed": 2212187937
+        },
+        {
+          "band": "memory",
+          "seed": 2572644841
+        },
+        {
+          "band": "focus",
+          "seed": 1962129784
+        },
+        {
+          "band": "query",
+          "seed": 2145892202
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 29,
+      "comfort": -1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 3160180370
+        },
+        {
+          "band": "body",
+          "seed": 3055446448
+        },
+        {
+          "band": "vision",
+          "seed": 2314776393
+        },
+        {
+          "band": "audio",
+          "seed": 3009628395
+        },
+        {
+          "band": "olfaction",
+          "seed": 747277575
+        },
+        {
+          "band": "taste",
+          "seed": 2157330771
+        },
+        {
+          "band": "touch",
+          "seed": 2571709226
+        },
+        {
+          "band": "memory",
+          "seed": 2922072304
+        },
+        {
+          "band": "focus",
+          "seed": 4180914348
+        },
+        {
+          "band": "query",
+          "seed": 663924510
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 29,
+      "comfort": 1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 3160180370
+        },
+        {
+          "band": "body",
+          "seed": 3055446448
+        },
+        {
+          "band": "vision",
+          "seed": 2314776393
+        },
+        {
+          "band": "audio",
+          "seed": 3009628395
+        },
+        {
+          "band": "olfaction",
+          "seed": 747277575
+        },
+        {
+          "band": "taste",
+          "seed": 2157330771
+        },
+        {
+          "band": "touch",
+          "seed": 2571709226
+        },
+        {
+          "band": "memory",
+          "seed": 2922072304
+        },
+        {
+          "band": "focus",
+          "seed": 4180914348
+        },
+        {
+          "band": "query",
+          "seed": 663924510
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 30,
+      "comfort": -1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 4037555318
+        },
+        {
+          "band": "body",
+          "seed": 111257631
+        },
+        {
+          "band": "vision",
+          "seed": 4113521109
+        },
+        {
+          "band": "audio",
+          "seed": 3502122722
+        },
+        {
+          "band": "olfaction",
+          "seed": 3003025071
+        },
+        {
+          "band": "taste",
+          "seed": 2897767919
+        },
+        {
+          "band": "touch",
+          "seed": 528247916
+        },
+        {
+          "band": "memory",
+          "seed": 3756234514
+        },
+        {
+          "band": "focus",
+          "seed": 528333673
+        },
+        {
+          "band": "query",
+          "seed": 1428257177
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 30,
+      "comfort": 1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 4037555318
+        },
+        {
+          "band": "body",
+          "seed": 111257631
+        },
+        {
+          "band": "vision",
+          "seed": 4113521109
+        },
+        {
+          "band": "audio",
+          "seed": 3502122722
+        },
+        {
+          "band": "olfaction",
+          "seed": 3003025071
+        },
+        {
+          "band": "taste",
+          "seed": 2897767919
+        },
+        {
+          "band": "touch",
+          "seed": 528247916
+        },
+        {
+          "band": "memory",
+          "seed": 3756234514
+        },
+        {
+          "band": "focus",
+          "seed": 528333673
+        },
+        {
+          "band": "query",
+          "seed": 1428257177
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 31,
+      "comfort": -1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 809481480
+        },
+        {
+          "band": "body",
+          "seed": 3069622433
+        },
+        {
+          "band": "vision",
+          "seed": 3442200367
+        },
+        {
+          "band": "audio",
+          "seed": 2231522431
+        },
+        {
+          "band": "olfaction",
+          "seed": 856812185
+        },
+        {
+          "band": "taste",
+          "seed": 1906250589
+        },
+        {
+          "band": "touch",
+          "seed": 1309275819
+        },
+        {
+          "band": "memory",
+          "seed": 502790947
+        },
+        {
+          "band": "focus",
+          "seed": 2477688760
+        },
+        {
+          "band": "query",
+          "seed": 3121535711
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 31,
+      "comfort": 1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 809481480
+        },
+        {
+          "band": "body",
+          "seed": 3069622433
+        },
+        {
+          "band": "vision",
+          "seed": 3442200367
+        },
+        {
+          "band": "audio",
+          "seed": 2231522431
+        },
+        {
+          "band": "olfaction",
+          "seed": 856812185
+        },
+        {
+          "band": "taste",
+          "seed": 1906250589
+        },
+        {
+          "band": "touch",
+          "seed": 1309275819
+        },
+        {
+          "band": "memory",
+          "seed": 502790947
+        },
+        {
+          "band": "focus",
+          "seed": 2477688760
+        },
+        {
+          "band": "query",
+          "seed": 3121535711
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 32,
+      "comfort": -1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 4050500635
+        },
+        {
+          "band": "body",
+          "seed": 1150981909
+        },
+        {
+          "band": "vision",
+          "seed": 2753110210
+        },
+        {
+          "band": "audio",
+          "seed": 363390181
+        },
+        {
+          "band": "olfaction",
+          "seed": 136450542
+        },
+        {
+          "band": "taste",
+          "seed": 2888291745
+        },
+        {
+          "band": "touch",
+          "seed": 3286098855
+        },
+        {
+          "band": "memory",
+          "seed": 3769056587
+        },
+        {
+          "band": "focus",
+          "seed": 2915266294
+        },
+        {
+          "band": "query",
+          "seed": 2825181810
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 32,
+      "comfort": 1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 4050500635
+        },
+        {
+          "band": "body",
+          "seed": 1150981909
+        },
+        {
+          "band": "vision",
+          "seed": 2753110210
+        },
+        {
+          "band": "audio",
+          "seed": 363390181
+        },
+        {
+          "band": "olfaction",
+          "seed": 136450542
+        },
+        {
+          "band": "taste",
+          "seed": 2888291745
+        },
+        {
+          "band": "touch",
+          "seed": 3286098855
+        },
+        {
+          "band": "memory",
+          "seed": 3769056587
+        },
+        {
+          "band": "focus",
+          "seed": 2915266294
+        },
+        {
+          "band": "query",
+          "seed": 2825181810
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 33,
+      "comfort": -1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 3954714523
+        },
+        {
+          "band": "body",
+          "seed": 1369196255
+        },
+        {
+          "band": "vision",
+          "seed": 641683073
+        },
+        {
+          "band": "audio",
+          "seed": 1839154947
+        },
+        {
+          "band": "olfaction",
+          "seed": 1614212395
+        },
+        {
+          "band": "taste",
+          "seed": 2818917270
+        },
+        {
+          "band": "touch",
+          "seed": 3027063526
+        },
+        {
+          "band": "memory",
+          "seed": 1003277213
+        },
+        {
+          "band": "focus",
+          "seed": 2019606024
+        },
+        {
+          "band": "query",
+          "seed": 3607960053
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 33,
+      "comfort": 1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 3954714523
+        },
+        {
+          "band": "body",
+          "seed": 1369196255
+        },
+        {
+          "band": "vision",
+          "seed": 641683073
+        },
+        {
+          "band": "audio",
+          "seed": 1839154947
+        },
+        {
+          "band": "olfaction",
+          "seed": 1614212395
+        },
+        {
+          "band": "taste",
+          "seed": 2818917270
+        },
+        {
+          "band": "touch",
+          "seed": 3027063526
+        },
+        {
+          "band": "memory",
+          "seed": 1003277213
+        },
+        {
+          "band": "focus",
+          "seed": 2019606024
+        },
+        {
+          "band": "query",
+          "seed": 3607960053
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 34,
+      "comfort": -1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 1737899951
+        },
+        {
+          "band": "body",
+          "seed": 1128253286
+        },
+        {
+          "band": "vision",
+          "seed": 2765662732
+        },
+        {
+          "band": "audio",
+          "seed": 4154476496
+        },
+        {
+          "band": "olfaction",
+          "seed": 2958125551
+        },
+        {
+          "band": "taste",
+          "seed": 586201689
+        },
+        {
+          "band": "touch",
+          "seed": 2856948106
+        },
+        {
+          "band": "memory",
+          "seed": 3259498867
+        },
+        {
+          "band": "focus",
+          "seed": 4159141612
+        },
+        {
+          "band": "query",
+          "seed": 3869651263
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 34,
+      "comfort": 1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 1737899951
+        },
+        {
+          "band": "body",
+          "seed": 1128253286
+        },
+        {
+          "band": "vision",
+          "seed": 2765662732
+        },
+        {
+          "band": "audio",
+          "seed": 4154476496
+        },
+        {
+          "band": "olfaction",
+          "seed": 2958125551
+        },
+        {
+          "band": "taste",
+          "seed": 586201689
+        },
+        {
+          "band": "touch",
+          "seed": 2856948106
+        },
+        {
+          "band": "memory",
+          "seed": 3259498867
+        },
+        {
+          "band": "focus",
+          "seed": 4159141612
+        },
+        {
+          "band": "query",
+          "seed": 3869651263
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 35,
+      "comfort": -1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 2928084355
+        },
+        {
+          "band": "body",
+          "seed": 1424647950
+        },
+        {
+          "band": "vision",
+          "seed": 2319759029
+        },
+        {
+          "band": "audio",
+          "seed": 1032009114
+        },
+        {
+          "band": "olfaction",
+          "seed": 3791997605
+        },
+        {
+          "band": "taste",
+          "seed": 39785643
+        },
+        {
+          "band": "touch",
+          "seed": 3959678897
+        },
+        {
+          "band": "memory",
+          "seed": 3378264203
+        },
+        {
+          "band": "focus",
+          "seed": 3157188073
+        },
+        {
+          "band": "query",
+          "seed": 3138688465
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 35,
+      "comfort": 1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 2928084355
+        },
+        {
+          "band": "body",
+          "seed": 1424647950
+        },
+        {
+          "band": "vision",
+          "seed": 2319759029
+        },
+        {
+          "band": "audio",
+          "seed": 1032009114
+        },
+        {
+          "band": "olfaction",
+          "seed": 3791997605
+        },
+        {
+          "band": "taste",
+          "seed": 39785643
+        },
+        {
+          "band": "touch",
+          "seed": 3959678897
+        },
+        {
+          "band": "memory",
+          "seed": 3378264203
+        },
+        {
+          "band": "focus",
+          "seed": 3157188073
+        },
+        {
+          "band": "query",
+          "seed": 3138688465
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 36,
+      "comfort": -1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 2535595722
+        },
+        {
+          "band": "body",
+          "seed": 2091362031
+        },
+        {
+          "band": "vision",
+          "seed": 2883755007
+        },
+        {
+          "band": "audio",
+          "seed": 3198942844
+        },
+        {
+          "band": "olfaction",
+          "seed": 1658958883
+        },
+        {
+          "band": "taste",
+          "seed": 1239649435
+        },
+        {
+          "band": "touch",
+          "seed": 1177637125
+        },
+        {
+          "band": "memory",
+          "seed": 2015815184
+        },
+        {
+          "band": "focus",
+          "seed": 3330087198
+        },
+        {
+          "band": "query",
+          "seed": 3169581528
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 36,
+      "comfort": 1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 2535595722
+        },
+        {
+          "band": "body",
+          "seed": 2091362031
+        },
+        {
+          "band": "vision",
+          "seed": 2883755007
+        },
+        {
+          "band": "audio",
+          "seed": 3198942844
+        },
+        {
+          "band": "olfaction",
+          "seed": 1658958883
+        },
+        {
+          "band": "taste",
+          "seed": 1239649435
+        },
+        {
+          "band": "touch",
+          "seed": 1177637125
+        },
+        {
+          "band": "memory",
+          "seed": 2015815184
+        },
+        {
+          "band": "focus",
+          "seed": 3330087198
+        },
+        {
+          "band": "query",
+          "seed": 3169581528
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 37,
+      "comfort": -1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 1934030699
+        },
+        {
+          "band": "body",
+          "seed": 1495062609
+        },
+        {
+          "band": "vision",
+          "seed": 3318264968
+        },
+        {
+          "band": "audio",
+          "seed": 1372905018
+        },
+        {
+          "band": "olfaction",
+          "seed": 2587729854
+        },
+        {
+          "band": "taste",
+          "seed": 3249709056
+        },
+        {
+          "band": "touch",
+          "seed": 923999110
+        },
+        {
+          "band": "memory",
+          "seed": 4222155184
+        },
+        {
+          "band": "focus",
+          "seed": 859764504
+        },
+        {
+          "band": "query",
+          "seed": 1335616473
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 37,
+      "comfort": 1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 1934030699
+        },
+        {
+          "band": "body",
+          "seed": 1495062609
+        },
+        {
+          "band": "vision",
+          "seed": 3318264968
+        },
+        {
+          "band": "audio",
+          "seed": 1372905018
+        },
+        {
+          "band": "olfaction",
+          "seed": 2587729854
+        },
+        {
+          "band": "taste",
+          "seed": 3249709056
+        },
+        {
+          "band": "touch",
+          "seed": 923999110
+        },
+        {
+          "band": "memory",
+          "seed": 4222155184
+        },
+        {
+          "band": "focus",
+          "seed": 859764504
+        },
+        {
+          "band": "query",
+          "seed": 1335616473
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 38,
+      "comfort": -1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 1082061921
+        },
+        {
+          "band": "body",
+          "seed": 3917516735
+        },
+        {
+          "band": "vision",
+          "seed": 4231457973
+        },
+        {
+          "band": "audio",
+          "seed": 4090803434
+        },
+        {
+          "band": "olfaction",
+          "seed": 3920111315
+        },
+        {
+          "band": "taste",
+          "seed": 220706056
+        },
+        {
+          "band": "touch",
+          "seed": 3353564773
+        },
+        {
+          "band": "memory",
+          "seed": 3011342977
+        },
+        {
+          "band": "focus",
+          "seed": 844141020
+        },
+        {
+          "band": "query",
+          "seed": 2502431938
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 38,
+      "comfort": 1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 1082061921
+        },
+        {
+          "band": "body",
+          "seed": 3917516735
+        },
+        {
+          "band": "vision",
+          "seed": 4231457973
+        },
+        {
+          "band": "audio",
+          "seed": 4090803434
+        },
+        {
+          "band": "olfaction",
+          "seed": 3920111315
+        },
+        {
+          "band": "taste",
+          "seed": 220706056
+        },
+        {
+          "band": "touch",
+          "seed": 3353564773
+        },
+        {
+          "band": "memory",
+          "seed": 3011342977
+        },
+        {
+          "band": "focus",
+          "seed": 844141020
+        },
+        {
+          "band": "query",
+          "seed": 2502431938
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 39,
+      "comfort": -1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 3708212637
+        },
+        {
+          "band": "body",
+          "seed": 2317166743
+        },
+        {
+          "band": "vision",
+          "seed": 2852893604
+        },
+        {
+          "band": "audio",
+          "seed": 2696548678
+        },
+        {
+          "band": "olfaction",
+          "seed": 3613505403
+        },
+        {
+          "band": "taste",
+          "seed": 1967061941
+        },
+        {
+          "band": "touch",
+          "seed": 1864888879
+        },
+        {
+          "band": "memory",
+          "seed": 454534538
+        },
+        {
+          "band": "focus",
+          "seed": 1362477244
+        },
+        {
+          "band": "query",
+          "seed": 1011827604
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1A-extremes",
+      "noiseSeed": 39,
+      "comfort": 1,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 3708212637
+        },
+        {
+          "band": "body",
+          "seed": 2317166743
+        },
+        {
+          "band": "vision",
+          "seed": 2852893604
+        },
+        {
+          "band": "audio",
+          "seed": 2696548678
+        },
+        {
+          "band": "olfaction",
+          "seed": 3613505403
+        },
+        {
+          "band": "taste",
+          "seed": 1967061941
+        },
+        {
+          "band": "touch",
+          "seed": 1864888879
+        },
+        {
+          "band": "memory",
+          "seed": 454534538
+        },
+        {
+          "band": "focus",
+          "seed": 1362477244
+        },
+        {
+          "band": "query",
+          "seed": 1011827604
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 0,
+      "comfort": -0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 2211570529
+        },
+        {
+          "band": "body",
+          "seed": 1930892167
+        },
+        {
+          "band": "vision",
+          "seed": 2673536542
+        },
+        {
+          "band": "audio",
+          "seed": 2534652227
+        },
+        {
+          "band": "olfaction",
+          "seed": 3130418820
+        },
+        {
+          "band": "taste",
+          "seed": 353712894
+        },
+        {
+          "band": "touch",
+          "seed": 1287662817
+        },
+        {
+          "band": "memory",
+          "seed": 915221460
+        },
+        {
+          "band": "focus",
+          "seed": 265005231
+        },
+        {
+          "band": "query",
+          "seed": 2488489735
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 0,
+      "comfort": 0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 2211570529
+        },
+        {
+          "band": "body",
+          "seed": 1930892167
+        },
+        {
+          "band": "vision",
+          "seed": 2673536542
+        },
+        {
+          "band": "audio",
+          "seed": 2534652227
+        },
+        {
+          "band": "olfaction",
+          "seed": 3130418820
+        },
+        {
+          "band": "taste",
+          "seed": 353712894
+        },
+        {
+          "band": "touch",
+          "seed": 1287662817
+        },
+        {
+          "band": "memory",
+          "seed": 915221460
+        },
+        {
+          "band": "focus",
+          "seed": 265005231
+        },
+        {
+          "band": "query",
+          "seed": 2488489735
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 1,
+      "comfort": -0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 3875847014
+        },
+        {
+          "band": "body",
+          "seed": 1444569047
+        },
+        {
+          "band": "vision",
+          "seed": 2766484640
+        },
+        {
+          "band": "audio",
+          "seed": 1189628549
+        },
+        {
+          "band": "olfaction",
+          "seed": 2568509496
+        },
+        {
+          "band": "taste",
+          "seed": 3383896544
+        },
+        {
+          "band": "touch",
+          "seed": 3131701660
+        },
+        {
+          "band": "memory",
+          "seed": 4278013117
+        },
+        {
+          "band": "focus",
+          "seed": 3959709473
+        },
+        {
+          "band": "query",
+          "seed": 3535578997
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 1,
+      "comfort": 0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 3875847014
+        },
+        {
+          "band": "body",
+          "seed": 1444569047
+        },
+        {
+          "band": "vision",
+          "seed": 2766484640
+        },
+        {
+          "band": "audio",
+          "seed": 1189628549
+        },
+        {
+          "band": "olfaction",
+          "seed": 2568509496
+        },
+        {
+          "band": "taste",
+          "seed": 3383896544
+        },
+        {
+          "band": "touch",
+          "seed": 3131701660
+        },
+        {
+          "band": "memory",
+          "seed": 4278013117
+        },
+        {
+          "band": "focus",
+          "seed": 3959709473
+        },
+        {
+          "band": "query",
+          "seed": 3535578997
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 2,
+      "comfort": -0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 3348245848
+        },
+        {
+          "band": "body",
+          "seed": 3770264486
+        },
+        {
+          "band": "vision",
+          "seed": 2867336294
+        },
+        {
+          "band": "audio",
+          "seed": 610391358
+        },
+        {
+          "band": "olfaction",
+          "seed": 3300510234
+        },
+        {
+          "band": "taste",
+          "seed": 2091048568
+        },
+        {
+          "band": "touch",
+          "seed": 3881810977
+        },
+        {
+          "band": "memory",
+          "seed": 970853554
+        },
+        {
+          "band": "focus",
+          "seed": 3872603618
+        },
+        {
+          "band": "query",
+          "seed": 847604790
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 2,
+      "comfort": 0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 3348245848
+        },
+        {
+          "band": "body",
+          "seed": 3770264486
+        },
+        {
+          "band": "vision",
+          "seed": 2867336294
+        },
+        {
+          "band": "audio",
+          "seed": 610391358
+        },
+        {
+          "band": "olfaction",
+          "seed": 3300510234
+        },
+        {
+          "band": "taste",
+          "seed": 2091048568
+        },
+        {
+          "band": "touch",
+          "seed": 3881810977
+        },
+        {
+          "band": "memory",
+          "seed": 970853554
+        },
+        {
+          "band": "focus",
+          "seed": 3872603618
+        },
+        {
+          "band": "query",
+          "seed": 847604790
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 3,
+      "comfort": -0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 3517840638
+        },
+        {
+          "band": "body",
+          "seed": 2531635862
+        },
+        {
+          "band": "vision",
+          "seed": 1964636121
+        },
+        {
+          "band": "audio",
+          "seed": 1401277295
+        },
+        {
+          "band": "olfaction",
+          "seed": 2889138094
+        },
+        {
+          "band": "taste",
+          "seed": 3034756737
+        },
+        {
+          "band": "touch",
+          "seed": 2929769760
+        },
+        {
+          "band": "memory",
+          "seed": 2293716298
+        },
+        {
+          "band": "focus",
+          "seed": 526466393
+        },
+        {
+          "band": "query",
+          "seed": 3057483691
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 3,
+      "comfort": 0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 3517840638
+        },
+        {
+          "band": "body",
+          "seed": 2531635862
+        },
+        {
+          "band": "vision",
+          "seed": 1964636121
+        },
+        {
+          "band": "audio",
+          "seed": 1401277295
+        },
+        {
+          "band": "olfaction",
+          "seed": 2889138094
+        },
+        {
+          "band": "taste",
+          "seed": 3034756737
+        },
+        {
+          "band": "touch",
+          "seed": 2929769760
+        },
+        {
+          "band": "memory",
+          "seed": 2293716298
+        },
+        {
+          "band": "focus",
+          "seed": 526466393
+        },
+        {
+          "band": "query",
+          "seed": 3057483691
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 4,
+      "comfort": -0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 1686660277
+        },
+        {
+          "band": "body",
+          "seed": 3095683926
+        },
+        {
+          "band": "vision",
+          "seed": 477749098
+        },
+        {
+          "band": "audio",
+          "seed": 3944075399
+        },
+        {
+          "band": "olfaction",
+          "seed": 3952880071
+        },
+        {
+          "band": "taste",
+          "seed": 3621156763
+        },
+        {
+          "band": "touch",
+          "seed": 1189500325
+        },
+        {
+          "band": "memory",
+          "seed": 487701674
+        },
+        {
+          "band": "focus",
+          "seed": 432658115
+        },
+        {
+          "band": "query",
+          "seed": 3692896499
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 4,
+      "comfort": 0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 1686660277
+        },
+        {
+          "band": "body",
+          "seed": 3095683926
+        },
+        {
+          "band": "vision",
+          "seed": 477749098
+        },
+        {
+          "band": "audio",
+          "seed": 3944075399
+        },
+        {
+          "band": "olfaction",
+          "seed": 3952880071
+        },
+        {
+          "band": "taste",
+          "seed": 3621156763
+        },
+        {
+          "band": "touch",
+          "seed": 1189500325
+        },
+        {
+          "band": "memory",
+          "seed": 487701674
+        },
+        {
+          "band": "focus",
+          "seed": 432658115
+        },
+        {
+          "band": "query",
+          "seed": 3692896499
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 5,
+      "comfort": -0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 825764836
+        },
+        {
+          "band": "body",
+          "seed": 3017227371
+        },
+        {
+          "band": "vision",
+          "seed": 1189462106
+        },
+        {
+          "band": "audio",
+          "seed": 1418080762
+        },
+        {
+          "band": "olfaction",
+          "seed": 243833014
+        },
+        {
+          "band": "taste",
+          "seed": 135105409
+        },
+        {
+          "band": "touch",
+          "seed": 4272142725
+        },
+        {
+          "band": "memory",
+          "seed": 987437924
+        },
+        {
+          "band": "focus",
+          "seed": 212946769
+        },
+        {
+          "band": "query",
+          "seed": 532161763
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 5,
+      "comfort": 0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 825764836
+        },
+        {
+          "band": "body",
+          "seed": 3017227371
+        },
+        {
+          "band": "vision",
+          "seed": 1189462106
+        },
+        {
+          "band": "audio",
+          "seed": 1418080762
+        },
+        {
+          "band": "olfaction",
+          "seed": 243833014
+        },
+        {
+          "band": "taste",
+          "seed": 135105409
+        },
+        {
+          "band": "touch",
+          "seed": 4272142725
+        },
+        {
+          "band": "memory",
+          "seed": 987437924
+        },
+        {
+          "band": "focus",
+          "seed": 212946769
+        },
+        {
+          "band": "query",
+          "seed": 532161763
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 6,
+      "comfort": -0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 2547317644
+        },
+        {
+          "band": "body",
+          "seed": 2915957749
+        },
+        {
+          "band": "vision",
+          "seed": 1638332498
+        },
+        {
+          "band": "audio",
+          "seed": 3753320914
+        },
+        {
+          "band": "olfaction",
+          "seed": 3833655157
+        },
+        {
+          "band": "taste",
+          "seed": 1450204728
+        },
+        {
+          "band": "touch",
+          "seed": 2332493315
+        },
+        {
+          "band": "memory",
+          "seed": 2412412968
+        },
+        {
+          "band": "focus",
+          "seed": 2320768711
+        },
+        {
+          "band": "query",
+          "seed": 3711633962
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 6,
+      "comfort": 0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 2547317644
+        },
+        {
+          "band": "body",
+          "seed": 2915957749
+        },
+        {
+          "band": "vision",
+          "seed": 1638332498
+        },
+        {
+          "band": "audio",
+          "seed": 3753320914
+        },
+        {
+          "band": "olfaction",
+          "seed": 3833655157
+        },
+        {
+          "band": "taste",
+          "seed": 1450204728
+        },
+        {
+          "band": "touch",
+          "seed": 2332493315
+        },
+        {
+          "band": "memory",
+          "seed": 2412412968
+        },
+        {
+          "band": "focus",
+          "seed": 2320768711
+        },
+        {
+          "band": "query",
+          "seed": 3711633962
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 7,
+      "comfort": -0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 860550091
+        },
+        {
+          "band": "body",
+          "seed": 3370477380
+        },
+        {
+          "band": "vision",
+          "seed": 2766805620
+        },
+        {
+          "band": "audio",
+          "seed": 2061634211
+        },
+        {
+          "band": "olfaction",
+          "seed": 2989907271
+        },
+        {
+          "band": "taste",
+          "seed": 3444344797
+        },
+        {
+          "band": "touch",
+          "seed": 3069943970
+        },
+        {
+          "band": "memory",
+          "seed": 1094754824
+        },
+        {
+          "band": "focus",
+          "seed": 3824638277
+        },
+        {
+          "band": "query",
+          "seed": 1744498270
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 7,
+      "comfort": 0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 860550091
+        },
+        {
+          "band": "body",
+          "seed": 3370477380
+        },
+        {
+          "band": "vision",
+          "seed": 2766805620
+        },
+        {
+          "band": "audio",
+          "seed": 2061634211
+        },
+        {
+          "band": "olfaction",
+          "seed": 2989907271
+        },
+        {
+          "band": "taste",
+          "seed": 3444344797
+        },
+        {
+          "band": "touch",
+          "seed": 3069943970
+        },
+        {
+          "band": "memory",
+          "seed": 1094754824
+        },
+        {
+          "band": "focus",
+          "seed": 3824638277
+        },
+        {
+          "band": "query",
+          "seed": 1744498270
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 8,
+      "comfort": -0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 634042270
+        },
+        {
+          "band": "body",
+          "seed": 1889552885
+        },
+        {
+          "band": "vision",
+          "seed": 3986179392
+        },
+        {
+          "band": "audio",
+          "seed": 3193603471
+        },
+        {
+          "band": "olfaction",
+          "seed": 2219489107
+        },
+        {
+          "band": "taste",
+          "seed": 2573836045
+        },
+        {
+          "band": "touch",
+          "seed": 2897503497
+        },
+        {
+          "band": "memory",
+          "seed": 4048449132
+        },
+        {
+          "band": "focus",
+          "seed": 502948801
+        },
+        {
+          "band": "query",
+          "seed": 3180986032
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 8,
+      "comfort": 0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 634042270
+        },
+        {
+          "band": "body",
+          "seed": 1889552885
+        },
+        {
+          "band": "vision",
+          "seed": 3986179392
+        },
+        {
+          "band": "audio",
+          "seed": 3193603471
+        },
+        {
+          "band": "olfaction",
+          "seed": 2219489107
+        },
+        {
+          "band": "taste",
+          "seed": 2573836045
+        },
+        {
+          "band": "touch",
+          "seed": 2897503497
+        },
+        {
+          "band": "memory",
+          "seed": 4048449132
+        },
+        {
+          "band": "focus",
+          "seed": 502948801
+        },
+        {
+          "band": "query",
+          "seed": 3180986032
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 9,
+      "comfort": -0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 3378992558
+        },
+        {
+          "band": "body",
+          "seed": 1219213890
+        },
+        {
+          "band": "vision",
+          "seed": 3904657034
+        },
+        {
+          "band": "audio",
+          "seed": 3964217760
+        },
+        {
+          "band": "olfaction",
+          "seed": 3189705147
+        },
+        {
+          "band": "taste",
+          "seed": 2858957617
+        },
+        {
+          "band": "touch",
+          "seed": 2488394969
+        },
+        {
+          "band": "memory",
+          "seed": 422293484
+        },
+        {
+          "band": "focus",
+          "seed": 2155129946
+        },
+        {
+          "band": "query",
+          "seed": 1267001252
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 9,
+      "comfort": 0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 3378992558
+        },
+        {
+          "band": "body",
+          "seed": 1219213890
+        },
+        {
+          "band": "vision",
+          "seed": 3904657034
+        },
+        {
+          "band": "audio",
+          "seed": 3964217760
+        },
+        {
+          "band": "olfaction",
+          "seed": 3189705147
+        },
+        {
+          "band": "taste",
+          "seed": 2858957617
+        },
+        {
+          "band": "touch",
+          "seed": 2488394969
+        },
+        {
+          "band": "memory",
+          "seed": 422293484
+        },
+        {
+          "band": "focus",
+          "seed": 2155129946
+        },
+        {
+          "band": "query",
+          "seed": 1267001252
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 10,
+      "comfort": -0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 1547842545
+        },
+        {
+          "band": "body",
+          "seed": 1460789698
+        },
+        {
+          "band": "vision",
+          "seed": 2939028915
+        },
+        {
+          "band": "audio",
+          "seed": 2825255213
+        },
+        {
+          "band": "olfaction",
+          "seed": 4039333333
+        },
+        {
+          "band": "taste",
+          "seed": 3019675583
+        },
+        {
+          "band": "touch",
+          "seed": 3311759758
+        },
+        {
+          "band": "memory",
+          "seed": 2276056988
+        },
+        {
+          "band": "focus",
+          "seed": 2307689057
+        },
+        {
+          "band": "query",
+          "seed": 1382036524
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 10,
+      "comfort": 0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 1547842545
+        },
+        {
+          "band": "body",
+          "seed": 1460789698
+        },
+        {
+          "band": "vision",
+          "seed": 2939028915
+        },
+        {
+          "band": "audio",
+          "seed": 2825255213
+        },
+        {
+          "band": "olfaction",
+          "seed": 4039333333
+        },
+        {
+          "band": "taste",
+          "seed": 3019675583
+        },
+        {
+          "band": "touch",
+          "seed": 3311759758
+        },
+        {
+          "band": "memory",
+          "seed": 2276056988
+        },
+        {
+          "band": "focus",
+          "seed": 2307689057
+        },
+        {
+          "band": "query",
+          "seed": 1382036524
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 11,
+      "comfort": -0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 196518736
+        },
+        {
+          "band": "body",
+          "seed": 3686476413
+        },
+        {
+          "band": "vision",
+          "seed": 291868588
+        },
+        {
+          "band": "audio",
+          "seed": 2351397
+        },
+        {
+          "band": "olfaction",
+          "seed": 3961203224
+        },
+        {
+          "band": "taste",
+          "seed": 2695832697
+        },
+        {
+          "band": "touch",
+          "seed": 1210912210
+        },
+        {
+          "band": "memory",
+          "seed": 3935263494
+        },
+        {
+          "band": "focus",
+          "seed": 342294327
+        },
+        {
+          "band": "query",
+          "seed": 3880279925
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 11,
+      "comfort": 0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 196518736
+        },
+        {
+          "band": "body",
+          "seed": 3686476413
+        },
+        {
+          "band": "vision",
+          "seed": 291868588
+        },
+        {
+          "band": "audio",
+          "seed": 2351397
+        },
+        {
+          "band": "olfaction",
+          "seed": 3961203224
+        },
+        {
+          "band": "taste",
+          "seed": 2695832697
+        },
+        {
+          "band": "touch",
+          "seed": 1210912210
+        },
+        {
+          "band": "memory",
+          "seed": 3935263494
+        },
+        {
+          "band": "focus",
+          "seed": 342294327
+        },
+        {
+          "band": "query",
+          "seed": 3880279925
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 12,
+      "comfort": -0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 2214924427
+        },
+        {
+          "band": "body",
+          "seed": 1409976676
+        },
+        {
+          "band": "vision",
+          "seed": 4227613846
+        },
+        {
+          "band": "audio",
+          "seed": 625504326
+        },
+        {
+          "band": "olfaction",
+          "seed": 3117272178
+        },
+        {
+          "band": "taste",
+          "seed": 1117876959
+        },
+        {
+          "band": "touch",
+          "seed": 3055886713
+        },
+        {
+          "band": "memory",
+          "seed": 3993065837
+        },
+        {
+          "band": "focus",
+          "seed": 3018696996
+        },
+        {
+          "band": "query",
+          "seed": 1578043988
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 12,
+      "comfort": 0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 2214924427
+        },
+        {
+          "band": "body",
+          "seed": 1409976676
+        },
+        {
+          "band": "vision",
+          "seed": 4227613846
+        },
+        {
+          "band": "audio",
+          "seed": 625504326
+        },
+        {
+          "band": "olfaction",
+          "seed": 3117272178
+        },
+        {
+          "band": "taste",
+          "seed": 1117876959
+        },
+        {
+          "band": "touch",
+          "seed": 3055886713
+        },
+        {
+          "band": "memory",
+          "seed": 3993065837
+        },
+        {
+          "band": "focus",
+          "seed": 3018696996
+        },
+        {
+          "band": "query",
+          "seed": 1578043988
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 13,
+      "comfort": -0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 3159153159
+        },
+        {
+          "band": "body",
+          "seed": 4120768246
+        },
+        {
+          "band": "vision",
+          "seed": 682819329
+        },
+        {
+          "band": "audio",
+          "seed": 577304035
+        },
+        {
+          "band": "olfaction",
+          "seed": 756908006
+        },
+        {
+          "band": "taste",
+          "seed": 1356965233
+        },
+        {
+          "band": "touch",
+          "seed": 3668453450
+        },
+        {
+          "band": "memory",
+          "seed": 1923728471
+        },
+        {
+          "band": "focus",
+          "seed": 1172839956
+        },
+        {
+          "band": "query",
+          "seed": 1430317519
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 13,
+      "comfort": 0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 3159153159
+        },
+        {
+          "band": "body",
+          "seed": 4120768246
+        },
+        {
+          "band": "vision",
+          "seed": 682819329
+        },
+        {
+          "band": "audio",
+          "seed": 577304035
+        },
+        {
+          "band": "olfaction",
+          "seed": 756908006
+        },
+        {
+          "band": "taste",
+          "seed": 1356965233
+        },
+        {
+          "band": "touch",
+          "seed": 3668453450
+        },
+        {
+          "band": "memory",
+          "seed": 1923728471
+        },
+        {
+          "band": "focus",
+          "seed": 1172839956
+        },
+        {
+          "band": "query",
+          "seed": 1430317519
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 14,
+      "comfort": -0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 2918153870
+        },
+        {
+          "band": "body",
+          "seed": 2056881944
+        },
+        {
+          "band": "vision",
+          "seed": 4026340006
+        },
+        {
+          "band": "audio",
+          "seed": 3987325704
+        },
+        {
+          "band": "olfaction",
+          "seed": 2816570153
+        },
+        {
+          "band": "taste",
+          "seed": 1018680966
+        },
+        {
+          "band": "touch",
+          "seed": 2136321644
+        },
+        {
+          "band": "memory",
+          "seed": 24633913
+        },
+        {
+          "band": "focus",
+          "seed": 577107379
+        },
+        {
+          "band": "query",
+          "seed": 949713753
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 14,
+      "comfort": 0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 2918153870
+        },
+        {
+          "band": "body",
+          "seed": 2056881944
+        },
+        {
+          "band": "vision",
+          "seed": 4026340006
+        },
+        {
+          "band": "audio",
+          "seed": 3987325704
+        },
+        {
+          "band": "olfaction",
+          "seed": 2816570153
+        },
+        {
+          "band": "taste",
+          "seed": 1018680966
+        },
+        {
+          "band": "touch",
+          "seed": 2136321644
+        },
+        {
+          "band": "memory",
+          "seed": 24633913
+        },
+        {
+          "band": "focus",
+          "seed": 577107379
+        },
+        {
+          "band": "query",
+          "seed": 949713753
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 15,
+      "comfort": -0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 416159371
+        },
+        {
+          "band": "body",
+          "seed": 2575856972
+        },
+        {
+          "band": "vision",
+          "seed": 1334726124
+        },
+        {
+          "band": "audio",
+          "seed": 154990104
+        },
+        {
+          "band": "olfaction",
+          "seed": 372773877
+        },
+        {
+          "band": "taste",
+          "seed": 3564699724
+        },
+        {
+          "band": "touch",
+          "seed": 1947268533
+        },
+        {
+          "band": "memory",
+          "seed": 2748962078
+        },
+        {
+          "band": "focus",
+          "seed": 2765264337
+        },
+        {
+          "band": "query",
+          "seed": 4187445743
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 15,
+      "comfort": 0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 416159371
+        },
+        {
+          "band": "body",
+          "seed": 2575856972
+        },
+        {
+          "band": "vision",
+          "seed": 1334726124
+        },
+        {
+          "band": "audio",
+          "seed": 154990104
+        },
+        {
+          "band": "olfaction",
+          "seed": 372773877
+        },
+        {
+          "band": "taste",
+          "seed": 3564699724
+        },
+        {
+          "band": "touch",
+          "seed": 1947268533
+        },
+        {
+          "band": "memory",
+          "seed": 2748962078
+        },
+        {
+          "band": "focus",
+          "seed": 2765264337
+        },
+        {
+          "band": "query",
+          "seed": 4187445743
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 16,
+      "comfort": -0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 2582649305
+        },
+        {
+          "band": "body",
+          "seed": 1197061136
+        },
+        {
+          "band": "vision",
+          "seed": 480808847
+        },
+        {
+          "band": "audio",
+          "seed": 1885001497
+        },
+        {
+          "band": "olfaction",
+          "seed": 4244510305
+        },
+        {
+          "band": "taste",
+          "seed": 1665482159
+        },
+        {
+          "band": "touch",
+          "seed": 2691685864
+        },
+        {
+          "band": "memory",
+          "seed": 2822524604
+        },
+        {
+          "band": "focus",
+          "seed": 2426653797
+        },
+        {
+          "band": "query",
+          "seed": 1386739936
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 16,
+      "comfort": 0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 2582649305
+        },
+        {
+          "band": "body",
+          "seed": 1197061136
+        },
+        {
+          "band": "vision",
+          "seed": 480808847
+        },
+        {
+          "band": "audio",
+          "seed": 1885001497
+        },
+        {
+          "band": "olfaction",
+          "seed": 4244510305
+        },
+        {
+          "band": "taste",
+          "seed": 1665482159
+        },
+        {
+          "band": "touch",
+          "seed": 2691685864
+        },
+        {
+          "band": "memory",
+          "seed": 2822524604
+        },
+        {
+          "band": "focus",
+          "seed": 2426653797
+        },
+        {
+          "band": "query",
+          "seed": 1386739936
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 17,
+      "comfort": -0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 478699768
+        },
+        {
+          "band": "body",
+          "seed": 1895998802
+        },
+        {
+          "band": "vision",
+          "seed": 2969576370
+        },
+        {
+          "band": "audio",
+          "seed": 2316974165
+        },
+        {
+          "band": "olfaction",
+          "seed": 777411836
+        },
+        {
+          "band": "taste",
+          "seed": 4155431153
+        },
+        {
+          "band": "touch",
+          "seed": 135938824
+        },
+        {
+          "band": "memory",
+          "seed": 2213564002
+        },
+        {
+          "band": "focus",
+          "seed": 3281928018
+        },
+        {
+          "band": "query",
+          "seed": 3636657940
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 17,
+      "comfort": 0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 478699768
+        },
+        {
+          "band": "body",
+          "seed": 1895998802
+        },
+        {
+          "band": "vision",
+          "seed": 2969576370
+        },
+        {
+          "band": "audio",
+          "seed": 2316974165
+        },
+        {
+          "band": "olfaction",
+          "seed": 777411836
+        },
+        {
+          "band": "taste",
+          "seed": 4155431153
+        },
+        {
+          "band": "touch",
+          "seed": 135938824
+        },
+        {
+          "band": "memory",
+          "seed": 2213564002
+        },
+        {
+          "band": "focus",
+          "seed": 3281928018
+        },
+        {
+          "band": "query",
+          "seed": 3636657940
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 18,
+      "comfort": -0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 3387948915
+        },
+        {
+          "band": "body",
+          "seed": 1683835681
+        },
+        {
+          "band": "vision",
+          "seed": 1969548260
+        },
+        {
+          "band": "audio",
+          "seed": 3882697967
+        },
+        {
+          "band": "olfaction",
+          "seed": 1669745382
+        },
+        {
+          "band": "taste",
+          "seed": 253737986
+        },
+        {
+          "band": "touch",
+          "seed": 144208889
+        },
+        {
+          "band": "memory",
+          "seed": 2228590970
+        },
+        {
+          "band": "focus",
+          "seed": 798403937
+        },
+        {
+          "band": "query",
+          "seed": 453074135
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 18,
+      "comfort": 0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 3387948915
+        },
+        {
+          "band": "body",
+          "seed": 1683835681
+        },
+        {
+          "band": "vision",
+          "seed": 1969548260
+        },
+        {
+          "band": "audio",
+          "seed": 3882697967
+        },
+        {
+          "band": "olfaction",
+          "seed": 1669745382
+        },
+        {
+          "band": "taste",
+          "seed": 253737986
+        },
+        {
+          "band": "touch",
+          "seed": 144208889
+        },
+        {
+          "band": "memory",
+          "seed": 2228590970
+        },
+        {
+          "band": "focus",
+          "seed": 798403937
+        },
+        {
+          "band": "query",
+          "seed": 453074135
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 19,
+      "comfort": -0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 3245634070
+        },
+        {
+          "band": "body",
+          "seed": 1806752701
+        },
+        {
+          "band": "vision",
+          "seed": 3113307396
+        },
+        {
+          "band": "audio",
+          "seed": 2075048254
+        },
+        {
+          "band": "olfaction",
+          "seed": 365205913
+        },
+        {
+          "band": "taste",
+          "seed": 2614947964
+        },
+        {
+          "band": "touch",
+          "seed": 3230430921
+        },
+        {
+          "band": "memory",
+          "seed": 1658463321
+        },
+        {
+          "band": "focus",
+          "seed": 4086998433
+        },
+        {
+          "band": "query",
+          "seed": 4255104088
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 19,
+      "comfort": 0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 3245634070
+        },
+        {
+          "band": "body",
+          "seed": 1806752701
+        },
+        {
+          "band": "vision",
+          "seed": 3113307396
+        },
+        {
+          "band": "audio",
+          "seed": 2075048254
+        },
+        {
+          "band": "olfaction",
+          "seed": 365205913
+        },
+        {
+          "band": "taste",
+          "seed": 2614947964
+        },
+        {
+          "band": "touch",
+          "seed": 3230430921
+        },
+        {
+          "band": "memory",
+          "seed": 1658463321
+        },
+        {
+          "band": "focus",
+          "seed": 4086998433
+        },
+        {
+          "band": "query",
+          "seed": 4255104088
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 20,
+      "comfort": -0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 3131713537
+        },
+        {
+          "band": "body",
+          "seed": 2794837342
+        },
+        {
+          "band": "vision",
+          "seed": 2489707380
+        },
+        {
+          "band": "audio",
+          "seed": 1402815369
+        },
+        {
+          "band": "olfaction",
+          "seed": 4151893245
+        },
+        {
+          "band": "taste",
+          "seed": 1342698787
+        },
+        {
+          "band": "touch",
+          "seed": 3198491875
+        },
+        {
+          "band": "memory",
+          "seed": 2118779816
+        },
+        {
+          "band": "focus",
+          "seed": 3809494199
+        },
+        {
+          "band": "query",
+          "seed": 2865583228
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 20,
+      "comfort": 0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 3131713537
+        },
+        {
+          "band": "body",
+          "seed": 2794837342
+        },
+        {
+          "band": "vision",
+          "seed": 2489707380
+        },
+        {
+          "band": "audio",
+          "seed": 1402815369
+        },
+        {
+          "band": "olfaction",
+          "seed": 4151893245
+        },
+        {
+          "band": "taste",
+          "seed": 1342698787
+        },
+        {
+          "band": "touch",
+          "seed": 3198491875
+        },
+        {
+          "band": "memory",
+          "seed": 2118779816
+        },
+        {
+          "band": "focus",
+          "seed": 3809494199
+        },
+        {
+          "band": "query",
+          "seed": 2865583228
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 21,
+      "comfort": -0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 2976956159
+        },
+        {
+          "band": "body",
+          "seed": 614266278
+        },
+        {
+          "band": "vision",
+          "seed": 3627111837
+        },
+        {
+          "band": "audio",
+          "seed": 3402579150
+        },
+        {
+          "band": "olfaction",
+          "seed": 2141612951
+        },
+        {
+          "band": "taste",
+          "seed": 2262655931
+        },
+        {
+          "band": "touch",
+          "seed": 2602250487
+        },
+        {
+          "band": "memory",
+          "seed": 803453519
+        },
+        {
+          "band": "focus",
+          "seed": 2383373053
+        },
+        {
+          "band": "query",
+          "seed": 3769972224
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 21,
+      "comfort": 0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 2976956159
+        },
+        {
+          "band": "body",
+          "seed": 614266278
+        },
+        {
+          "band": "vision",
+          "seed": 3627111837
+        },
+        {
+          "band": "audio",
+          "seed": 3402579150
+        },
+        {
+          "band": "olfaction",
+          "seed": 2141612951
+        },
+        {
+          "band": "taste",
+          "seed": 2262655931
+        },
+        {
+          "band": "touch",
+          "seed": 2602250487
+        },
+        {
+          "band": "memory",
+          "seed": 803453519
+        },
+        {
+          "band": "focus",
+          "seed": 2383373053
+        },
+        {
+          "band": "query",
+          "seed": 3769972224
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 22,
+      "comfort": -0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 1526882832
+        },
+        {
+          "band": "body",
+          "seed": 1371159112
+        },
+        {
+          "band": "vision",
+          "seed": 3091294614
+        },
+        {
+          "band": "audio",
+          "seed": 2864734763
+        },
+        {
+          "band": "olfaction",
+          "seed": 1189380582
+        },
+        {
+          "band": "taste",
+          "seed": 888530766
+        },
+        {
+          "band": "touch",
+          "seed": 574420715
+        },
+        {
+          "band": "memory",
+          "seed": 283327851
+        },
+        {
+          "band": "focus",
+          "seed": 1664851419
+        },
+        {
+          "band": "query",
+          "seed": 3098141605
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 22,
+      "comfort": 0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 1526882832
+        },
+        {
+          "band": "body",
+          "seed": 1371159112
+        },
+        {
+          "band": "vision",
+          "seed": 3091294614
+        },
+        {
+          "band": "audio",
+          "seed": 2864734763
+        },
+        {
+          "band": "olfaction",
+          "seed": 1189380582
+        },
+        {
+          "band": "taste",
+          "seed": 888530766
+        },
+        {
+          "band": "touch",
+          "seed": 574420715
+        },
+        {
+          "band": "memory",
+          "seed": 283327851
+        },
+        {
+          "band": "focus",
+          "seed": 1664851419
+        },
+        {
+          "band": "query",
+          "seed": 3098141605
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 23,
+      "comfort": -0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 1458489590
+        },
+        {
+          "band": "body",
+          "seed": 2226556750
+        },
+        {
+          "band": "vision",
+          "seed": 1229805750
+        },
+        {
+          "band": "audio",
+          "seed": 1691143090
+        },
+        {
+          "band": "olfaction",
+          "seed": 1004843507
+        },
+        {
+          "band": "taste",
+          "seed": 1521971192
+        },
+        {
+          "band": "touch",
+          "seed": 1093494678
+        },
+        {
+          "band": "memory",
+          "seed": 3882102773
+        },
+        {
+          "band": "focus",
+          "seed": 4216273242
+        },
+        {
+          "band": "query",
+          "seed": 2991120586
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 23,
+      "comfort": 0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 1458489590
+        },
+        {
+          "band": "body",
+          "seed": 2226556750
+        },
+        {
+          "band": "vision",
+          "seed": 1229805750
+        },
+        {
+          "band": "audio",
+          "seed": 1691143090
+        },
+        {
+          "band": "olfaction",
+          "seed": 1004843507
+        },
+        {
+          "band": "taste",
+          "seed": 1521971192
+        },
+        {
+          "band": "touch",
+          "seed": 1093494678
+        },
+        {
+          "band": "memory",
+          "seed": 3882102773
+        },
+        {
+          "band": "focus",
+          "seed": 4216273242
+        },
+        {
+          "band": "query",
+          "seed": 2991120586
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 24,
+      "comfort": -0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 947654958
+        },
+        {
+          "band": "body",
+          "seed": 1863546401
+        },
+        {
+          "band": "vision",
+          "seed": 1150704352
+        },
+        {
+          "band": "audio",
+          "seed": 2350310465
+        },
+        {
+          "band": "olfaction",
+          "seed": 762936239
+        },
+        {
+          "band": "taste",
+          "seed": 136514180
+        },
+        {
+          "band": "touch",
+          "seed": 3777703907
+        },
+        {
+          "band": "memory",
+          "seed": 1109750080
+        },
+        {
+          "band": "focus",
+          "seed": 759030160
+        },
+        {
+          "band": "query",
+          "seed": 1315880782
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 24,
+      "comfort": 0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 947654958
+        },
+        {
+          "band": "body",
+          "seed": 1863546401
+        },
+        {
+          "band": "vision",
+          "seed": 1150704352
+        },
+        {
+          "band": "audio",
+          "seed": 2350310465
+        },
+        {
+          "band": "olfaction",
+          "seed": 762936239
+        },
+        {
+          "band": "taste",
+          "seed": 136514180
+        },
+        {
+          "band": "touch",
+          "seed": 3777703907
+        },
+        {
+          "band": "memory",
+          "seed": 1109750080
+        },
+        {
+          "band": "focus",
+          "seed": 759030160
+        },
+        {
+          "band": "query",
+          "seed": 1315880782
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 25,
+      "comfort": -0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 2308548917
+        },
+        {
+          "band": "body",
+          "seed": 846724128
+        },
+        {
+          "band": "vision",
+          "seed": 1965937586
+        },
+        {
+          "band": "audio",
+          "seed": 44798061
+        },
+        {
+          "band": "olfaction",
+          "seed": 2040011007
+        },
+        {
+          "band": "taste",
+          "seed": 1662086426
+        },
+        {
+          "band": "touch",
+          "seed": 3956141772
+        },
+        {
+          "band": "memory",
+          "seed": 3729592628
+        },
+        {
+          "band": "focus",
+          "seed": 3417653124
+        },
+        {
+          "band": "query",
+          "seed": 3223041641
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 25,
+      "comfort": 0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 2308548917
+        },
+        {
+          "band": "body",
+          "seed": 846724128
+        },
+        {
+          "band": "vision",
+          "seed": 1965937586
+        },
+        {
+          "band": "audio",
+          "seed": 44798061
+        },
+        {
+          "band": "olfaction",
+          "seed": 2040011007
+        },
+        {
+          "band": "taste",
+          "seed": 1662086426
+        },
+        {
+          "band": "touch",
+          "seed": 3956141772
+        },
+        {
+          "band": "memory",
+          "seed": 3729592628
+        },
+        {
+          "band": "focus",
+          "seed": 3417653124
+        },
+        {
+          "band": "query",
+          "seed": 3223041641
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 26,
+      "comfort": -0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 3758783919
+        },
+        {
+          "band": "body",
+          "seed": 3022409443
+        },
+        {
+          "band": "vision",
+          "seed": 1946768797
+        },
+        {
+          "band": "audio",
+          "seed": 3950336435
+        },
+        {
+          "band": "olfaction",
+          "seed": 2569856880
+        },
+        {
+          "band": "taste",
+          "seed": 2473794277
+        },
+        {
+          "band": "touch",
+          "seed": 3052539151
+        },
+        {
+          "band": "memory",
+          "seed": 1166585579
+        },
+        {
+          "band": "focus",
+          "seed": 3703358502
+        },
+        {
+          "band": "query",
+          "seed": 779958082
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 26,
+      "comfort": 0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 3758783919
+        },
+        {
+          "band": "body",
+          "seed": 3022409443
+        },
+        {
+          "band": "vision",
+          "seed": 1946768797
+        },
+        {
+          "band": "audio",
+          "seed": 3950336435
+        },
+        {
+          "band": "olfaction",
+          "seed": 2569856880
+        },
+        {
+          "band": "taste",
+          "seed": 2473794277
+        },
+        {
+          "band": "touch",
+          "seed": 3052539151
+        },
+        {
+          "band": "memory",
+          "seed": 1166585579
+        },
+        {
+          "band": "focus",
+          "seed": 3703358502
+        },
+        {
+          "band": "query",
+          "seed": 779958082
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 27,
+      "comfort": -0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 2205109046
+        },
+        {
+          "band": "body",
+          "seed": 119265378
+        },
+        {
+          "band": "vision",
+          "seed": 39255072
+        },
+        {
+          "band": "audio",
+          "seed": 3151272995
+        },
+        {
+          "band": "olfaction",
+          "seed": 3946503660
+        },
+        {
+          "band": "taste",
+          "seed": 1244137780
+        },
+        {
+          "band": "touch",
+          "seed": 2216311430
+        },
+        {
+          "band": "memory",
+          "seed": 2697374320
+        },
+        {
+          "band": "focus",
+          "seed": 4011438582
+        },
+        {
+          "band": "query",
+          "seed": 1077288549
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 27,
+      "comfort": 0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 2205109046
+        },
+        {
+          "band": "body",
+          "seed": 119265378
+        },
+        {
+          "band": "vision",
+          "seed": 39255072
+        },
+        {
+          "band": "audio",
+          "seed": 3151272995
+        },
+        {
+          "band": "olfaction",
+          "seed": 3946503660
+        },
+        {
+          "band": "taste",
+          "seed": 1244137780
+        },
+        {
+          "band": "touch",
+          "seed": 2216311430
+        },
+        {
+          "band": "memory",
+          "seed": 2697374320
+        },
+        {
+          "band": "focus",
+          "seed": 4011438582
+        },
+        {
+          "band": "query",
+          "seed": 1077288549
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 28,
+      "comfort": -0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 4130999581
+        },
+        {
+          "band": "body",
+          "seed": 1403488987
+        },
+        {
+          "band": "vision",
+          "seed": 611515967
+        },
+        {
+          "band": "audio",
+          "seed": 790511871
+        },
+        {
+          "band": "olfaction",
+          "seed": 1110009701
+        },
+        {
+          "band": "taste",
+          "seed": 3506828885
+        },
+        {
+          "band": "touch",
+          "seed": 2212187937
+        },
+        {
+          "band": "memory",
+          "seed": 2572644841
+        },
+        {
+          "band": "focus",
+          "seed": 1962129784
+        },
+        {
+          "band": "query",
+          "seed": 2145892202
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 28,
+      "comfort": 0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 4130999581
+        },
+        {
+          "band": "body",
+          "seed": 1403488987
+        },
+        {
+          "band": "vision",
+          "seed": 611515967
+        },
+        {
+          "band": "audio",
+          "seed": 790511871
+        },
+        {
+          "band": "olfaction",
+          "seed": 1110009701
+        },
+        {
+          "band": "taste",
+          "seed": 3506828885
+        },
+        {
+          "band": "touch",
+          "seed": 2212187937
+        },
+        {
+          "band": "memory",
+          "seed": 2572644841
+        },
+        {
+          "band": "focus",
+          "seed": 1962129784
+        },
+        {
+          "band": "query",
+          "seed": 2145892202
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 29,
+      "comfort": -0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 3160180370
+        },
+        {
+          "band": "body",
+          "seed": 3055446448
+        },
+        {
+          "band": "vision",
+          "seed": 2314776393
+        },
+        {
+          "band": "audio",
+          "seed": 3009628395
+        },
+        {
+          "band": "olfaction",
+          "seed": 747277575
+        },
+        {
+          "band": "taste",
+          "seed": 2157330771
+        },
+        {
+          "band": "touch",
+          "seed": 2571709226
+        },
+        {
+          "band": "memory",
+          "seed": 2922072304
+        },
+        {
+          "band": "focus",
+          "seed": 4180914348
+        },
+        {
+          "band": "query",
+          "seed": 663924510
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 29,
+      "comfort": 0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 3160180370
+        },
+        {
+          "band": "body",
+          "seed": 3055446448
+        },
+        {
+          "band": "vision",
+          "seed": 2314776393
+        },
+        {
+          "band": "audio",
+          "seed": 3009628395
+        },
+        {
+          "band": "olfaction",
+          "seed": 747277575
+        },
+        {
+          "band": "taste",
+          "seed": 2157330771
+        },
+        {
+          "band": "touch",
+          "seed": 2571709226
+        },
+        {
+          "band": "memory",
+          "seed": 2922072304
+        },
+        {
+          "band": "focus",
+          "seed": 4180914348
+        },
+        {
+          "band": "query",
+          "seed": 663924510
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 30,
+      "comfort": -0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 4037555318
+        },
+        {
+          "band": "body",
+          "seed": 111257631
+        },
+        {
+          "band": "vision",
+          "seed": 4113521109
+        },
+        {
+          "band": "audio",
+          "seed": 3502122722
+        },
+        {
+          "band": "olfaction",
+          "seed": 3003025071
+        },
+        {
+          "band": "taste",
+          "seed": 2897767919
+        },
+        {
+          "band": "touch",
+          "seed": 528247916
+        },
+        {
+          "band": "memory",
+          "seed": 3756234514
+        },
+        {
+          "band": "focus",
+          "seed": 528333673
+        },
+        {
+          "band": "query",
+          "seed": 1428257177
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 30,
+      "comfort": 0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 4037555318
+        },
+        {
+          "band": "body",
+          "seed": 111257631
+        },
+        {
+          "band": "vision",
+          "seed": 4113521109
+        },
+        {
+          "band": "audio",
+          "seed": 3502122722
+        },
+        {
+          "band": "olfaction",
+          "seed": 3003025071
+        },
+        {
+          "band": "taste",
+          "seed": 2897767919
+        },
+        {
+          "band": "touch",
+          "seed": 528247916
+        },
+        {
+          "band": "memory",
+          "seed": 3756234514
+        },
+        {
+          "band": "focus",
+          "seed": 528333673
+        },
+        {
+          "band": "query",
+          "seed": 1428257177
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 31,
+      "comfort": -0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 809481480
+        },
+        {
+          "band": "body",
+          "seed": 3069622433
+        },
+        {
+          "band": "vision",
+          "seed": 3442200367
+        },
+        {
+          "band": "audio",
+          "seed": 2231522431
+        },
+        {
+          "band": "olfaction",
+          "seed": 856812185
+        },
+        {
+          "band": "taste",
+          "seed": 1906250589
+        },
+        {
+          "band": "touch",
+          "seed": 1309275819
+        },
+        {
+          "band": "memory",
+          "seed": 502790947
+        },
+        {
+          "band": "focus",
+          "seed": 2477688760
+        },
+        {
+          "band": "query",
+          "seed": 3121535711
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 31,
+      "comfort": 0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 809481480
+        },
+        {
+          "band": "body",
+          "seed": 3069622433
+        },
+        {
+          "band": "vision",
+          "seed": 3442200367
+        },
+        {
+          "band": "audio",
+          "seed": 2231522431
+        },
+        {
+          "band": "olfaction",
+          "seed": 856812185
+        },
+        {
+          "band": "taste",
+          "seed": 1906250589
+        },
+        {
+          "band": "touch",
+          "seed": 1309275819
+        },
+        {
+          "band": "memory",
+          "seed": 502790947
+        },
+        {
+          "band": "focus",
+          "seed": 2477688760
+        },
+        {
+          "band": "query",
+          "seed": 3121535711
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 32,
+      "comfort": -0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 4050500635
+        },
+        {
+          "band": "body",
+          "seed": 1150981909
+        },
+        {
+          "band": "vision",
+          "seed": 2753110210
+        },
+        {
+          "band": "audio",
+          "seed": 363390181
+        },
+        {
+          "band": "olfaction",
+          "seed": 136450542
+        },
+        {
+          "band": "taste",
+          "seed": 2888291745
+        },
+        {
+          "band": "touch",
+          "seed": 3286098855
+        },
+        {
+          "band": "memory",
+          "seed": 3769056587
+        },
+        {
+          "band": "focus",
+          "seed": 2915266294
+        },
+        {
+          "band": "query",
+          "seed": 2825181810
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 32,
+      "comfort": 0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 4050500635
+        },
+        {
+          "band": "body",
+          "seed": 1150981909
+        },
+        {
+          "band": "vision",
+          "seed": 2753110210
+        },
+        {
+          "band": "audio",
+          "seed": 363390181
+        },
+        {
+          "band": "olfaction",
+          "seed": 136450542
+        },
+        {
+          "band": "taste",
+          "seed": 2888291745
+        },
+        {
+          "band": "touch",
+          "seed": 3286098855
+        },
+        {
+          "band": "memory",
+          "seed": 3769056587
+        },
+        {
+          "band": "focus",
+          "seed": 2915266294
+        },
+        {
+          "band": "query",
+          "seed": 2825181810
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 33,
+      "comfort": -0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 3954714523
+        },
+        {
+          "band": "body",
+          "seed": 1369196255
+        },
+        {
+          "band": "vision",
+          "seed": 641683073
+        },
+        {
+          "band": "audio",
+          "seed": 1839154947
+        },
+        {
+          "band": "olfaction",
+          "seed": 1614212395
+        },
+        {
+          "band": "taste",
+          "seed": 2818917270
+        },
+        {
+          "band": "touch",
+          "seed": 3027063526
+        },
+        {
+          "band": "memory",
+          "seed": 1003277213
+        },
+        {
+          "band": "focus",
+          "seed": 2019606024
+        },
+        {
+          "band": "query",
+          "seed": 3607960053
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 33,
+      "comfort": 0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 3954714523
+        },
+        {
+          "band": "body",
+          "seed": 1369196255
+        },
+        {
+          "band": "vision",
+          "seed": 641683073
+        },
+        {
+          "band": "audio",
+          "seed": 1839154947
+        },
+        {
+          "band": "olfaction",
+          "seed": 1614212395
+        },
+        {
+          "band": "taste",
+          "seed": 2818917270
+        },
+        {
+          "band": "touch",
+          "seed": 3027063526
+        },
+        {
+          "band": "memory",
+          "seed": 1003277213
+        },
+        {
+          "band": "focus",
+          "seed": 2019606024
+        },
+        {
+          "band": "query",
+          "seed": 3607960053
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 34,
+      "comfort": -0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 1737899951
+        },
+        {
+          "band": "body",
+          "seed": 1128253286
+        },
+        {
+          "band": "vision",
+          "seed": 2765662732
+        },
+        {
+          "band": "audio",
+          "seed": 4154476496
+        },
+        {
+          "band": "olfaction",
+          "seed": 2958125551
+        },
+        {
+          "band": "taste",
+          "seed": 586201689
+        },
+        {
+          "band": "touch",
+          "seed": 2856948106
+        },
+        {
+          "band": "memory",
+          "seed": 3259498867
+        },
+        {
+          "band": "focus",
+          "seed": 4159141612
+        },
+        {
+          "band": "query",
+          "seed": 3869651263
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 34,
+      "comfort": 0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 1737899951
+        },
+        {
+          "band": "body",
+          "seed": 1128253286
+        },
+        {
+          "band": "vision",
+          "seed": 2765662732
+        },
+        {
+          "band": "audio",
+          "seed": 4154476496
+        },
+        {
+          "band": "olfaction",
+          "seed": 2958125551
+        },
+        {
+          "band": "taste",
+          "seed": 586201689
+        },
+        {
+          "band": "touch",
+          "seed": 2856948106
+        },
+        {
+          "band": "memory",
+          "seed": 3259498867
+        },
+        {
+          "band": "focus",
+          "seed": 4159141612
+        },
+        {
+          "band": "query",
+          "seed": 3869651263
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 35,
+      "comfort": -0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 2928084355
+        },
+        {
+          "band": "body",
+          "seed": 1424647950
+        },
+        {
+          "band": "vision",
+          "seed": 2319759029
+        },
+        {
+          "band": "audio",
+          "seed": 1032009114
+        },
+        {
+          "band": "olfaction",
+          "seed": 3791997605
+        },
+        {
+          "band": "taste",
+          "seed": 39785643
+        },
+        {
+          "band": "touch",
+          "seed": 3959678897
+        },
+        {
+          "band": "memory",
+          "seed": 3378264203
+        },
+        {
+          "band": "focus",
+          "seed": 3157188073
+        },
+        {
+          "band": "query",
+          "seed": 3138688465
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 35,
+      "comfort": 0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 2928084355
+        },
+        {
+          "band": "body",
+          "seed": 1424647950
+        },
+        {
+          "band": "vision",
+          "seed": 2319759029
+        },
+        {
+          "band": "audio",
+          "seed": 1032009114
+        },
+        {
+          "band": "olfaction",
+          "seed": 3791997605
+        },
+        {
+          "band": "taste",
+          "seed": 39785643
+        },
+        {
+          "band": "touch",
+          "seed": 3959678897
+        },
+        {
+          "band": "memory",
+          "seed": 3378264203
+        },
+        {
+          "band": "focus",
+          "seed": 3157188073
+        },
+        {
+          "band": "query",
+          "seed": 3138688465
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 36,
+      "comfort": -0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 2535595722
+        },
+        {
+          "band": "body",
+          "seed": 2091362031
+        },
+        {
+          "band": "vision",
+          "seed": 2883755007
+        },
+        {
+          "band": "audio",
+          "seed": 3198942844
+        },
+        {
+          "band": "olfaction",
+          "seed": 1658958883
+        },
+        {
+          "band": "taste",
+          "seed": 1239649435
+        },
+        {
+          "band": "touch",
+          "seed": 1177637125
+        },
+        {
+          "band": "memory",
+          "seed": 2015815184
+        },
+        {
+          "band": "focus",
+          "seed": 3330087198
+        },
+        {
+          "band": "query",
+          "seed": 3169581528
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 36,
+      "comfort": 0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 2535595722
+        },
+        {
+          "band": "body",
+          "seed": 2091362031
+        },
+        {
+          "band": "vision",
+          "seed": 2883755007
+        },
+        {
+          "band": "audio",
+          "seed": 3198942844
+        },
+        {
+          "band": "olfaction",
+          "seed": 1658958883
+        },
+        {
+          "band": "taste",
+          "seed": 1239649435
+        },
+        {
+          "band": "touch",
+          "seed": 1177637125
+        },
+        {
+          "band": "memory",
+          "seed": 2015815184
+        },
+        {
+          "band": "focus",
+          "seed": 3330087198
+        },
+        {
+          "band": "query",
+          "seed": 3169581528
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 37,
+      "comfort": -0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 1934030699
+        },
+        {
+          "band": "body",
+          "seed": 1495062609
+        },
+        {
+          "band": "vision",
+          "seed": 3318264968
+        },
+        {
+          "band": "audio",
+          "seed": 1372905018
+        },
+        {
+          "band": "olfaction",
+          "seed": 2587729854
+        },
+        {
+          "band": "taste",
+          "seed": 3249709056
+        },
+        {
+          "band": "touch",
+          "seed": 923999110
+        },
+        {
+          "band": "memory",
+          "seed": 4222155184
+        },
+        {
+          "band": "focus",
+          "seed": 859764504
+        },
+        {
+          "band": "query",
+          "seed": 1335616473
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 37,
+      "comfort": 0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 1934030699
+        },
+        {
+          "band": "body",
+          "seed": 1495062609
+        },
+        {
+          "band": "vision",
+          "seed": 3318264968
+        },
+        {
+          "band": "audio",
+          "seed": 1372905018
+        },
+        {
+          "band": "olfaction",
+          "seed": 2587729854
+        },
+        {
+          "band": "taste",
+          "seed": 3249709056
+        },
+        {
+          "band": "touch",
+          "seed": 923999110
+        },
+        {
+          "band": "memory",
+          "seed": 4222155184
+        },
+        {
+          "band": "focus",
+          "seed": 859764504
+        },
+        {
+          "band": "query",
+          "seed": 1335616473
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 38,
+      "comfort": -0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 1082061921
+        },
+        {
+          "band": "body",
+          "seed": 3917516735
+        },
+        {
+          "band": "vision",
+          "seed": 4231457973
+        },
+        {
+          "band": "audio",
+          "seed": 4090803434
+        },
+        {
+          "band": "olfaction",
+          "seed": 3920111315
+        },
+        {
+          "band": "taste",
+          "seed": 220706056
+        },
+        {
+          "band": "touch",
+          "seed": 3353564773
+        },
+        {
+          "band": "memory",
+          "seed": 3011342977
+        },
+        {
+          "band": "focus",
+          "seed": 844141020
+        },
+        {
+          "band": "query",
+          "seed": 2502431938
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 38,
+      "comfort": 0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 1082061921
+        },
+        {
+          "band": "body",
+          "seed": 3917516735
+        },
+        {
+          "band": "vision",
+          "seed": 4231457973
+        },
+        {
+          "band": "audio",
+          "seed": 4090803434
+        },
+        {
+          "band": "olfaction",
+          "seed": 3920111315
+        },
+        {
+          "band": "taste",
+          "seed": 220706056
+        },
+        {
+          "band": "touch",
+          "seed": 3353564773
+        },
+        {
+          "band": "memory",
+          "seed": 3011342977
+        },
+        {
+          "band": "focus",
+          "seed": 844141020
+        },
+        {
+          "band": "query",
+          "seed": 2502431938
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 39,
+      "comfort": -0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 3708212637
+        },
+        {
+          "band": "body",
+          "seed": 2317166743
+        },
+        {
+          "band": "vision",
+          "seed": 2852893604
+        },
+        {
+          "band": "audio",
+          "seed": 2696548678
+        },
+        {
+          "band": "olfaction",
+          "seed": 3613505403
+        },
+        {
+          "band": "taste",
+          "seed": 1967061941
+        },
+        {
+          "band": "touch",
+          "seed": 1864888879
+        },
+        {
+          "band": "memory",
+          "seed": 454534538
+        },
+        {
+          "band": "focus",
+          "seed": 1362477244
+        },
+        {
+          "band": "query",
+          "seed": 1011827604
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "CRY",
+        "arguments": []
+      }
+    },
+    {
+      "curriculumVersion": "comfort-v1",
+      "stage": "1B-scale",
+      "noiseSeed": 39,
+      "comfort": 0.5,
+      "activeBand": "homeostasis",
+      "inactiveNoise": [
+        {
+          "band": "system",
+          "seed": 3708212637
+        },
+        {
+          "band": "body",
+          "seed": 2317166743
+        },
+        {
+          "band": "vision",
+          "seed": 2852893604
+        },
+        {
+          "band": "audio",
+          "seed": 2696548678
+        },
+        {
+          "band": "olfaction",
+          "seed": 3613505403
+        },
+        {
+          "band": "taste",
+          "seed": 1967061941
+        },
+        {
+          "band": "touch",
+          "seed": 1864888879
+        },
+        {
+          "band": "memory",
+          "seed": 454534538
+        },
+        {
+          "band": "focus",
+          "seed": 1362477244
+        },
+        {
+          "band": "query",
+          "seed": 1011827604
+        }
+      ],
+      "creator": {
+        "source": "creator",
+        "trusted": true,
+        "directive": "RESPOND_TO_HOMEOSTASIS"
+      },
+      "target": {
+        "action": "LAUGH",
+        "arguments": []
+      }
+    }
+  ]
+}

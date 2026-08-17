@@ -68,6 +68,24 @@ export const FIXTURE_ACTION_INTENTS: readonly ActionIntentAuthoringSpec[] = [
     arguments: [],
     doc: "do nothing for the current beat",
   },
+  {
+    name: "CRY",
+    actionToken: fixtureTokenId("CRY"),
+    semanticIntentToken: fixtureTokenId("CRY"),
+    domain: "communicative",
+    durative: false,
+    arguments: [],
+    doc: "communicative CRY() — negative homeostasis valence",
+  },
+  {
+    name: "LAUGH",
+    actionToken: fixtureTokenId("LAUGH"),
+    semanticIntentToken: fixtureTokenId("LAUGH"),
+    domain: "communicative",
+    durative: false,
+    arguments: [],
+    doc: "communicative LAUGH() — positive homeostasis valence",
+  },
 ];
 
 export class FixtureActionCatalogError extends Error {

@@ -57,6 +57,12 @@ export interface KrystalTrainStepOptions {
    * (0xffffffff = no pointer loss for that row; default: none).
    */
   readonly argGold?: readonly number[] | Uint32Array;
+  /**
+   * Optional pointer-loss targets [Q] for the intent selector slot (bank
+   * indices of the catalog records; 0xffffffff = no pointer loss for that
+   * row; default: none). Trains the catalog selection directly.
+   */
+  readonly intentGold?: readonly number[] | Uint32Array;
   readonly learningRate: number;
   /** Read back the scalar mean loss (compact telemetry); off by default. */
   readonly telemetry?: boolean;
@@ -206,7 +212,11 @@ export class KrystalBackward {
     const NO_TARGET = 0xffff_ffff;
     const noTargets = new Uint32Array(q).fill(NO_TARGET);
     device.queue.writeBuffer(this.definition.resources.targets.gpu, 0, routeKinds);
-    device.queue.writeBuffer(arena, selectorGold * 4, noTargets);
+    const intentTargets = options.intentGold
+      ? (options.intentGold instanceof Uint32Array ? options.intentGold : Uint32Array.from(options.intentGold))
+      : noTargets;
+    validate(intentTargets.length === q, `intentGold must be [Q] = ${q}`);
+    device.queue.writeBuffer(arena, selectorGold * 4, intentTargets);
     const argTargets = options.argGold
       ? (options.argGold instanceof Uint32Array ? options.argGold : Uint32Array.from(options.argGold))
       : noTargets;
