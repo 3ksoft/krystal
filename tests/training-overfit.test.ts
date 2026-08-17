@@ -12,7 +12,7 @@
 //     uncapturederror).
 import { expect, test } from "bun:test";
 import { getTrainingHarness, type TrainingHarness } from "./training-harness.ts";
-import { LFM2_TRAINING_ARENA, TRAINING_ARENA_BASE } from "../packages/webgpu/src/lfm2-layout.ts";
+import { KRYSTAL_TRAINING_ARENA, TRAINING_ARENA_BASE } from "../packages/webgpu/src/krystal-layout.ts";
 import { TrainingTrainer } from "../packages/webgpu/src/training.ts";
 
 const V = 8;
@@ -135,8 +135,8 @@ test("trainStep performs no intermediate CPU readback (telemetry off returns no 
 test("arena region accounting matches the training layout", () => {
   // The trainer packs regions inside the declared training arena capacity; the
   // layout itself must stay inside the shared arena.
-  const maxElements = TRAINING_ARENA_BASE + LFM2_TRAINING_ARENA.elements;
-  const used = LFM2_TRAINING_ARENA.elements;
+  const maxElements = TRAINING_ARENA_BASE + KRYSTAL_TRAINING_ARENA.elements;
+  const used = KRYSTAL_TRAINING_ARENA.elements;
   expect(used).toBeGreaterThan(0);
   expect(maxElements).toBeGreaterThan(TRAINING_ARENA_BASE);
 });

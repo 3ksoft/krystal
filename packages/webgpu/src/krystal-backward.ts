@@ -30,10 +30,10 @@ import {
   KRYSTAL_MAX_QUERIES,
   KRYSTAL_MAX_RECORDS,
   KRYSTAL_MAX_TOKENS,
-  LFM2_TRAINING_ARENA,
+  KRYSTAL_TRAINING_ARENA,
   TRAINING_ARENA_BASE,
-} from "./lfm2-layout";
-import { type Lfm2Definition } from "./lfm2";
+} from "./krystal-layout";
+import { type KrystalDefinition } from "./krystal";
 import {
   KrystalForward,
   type BrainForwardWeightPages,
@@ -72,7 +72,7 @@ const FWD = KRYSTAL_FORWARD_ARENA;
 
 export class KrystalBackward {
   private readonly forward: KrystalForward;
-  private readonly definition: Lfm2Definition;
+  private readonly definition: KrystalDefinition;
   private readonly pages: BrainForwardWeightPages;
   private step = 0;
 
@@ -96,7 +96,7 @@ export class KrystalBackward {
   }
 
   private train(offset: number, elements: number): number {
-    validate(offset + elements <= LFM2_TRAINING_ARENA.elements, "training arena region overflows capacity");
+    validate(offset + elements <= KRYSTAL_TRAINING_ARENA.elements, "training arena region overflows capacity");
     return TRAINING_ARENA_BASE + offset;
   }
 
@@ -106,7 +106,7 @@ export class KrystalBackward {
     const { hiddenSize: h, ffnSize: ffn, headCount: heads, headDim, encoderBlocks, mixerBlocks, routeKindCount: C } = config;
     const A = FWD;
     const B = KRYSTAL_BACKWARD_ARENA;
-    const T = LFM2_TRAINING_ARENA;
+    const T = KRYSTAL_TRAINING_ARENA;
 
     const prepared = this.forward.prepare(options.frame, options.selection);
     const { t, r, q } = prepared;

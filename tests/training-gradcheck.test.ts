@@ -4,7 +4,7 @@
 // loss, on a small selected subset of embedding and classifier parameters.
 import { expect, test } from "bun:test";
 import { getTrainingHarness, readArenaRegion, runPassWait, uploadTokens, uploadTargets, createWeightPage, type TrainingHarness } from "./training-harness.ts";
-import { LFM2_TRAINING_ARENA, TRAINING_ARENA_BASE } from "../packages/webgpu/src/lfm2-layout.ts";
+import { KRYSTAL_TRAINING_ARENA, TRAINING_ARENA_BASE } from "../packages/webgpu/src/krystal-layout.ts";
 import { TrainingTrainer } from "../packages/webgpu/src/training.ts";
 
 const V = 8;
@@ -41,8 +41,8 @@ function initParams(v: number, h: number): { embedding: Float32Array; classifier
   return { embedding, classifier };
 }
 
-function region(h: TrainingHarness, name: keyof typeof LFM2_TRAINING_ARENA): number {
-  return TRAINING_ARENA_BASE + LFM2_TRAINING_ARENA[name];
+function region(h: TrainingHarness, name: keyof typeof KRYSTAL_TRAINING_ARENA): number {
+  return TRAINING_ARENA_BASE + KRYSTAL_TRAINING_ARENA[name];
 }
 
 /** Forward-only scalar loss for the toy graph with the given parameter pages. */

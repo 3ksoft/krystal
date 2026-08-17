@@ -4,7 +4,7 @@
 // then a composed CPU/GPU parity comparison on the canonical fixture frame.
 import { expect, test } from "bun:test";
 import { getTrainingHarness, createWeightPage, readArenaRegion, runPassWait, uploadArena } from "./training-harness.ts";
-import { KRYSTAL_FORWARD_ARENA, KRYSTAL_FORWARD_ARENA_BASE } from "../packages/webgpu/src/lfm2-layout.ts";
+import { KRYSTAL_FORWARD_ARENA, KRYSTAL_FORWARD_ARENA_BASE } from "../packages/webgpu/src/krystal-layout.ts";
 import { KrystalForward, type SelectionMasks } from "../packages/webgpu/src/krystal-forward.ts";
 import { ACTION_INTENT_SCHEMA_ID, buildFixtureFrame } from "../packages/krystal/src/fixtures/frame.ts";
 import { buildFixtureActionCatalog } from "../packages/krystal/src/fixtures/action-intents.ts";

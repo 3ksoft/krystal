@@ -612,6 +612,7 @@ export namespace v1_0_0 {
 		topic: RuntimeRefHandle;
 		activation: number;
 		priority: number;
+		intensity: number;
 		persistence: number;
 		confidence: number;
 		arguments: TypedArgumentValue[];

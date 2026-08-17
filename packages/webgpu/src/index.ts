@@ -1,4 +1,4 @@
 export * from "./device";
-export * from "./lfm2";
+export * from "./krystal";
 export * from "./pass";
 export * from "./training";

@@ -6,7 +6,7 @@
 // -> CE) with exactly one parameter page perturbed at a time.
 import { expect, test } from "bun:test";
 import { getTrainingHarness, type TrainingHarness } from "./training-harness.ts";
-import { LFM2_TRAINING_ARENA, TRAINING_ARENA_BASE } from "../packages/webgpu/src/lfm2-layout.ts";
+import { KRYSTAL_TRAINING_ARENA, TRAINING_ARENA_BASE } from "../packages/webgpu/src/krystal-layout.ts";
 import { TrainingTrainer } from "../packages/webgpu/src/training.ts";
 import { encoderBlockForwardBackward } from "./training-oracle.ts";
 
@@ -52,11 +52,11 @@ function bandMask(m: number): Float32Array {
   return mask;
 }
 
-function region(h: TrainingHarness, name: keyof typeof LFM2_TRAINING_ARENA): number {
-  return TRAINING_ARENA_BASE + LFM2_TRAINING_ARENA[name];
+function region(h: TrainingHarness, name: keyof typeof KRYSTAL_TRAINING_ARENA): number {
+  return TRAINING_ARENA_BASE + KRYSTAL_TRAINING_ARENA[name];
 }
 
-async function readRegion(h: TrainingHarness, name: keyof typeof LFM2_TRAINING_ARENA, elements: number): Promise<Float32Array> {
+async function readRegion(h: TrainingHarness, name: keyof typeof KRYSTAL_TRAINING_ARENA, elements: number): Promise<Float32Array> {
   const arena = h.definition.resources.arena;
   const staging = h.definition.resources.trainingReadback;
   const encoder = h.device.createCommandEncoder();

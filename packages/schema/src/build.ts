@@ -44,10 +44,10 @@ function buildTarget(
   options: {
     /** "ts:exports" import line referencing the arktype scope used by host code. */
     tsExportsImport: string;
-    /** Where the arktype-backed host exports land (e.g. webgpu/src/types.ts). */
-    hostTypesPath: string | undefined;
+    /** Where the arktype-backed host exports land (e.g. webgpu/src/krystal-types.ts). */
+    hostTypesPath?: string | undefined;
     /** Where the WGSL struct reference lands. */
-    wgslPath: string | undefined;
+    wgslPath?: string | undefined;
     /** Where the runtime-free plain TS interfaces land. */
     plainTypesPath: string;
     /** Where the DataView codec lands. */
@@ -81,34 +81,12 @@ function buildTarget(
 }
 
 // ---------------------------------------------------------------------------
-// 1. Chomato/LFM2 constraint ABI (existing target, kept until consumers move)
-// ---------------------------------------------------------------------------
-
-buildTarget("chomato", schema, {
-  tsExportsImport: `import { $ } from "../../schema/src/schema";\n\n`,
-  hostTypesPath: "./../webgpu/src/types.ts",
-  wgslPath: "./../webgpu/src/shaders/schema.wgsl",
-  plainTypesPath: "./generated/schema.types.ts",
-  codecPath: "./generated/schema.codec.ts",
-});
-
-// Native (scriptc) ABI export for the chomato backend target. Analyzed again
-// from the same source so the C++ structs can never disagree with the TS codec.
-{
-  const popSchema = fromModule(schema.export()).schema;
-  const result = analyzer.analyze(popSchema, cfg);
-  assertSchema(result);
-  save("../backend/src/abi.cpp", exportPlan(result.plan, "cpp"));
-}
-
-// ---------------------------------------------------------------------------
-// 2. Krystal brain ABI (second target — forward/backward contracts)
+// Krystal brain ABI (forward/backward contracts) — the only remaining target.
 // ---------------------------------------------------------------------------
 
 buildTarget("krystal", krystalSchema, {
   tsExportsImport: `import { schema as $ } from "../../schema/src/krystal-engine-schema";\n\n`,
   hostTypesPath: "./../webgpu/src/krystal-types.ts",
-  wgslPath: "./../webgpu/src/shaders/krystal-schema.wgsl",
   plainTypesPath: "./generated/krystal.types.ts",
   codecPath: "./generated/krystal.codec.ts",
 });

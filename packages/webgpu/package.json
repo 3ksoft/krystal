@@ -4,9 +4,9 @@
   "type": "module",
   "exports": "./src/index.ts",
   "scripts": {
-    "artifact:build": "bun run ./scripts/build-lfm2-artifact.ts",
-    "build:shaders": "deno run --allow-read --sloppy-imports scripts/validate-lfm2-shaders.ts",
-    "build:shaders:full": "deno run --allow-read --sloppy-imports scripts/validate-lfm2-shaders.ts --full"
+    "artifact:build": "bun run ./scripts/build-krystal-artifact.ts",
+    "build:shaders": "deno run --allow-read --sloppy-imports scripts/validate-krystal-shaders.ts",
+    "build:shaders:full": "deno run --allow-read --sloppy-imports scripts/validate-krystal-shaders.ts --full"
   },
   "devDependencies": {
     "@types/deno": "^2.7.0",

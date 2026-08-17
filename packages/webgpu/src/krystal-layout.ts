@@ -1,16 +1,16 @@
-// Pure-TS LFM2 layout and dispatch spec.
+// Pure-TS Krystal layout and dispatch spec.
 //
 // Everything here is static: constants, the activation arena layout, the
 // schema-independent host types and the per-pass dispatch geometry. It is the
-// part of lfm2-definition.ts that the runtime actually needs, and it is shared
+// part of krystal-definition.ts that the runtime actually needs, and it is shared
 // by the two definition builders:
 //
-//   - defineLfm2(bundle)            (lfm2-definition.ts) — arktype-backed DSL,
+//   - defineKrystal(bundle)            (krystal-definition.ts) — arktype-backed DSL,
 //                                     used only by the AOT build/validate scripts
-//   - defineLfm2FromArtifact()      (lfm2-artifact.ts)   — handle creation from
-//                                     lfm2.artifact.generated.ts, used at runtime
+//   - defineKrystalFromArtifact()      (krystal-artifact.ts)   — handle creation from
+//                                     krystal.artifact.generated.ts, used at runtime
 //
-// The runtime entry (lfm2.ts) imports only this module and lfm2-artifact.ts,
+// The runtime entry (krystal.ts) imports only this module and krystal-artifact.ts,
 // so the DSL, `$` and arktype never enter a scriptc-compiled graph.
 import type { AnyComputeHandle } from "@sandblaster/core";
 
@@ -32,7 +32,7 @@ export const TRAINING_MAX_H = 128;
 /** Krystal first profile: 4 full attention heads × 32 dims (answer 11). */
 export const TRAINING_MAX_HEADS = 4;
 
-export interface Lfm2TrainingArenaLayout {
+export interface KrystalTrainingArenaLayout {
   hidden: number;      // [M,H]
   logits: number;      // [M,V]
   lossRows: number;    // [M]
@@ -65,7 +65,7 @@ export interface Lfm2TrainingArenaLayout {
   elements: number;
 }
 
-function createTrainingArenaLayout(): Lfm2TrainingArenaLayout {
+function createTrainingArenaLayout(): KrystalTrainingArenaLayout {
   let cursor = 0;
   const take = (elements: number) => {
     const offset = cursor;
@@ -106,12 +106,12 @@ function createTrainingArenaLayout(): Lfm2TrainingArenaLayout {
   };
 }
 
-/** Training regions are appended after the LFM2 regions inside the one arena. */
-// The legacy LFM2 activation regions were removed with the LFM2 runtime; the
+/** The training regions lead the shared arena. */
+// The legacy LFM2 activation regions were removed with the legacy runtime; the
 // training regions now lead the shared arena.
 export const TRAINING_ARENA_BASE = 0;
-export const LFM2_TRAINING_ARENA = createTrainingArenaLayout();
-export const TRAINING_ARENA_ELEMENTS = LFM2_TRAINING_ARENA.elements;
+export const KRYSTAL_TRAINING_ARENA = createTrainingArenaLayout();
+export const TRAINING_ARENA_ELEMENTS = KRYSTAL_TRAINING_ARENA.elements;
 
 /**
  * Debug readback staging capacity: enough for the largest training region
@@ -432,23 +432,23 @@ export const TOKEN_CAPACITY =
 // One 256-byte (aligned) OpParams record per dispatch. The Krystal trainStep
 // and M1 trainer submit every pass of a step in ONE submit (~150 dispatches
 // worst case), so a single MiB is more than enough; the old 128 MiB budget was
-// sized for the LFM2 decode path (1024 tokens * ~250 dispatches).
+// sized for the removed LFM2 decode path (1024 tokens * ~250 dispatches).
 export const OP_PARAM_BUFFER_BYTES = 1024 * 1024;
 
 // Shared elementwise/utility programs. The LFM2 model-inference shaders were
 // removed with the legacy runtime; only the programs the Krystal and M1
 // training paths dispatch remain (the training/*.wgsl shaders follow below).
-export const LFM2_SHADER_NAMES = [
+export const KRYSTAL_SHADER_NAMES = [
   "matmul_f32",
   "residual_add",
   "arena_copy",
 ] as const;
 
-export type Lfm2ShaderName = (typeof LFM2_SHADER_NAMES)[number];
+export type KrystalShaderName = (typeof KRYSTAL_SHADER_NAMES)[number];
 
 /**
  * M1 training shaders, one file per entry point under src/shaders/training/.
- * They share the LFM2 OpParams/arena conventions and link into the same
+ * They share the Krystal OpParams/arena conventions and link into the same
  * artifact so trainStep reuses the existing pass.run orchestration.
  */
 export const TRAINING_SHADER_NAMES = [
@@ -509,20 +509,20 @@ export type KrystalBackwardShaderName = (typeof KRYSTAL_BACKWARD_SHADER_NAMES)[n
  * All linked program names. Names above index the .wgsl files on disk; names
  * here index the linked programs (currently 1:1 with the shader files).
  */
-export const LFM2_PROGRAM_NAMES = [
-  ...LFM2_SHADER_NAMES,
+export const KRYSTAL_PROGRAM_NAMES = [
+  ...KRYSTAL_SHADER_NAMES,
   ...TRAINING_SHADER_NAMES,
   ...KRYSTAL_FORWARD_SHADER_NAMES,
   ...KRYSTAL_BACKWARD_SHADER_NAMES,
 ] as const;
-export type Lfm2ProgramName = (typeof LFM2_PROGRAM_NAMES)[number];
+export type KrystalProgramName = (typeof KRYSTAL_PROGRAM_NAMES)[number];
 
-export type Lfm2PassName = Exclude<Lfm2ProgramName, "constraint_mask">;
+export type KrystalPassName = Exclude<KrystalProgramName, "constraint_mask">;
 
-export type Lfm2Mode = "prefill" | "decode" | "continuation";
+export type KrystalMode = "prefill" | "decode" | "continuation";
 
 /** Host-side shape of the per-dispatch OpParams schema. */
-export interface Lfm2OpParams {
+export interface KrystalOpParams {
   inputOffset?: number;
   outputOffset?: number;
   auxOffset?: number;
@@ -538,7 +538,7 @@ export interface Lfm2OpParams {
   rowCount?: number;
   layerIndex?: number;
   attentionSlot?: number;
-  mode?: Lfm2Mode;
+  mode?: KrystalMode;
   f0?: number;
   f1?: number;
   u0?: number;
@@ -549,26 +549,26 @@ export interface Lfm2OpParams {
   u5?: number;
 }
 
-export type Lfm2Workgroups = readonly [x: number, y: number, z: number];
-export type Lfm2WeightBinding = "none" | "raw" | "f32";
+export type KrystalWorkgroups = readonly [x: number, y: number, z: number];
+export type KrystalWeightBinding = "none" | "raw" | "f32";
 
 /**
  * A pass is the stable execution-level description of one shader entry point.
  * It owns dispatch geometry; the runtime only supplies OpParams and, where
  * required, the concrete tensor page bound to the weight resource.
  */
-export interface Lfm2PassSpec {
+export interface KrystalPassSpec {
   readonly program: AnyComputeHandle;
-  readonly weight: Lfm2WeightBinding;
-  workgroups(op: Readonly<Lfm2OpParams>): Lfm2Workgroups;
+  readonly weight: KrystalWeightBinding;
+  workgroups(op: Readonly<KrystalOpParams>): KrystalWorkgroups;
 }
 
 /**
- * Definition-level plain fields shared by both builders (lfm2-definition.ts
- * DSL and lfm2-artifact.ts). Keeping them in one place means a capacity or
+ * Definition-level plain fields shared by both builders (krystal-definition.ts
+ * DSL and krystal-artifact.ts). Keeping them in one place means a capacity or
  * constraint change cannot silently diverge between the two paths.
  */
-export const LFM2_DEFINITION_PLAIN = {
+export const KRYSTAL_DEFINITION_PLAIN = {
   capacities: {
     context: CONTEXT_CAPACITY,
     maxNewTokens: MAX_NEW_TOKENS,
@@ -582,23 +582,23 @@ export const LFM2_DEFINITION_PLAIN = {
       readback: TRAINING_READBACK_ELEMENTS,
     },
   },
-  trainingArena: LFM2_TRAINING_ARENA,
+  trainingArena: KRYSTAL_TRAINING_ARENA,
 } as const;
 
-function required(value: number | undefined, field: keyof Lfm2OpParams): number {
-  if (value === undefined) throw new Error(`LFM2 pass requires op.${field}`);
+function required(value: number | undefined, field: keyof KrystalOpParams): number {
+  if (value === undefined) throw new Error(`Krystal pass requires op.${field}`);
   return value;
 }
 
-function linear(value: number, workgroupSize: number): Lfm2Workgroups {
+function linear(value: number, workgroupSize: number): KrystalWorkgroups {
   return [Math.ceil(value / workgroupSize), 1, 1];
 }
 
 function definePass(
   program: AnyComputeHandle,
-  weight: Lfm2WeightBinding,
-  workgroups: Lfm2PassSpec["workgroups"],
-): Lfm2PassSpec {
+  weight: KrystalWeightBinding,
+  workgroups: KrystalPassSpec["workgroups"],
+): KrystalPassSpec {
   return { program, weight, workgroups };
 }
 
@@ -606,9 +606,9 @@ function definePass(
  * Per-shader dispatch rules, parameterized by the program handles so the same
  * geometry drives both the DSL-built and the artifact-built definition.
  */
-export function defineLfm2Passes(
-  programs: Record<Lfm2ProgramName, AnyComputeHandle>,
-): Record<Lfm2PassName, Lfm2PassSpec> {
+export function defineKrystalPasses(
+  programs: Record<KrystalProgramName, AnyComputeHandle>,
+): Record<KrystalPassName, KrystalPassSpec> {
   return {
     matmul_f32: definePass(programs.matmul_f32, "f32", (op) =>
       [required(op.rowCount, "rowCount"), required(op.tokenCount, "tokenCount"), 1]),
@@ -710,5 +710,5 @@ export function defineLfm2Passes(
     krystal_decision_head_backward: definePass(programs.krystal_decision_head_backward, "f32", (op) =>
       linear(3 * required(op.tokenCount, "tokenCount") * required(op.inputDim, "inputDim") +
         required(op.outputDim, "outputDim") * 3 * required(op.inputDim, "inputDim"), 256)),
-  } satisfies Record<Lfm2PassName, Lfm2PassSpec>;
+  } satisfies Record<KrystalPassName, KrystalPassSpec>;
 }

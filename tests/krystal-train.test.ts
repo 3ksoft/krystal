@@ -11,7 +11,7 @@ import { getTrainingHarness, readArenaRegion } from "./training-harness.ts";
 import {
   KRYSTAL_BACKWARD_ARENA,
   KRYSTAL_BACKWARD_ARENA_BASE,
-} from "../packages/webgpu/src/lfm2-layout.ts";
+} from "../packages/webgpu/src/krystal-layout.ts";
 import { KrystalForward, type SelectionMasks } from "../packages/webgpu/src/krystal-forward.ts";
 import { KrystalBackward } from "../packages/webgpu/src/krystal-backward.ts";
 import { ACTION_INTENT_SCHEMA_ID, buildFixtureFrame } from "../packages/krystal/src/fixtures/frame.ts";

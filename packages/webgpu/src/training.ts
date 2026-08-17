@@ -10,7 +10,7 @@
 //     once from host Float32Arrays and updated in place by sgd_step. Frozen
 //     pages are simply never dispatched through sgd_step.
 //   - Activations/gradients live in the shared f32 arena, in the training
-//     regions appended after the LFM2 layout (TRAINING_ARENA_BASE).
+//     regions leading the shared arena (TRAINING_ARENA_BASE = 0).
 //   - Dispatch order mirrors WEBGPU_BACKWARD_PLAN.md §11.
 //
 // The attention encoder block (§17 item 6 wiring) runs when `encoder` is set:
@@ -36,16 +36,16 @@
 //   - debug readbacks (parameter snapshots) copy into the small
 //     training-readback staging buffer instead of reading back pages directly.
 import {
-  LFM2_TRAINING_ARENA,
+  KRYSTAL_TRAINING_ARENA,
   TRAINING_ARENA_BASE,
   TRAINING_MAX_H,
   TRAINING_MAX_HEADS,
   TRAINING_MAX_M,
   TRAINING_MAX_V,
   TRAINING_READBACK_ELEMENTS,
-} from "./lfm2-layout";
-import { lfm2, type Lfm2Definition } from "./lfm2";
-import { Lfm2Executor } from "./pass";
+} from "./krystal-layout";
+import { krystal, type KrystalDefinition } from "./krystal";
+import { KrystalExecutor } from "./pass";
 
 export interface EncoderConfig {
   /** Full attention heads; head h owns columns [h*headDim, (h+1)*headDim). */
@@ -132,26 +132,26 @@ function assertDims(config: TrainingConfig): void {
 }
 
 /**
- * Host-facing training runner. Wraps the shared LFM2 definition and reuses the
+ * Host-facing training runner. Wraps the shared Krystal definition and reuses the
  * existing OpParams/arena/pass.run orchestration; callers never run individual
  * backward dispatches themselves.
  */
 export class TrainingTrainer {
-  private readonly definition: Lfm2Definition;
+  private readonly definition: KrystalDefinition;
   private readonly config: TrainingConfig;
   private readonly embeddingPage: GPUBuffer;
   private readonly classifierPage: GPUBuffer;
   private readonly wqPage: GPUBuffer | undefined;
   private readonly wkPage: GPUBuffer | undefined;
   private readonly wvPage: GPUBuffer | undefined;
-  private readonly executor: Lfm2Executor;
+  private readonly executor: KrystalExecutor;
   private step = 0;
 
-  constructor(config: TrainingConfig, definition: Lfm2Definition = lfm2) {
+  constructor(config: TrainingConfig, definition: KrystalDefinition = krystal) {
     assertDims(config);
     this.config = config;
     this.definition = definition;
-    this.executor = new Lfm2Executor(definition);
+    this.executor = new KrystalExecutor(definition);
 
     const paramUsage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC;
     const { vocabSize: V, hiddenSize: H } = config;
@@ -178,7 +178,7 @@ export class TrainingTrainer {
 
   private region(offset: number, elements: number): number {
     validate(
-      offset + elements <= LFM2_TRAINING_ARENA.elements,
+      offset + elements <= KRYSTAL_TRAINING_ARENA.elements,
       "training arena region overflows the declared capacity",
     );
     return TRAINING_ARENA_BASE + offset;
@@ -208,8 +208,8 @@ export class TrainingTrainer {
       validate(options.mask!.length === M * M, `mask length ${options.mask!.length} != M*M ${M * M}`);
     }
 
-    // Arena regions (WEBGPU_BACKWARD_PLAN.md §13), appended after the LFM2 ones.
-    const A = LFM2_TRAINING_ARENA;
+    // Arena regions (WEBGPU_BACKWARD_PLAN.md §13) — training regions lead the arena.
+    const A = KRYSTAL_TRAINING_ARENA;
     const hidden = this.region(A.hidden, M * H);
     const logits = this.region(A.logits, M * V);
     const lossRows = this.region(A.lossRows, M);
@@ -484,7 +484,7 @@ export class TrainingTrainer {
 
   /** Read back the logits [M,V] produced by the last trainStep. Debug/test-only. */
   async readLogits(m: number, v: number): Promise<Float32Array> {
-    const logits = this.region(LFM2_TRAINING_ARENA.logits, m * v);
+    const logits = this.region(KRYSTAL_TRAINING_ARENA.logits, m * v);
     validate(m * v <= TRAINING_READBACK_ELEMENTS, `logits readback ${m * v} exceeds staging capacity`);
     return this.readbackInto(this.definition.resources.arena.gpu, logits * 4, m * v);
   }

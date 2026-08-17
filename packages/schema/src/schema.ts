@@ -169,7 +169,7 @@ export const schema = scope({
     numberText: ["u32[] == 16", "=", () => new Array(16).fill(0)],
   },
 
-  Lfm2Mode: "'prefill' | 'decode' | 'continuation'",
+  KrystalMode: "'prefill' | 'decode' | 'continuation'",
 
   OpParams: {
     inputOffset: "u32 = 0",
@@ -192,7 +192,7 @@ export const schema = scope({
     rowCount: "u32 = 0",
     layerIndex: "u32 = 0",
     attentionSlot: "u32 = 0",
-    mode: "Lfm2Mode = 'prefill'",
+    mode: "KrystalMode = 'prefill'",
 
     f0: "f32 = 0",
     f1: "f32 = 0",

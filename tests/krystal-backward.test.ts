@@ -13,7 +13,7 @@ import {
   KRYSTAL_BACKWARD_ARENA_BASE,
   KRYSTAL_FORWARD_ARENA,
   KRYSTAL_FORWARD_ARENA_BASE,
-} from "../packages/webgpu/src/lfm2-layout.ts";
+} from "../packages/webgpu/src/krystal-layout.ts";
 import {
   attentionBackwardQkv,
   attentionBackwardScores,

@@ -1,48 +1,48 @@
-// Artifact-backed LFM2 definition (runtime path).
+// Artifact-backed Krystal definition (runtime path).
 //
-// `lfm2.artifact.generated.ts` is linked at build time: it carries every layout
+// `krystal.artifact.generated.ts` is linked at build time: it carries every layout
 // plan, binding manifest and linked WGSL string. `Sandblaster.fromArtifact()`
 // creates the resource and program handles *from* that artifact, so the runtime
 // never re-declares the graph through the arktype DSL (which would mean parsing
 // the whole schema at startup only to throw the result away).
 //
-// This module — with lfm2-layout.ts — is the entire runtime definition surface.
+// This module — with krystal-layout.ts — is the entire runtime definition surface.
 // Nothing here imports `$`, arktype or @schema-pop, so it is what the native
 // (scriptc) target can compile statically.
 import { Sandblaster } from "@sandblaster/core";
-import { lfm2Artifact } from "./lfm2.artifact.generated";
+import { krystalArtifact } from "./krystal.artifact.generated";
 import {
-  LFM2_DEFINITION_PLAIN,
+  KRYSTAL_DEFINITION_PLAIN,
   OP_PARAM_BUFFER_BYTES,
-  type Lfm2ProgramName,
-  type Lfm2OpParams,
-  defineLfm2Passes,
-} from "./lfm2-layout";
+  type KrystalProgramName,
+  type KrystalOpParams,
+  defineKrystalPasses,
+} from "./krystal-layout";
 
 /**
  * Runtime-only buffer fields that serialization deliberately leaves out,
  * keyed by the artifact buffer's label (unknown keys are rejected).
  *
- * These mirror the `engine.buffer(...)` declarations in lfm2-definition.ts:
+ * These mirror the `engine.buffer(...)` declarations in krystal-definition.ts:
  * the OpParams buffer must be sized for the whole schema-derived dispatch
  * budget, and the readback-flagged buffers need COPY_SRC (checkpoint copies,
  * generation readback) without forcing staging until actually read back.
  *
  * The legacy LFM2 runtime buffer (with its `value: LlmRuntime.assert({})`
- * initial value) was removed with the runtime; no remaining buffer needs an
- * initial value.
+ * initial value) was removed with the legacy runtime; no remaining buffer needs
+ * an initial value.
  */
 const ARTIFACT_BUFFER_OPTIONS = {
-  "lfm2.op": { size: OP_PARAM_BUFFER_BYTES },
-  "lfm2.tokens": { readback: true },
-  "lfm2.arena": { readback: true },
-  "lfm2.targets": {},
-  "lfm2.loss-telemetry": { readback: true },
-  "lfm2.training-readback": { readback: true },
+  "krystal.op": { size: OP_PARAM_BUFFER_BYTES },
+  "krystal.tokens": { readback: true },
+  "krystal.arena": { readback: true },
+  "krystal.targets": {},
+  "krystal.loss-telemetry": { readback: true },
+  "krystal.training-readback": { readback: true },
 } as const;
 
-export function defineLfm2FromArtifact() {
-  const engine = Sandblaster.fromArtifact(lfm2Artifact, {
+export function defineKrystalFromArtifact() {
+  const engine = Sandblaster.fromArtifact(krystalArtifact, {
     // codec: "jit" is also the sandblaster default, but state it for parity
     // with the DSL builder (the runtime readback decoders depend on it).
     codec: "jit",
@@ -50,13 +50,13 @@ export function defineLfm2FromArtifact() {
   });
 
   const resources = {
-    op: engine.resource<Lfm2OpParams>("lfm2.op"),
-    tokens: engine.resource("lfm2.tokens"),
-    targets: engine.resource("lfm2.targets"),
-    lossTelemetry: engine.resource("lfm2.loss-telemetry"),
-    trainingReadback: engine.resource("lfm2.training-readback"),
-    arena: engine.resource("lfm2.arena"),
-    weight32: engine.resource("lfm2.probe-weight32"),
+    op: engine.resource<KrystalOpParams>("krystal.op"),
+    tokens: engine.resource("krystal.tokens"),
+    targets: engine.resource("krystal.targets"),
+    lossTelemetry: engine.resource("krystal.loss-telemetry"),
+    trainingReadback: engine.resource("krystal.training-readback"),
+    arena: engine.resource("krystal.arena"),
+    weight32: engine.resource("krystal.probe-weight32"),
   } as const;
 
   const programs = {
@@ -92,12 +92,12 @@ export function defineLfm2FromArtifact() {
     krystal_selector_backward_scores: engine.computeProgram("krystal_selector_backward_scores"),
     krystal_selector_backward_qkv: engine.computeProgram("krystal_selector_backward_qkv"),
     krystal_decision_head_backward: engine.computeProgram("krystal_decision_head_backward"),
-  } satisfies Record<Lfm2ProgramName, ReturnType<typeof engine.computeProgram>>;
+  } satisfies Record<KrystalProgramName, ReturnType<typeof engine.computeProgram>>;
 
-  const passes = defineLfm2Passes(programs);
+  const passes = defineKrystalPasses(programs);
 
   return {
-    ...LFM2_DEFINITION_PLAIN,
+    ...KRYSTAL_DEFINITION_PLAIN,
     engine,
     resources,
     programs,
@@ -106,4 +106,4 @@ export function defineLfm2FromArtifact() {
 }
 
 /** The runtime definition shape (artifact-built engine, no arktype scope). */
-export type Lfm2Definition = ReturnType<typeof defineLfm2FromArtifact>;
+export type KrystalDefinition = ReturnType<typeof defineKrystalFromArtifact>;

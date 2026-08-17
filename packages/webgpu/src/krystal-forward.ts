@@ -26,9 +26,9 @@ import {
   KRYSTAL_MAX_RECORDS,
   KRYSTAL_MAX_TOKENS,
   TRAINING_READBACK_ELEMENTS,
-} from "./lfm2-layout";
-import { lfm2, type Lfm2Definition } from "./lfm2";
-import { Lfm2Executor, type Lfm2CommandEncoder } from "./pass";
+} from "./krystal-layout";
+import { krystal, type KrystalDefinition } from "./krystal";
+import { KrystalExecutor, type KrystalCommandEncoder } from "./pass";
 import {
   compileActiveFrame,
   compileMixerMask,
@@ -82,9 +82,9 @@ export interface BrainForwardWeightPages {
 }
 
 export class KrystalForward {
-  private readonly definition: Lfm2Definition;
+  private readonly definition: KrystalDefinition;
   private readonly config: BrainForwardConfig;
-  private readonly executor: Lfm2Executor;
+  private readonly executor: KrystalExecutor;
 
   private readonly embeddingsPage: GPUBuffer;
   private readonly encPages: { wq: GPUBuffer; wk: GPUBuffer; wv: GPUBuffer; w1: GPUBuffer; w2: GPUBuffer }[];
@@ -97,7 +97,7 @@ export class KrystalForward {
   constructor(
     weights: BrainForwardWeights,
     config: BrainForwardConfig = BRAIN_FORWARD_CONFIG,
-    definition: Lfm2Definition = lfm2,
+    definition: KrystalDefinition = krystal,
   ) {
     validateBrainForwardWeights(config, weights);
     validate(config.hiddenSize <= KRYSTAL_MAX_H, `hiddenSize ${config.hiddenSize} exceeds capacity`);
@@ -105,7 +105,7 @@ export class KrystalForward {
     validate(config.headCount <= KRYSTAL_MAX_HEADS, `headCount ${config.headCount} exceeds capacity`);
     this.config = config;
     this.definition = definition;
-    this.executor = new Lfm2Executor(definition);
+    this.executor = new KrystalExecutor(definition);
 
     const usage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST;
     const device = definition.engine.device;
@@ -202,7 +202,7 @@ export class KrystalForward {
    * stacked save regions for the composed backward runner; otherwise the
    * scratch regions are reused per block as in the plain forward.
    */
-  dispatchForward(encoder: Lfm2CommandEncoder, prepared: PreparedForward, save: boolean): void {
+  dispatchForward(encoder: KrystalCommandEncoder, prepared: PreparedForward, save: boolean): void {
     const { hiddenSize: h, ffnSize: ffn, headCount: heads, headDim, encoderBlocks, mixerBlocks } = this.config;
     const { frame, selection, t, r, q } = prepared;
     const A = KRYSTAL_FORWARD_ARENA;
@@ -466,7 +466,7 @@ export class KrystalForward {
   submitPrepared(
     prepared: PreparedForward,
     save: boolean,
-    callback: (encoder: Lfm2CommandEncoder) => void,
+    callback: (encoder: KrystalCommandEncoder) => void,
   ): void {
     this.executor.submit((encoder) => {
       this.dispatchForward(encoder, prepared, save);
@@ -488,7 +488,7 @@ export class KrystalForward {
   }
 
   /** Expose the shared definition (composed runner readbacks). */
-  getDefinition(): Lfm2Definition {
+  getDefinition(): KrystalDefinition {
     return this.definition;
   }
 

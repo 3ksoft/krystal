@@ -1,12 +1,12 @@
-// Deno backend validation of the LFM2 WGSL build.
+// Deno backend validation of the Krystal WGSL build.
 //
 // Mirror of cloudCompute's packages/engine/src/util/validateShaders.mjs, adapted
 // to the Sandblaster pipeline and to Deno's native WebGPU (navigator.gpu,
 // backed by wgpu/naga) — no browser, no Dawn npm package, no libvulkan setup.
 //
-// The flow is identical to scripts/build-lfm2-artifact.ts:
+// The flow is identical to scripts/build-krystal-artifact.ts:
 //   1. read the shader bodies + includes from disk (same name lists),
-//   2. defineLfm2({ sources, includes }),
+//   2. defineKrystal({ sources, includes }),
 //   3. engine.link() — gives every program its final WGSL source
 //      (Sandblaster wraps each body with includes, bindings and the compute
 //      entry point; that exact source ships to the browser),
@@ -14,9 +14,9 @@
 //      per-program diagnostics.
 //
 // Run:
-//   deno run --allow-read --sloppy-imports scripts/validate-lfm2-shaders.ts [--full]
+//   deno run --allow-read --sloppy-imports scripts/validate-krystal-shaders.ts [--full]
 //
-// --full additionally runs lfm2.engine.compile({ device }): full pipeline
+// --full additionally runs krystal.engine.compile({ device }): full pipeline
 // creation (bind group layouts, pipelines) — the strongest backend signal.
 //
 // Exit code: 1 when any shader fails, 0 otherwise. If no WebGPU adapter is
@@ -27,18 +27,18 @@ import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  defineLfm2,
-  LFM2_INCLUDE_NAMES,
-  LFM2_SHADER_NAMES,
+  defineKrystal,
+  KRYSTAL_INCLUDE_NAMES,
+  KRYSTAL_SHADER_NAMES,
   TRAINING_SHADER_NAMES,
   KRYSTAL_FORWARD_SHADER_NAMES,
   KRYSTAL_BACKWARD_SHADER_NAMES,
-  type Lfm2IncludeName,
-  type Lfm2ShaderName,
+  type KrystalIncludeName,
+  type KrystalShaderName,
   type TrainingShaderName,
   type KrystalForwardShaderName,
   type KrystalBackwardShaderName,
-} from "../src/lfm2-definition";
+} from "../src/krystal-definition";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "..");
@@ -65,22 +65,22 @@ interface NamedSource {
   code: string;
 }
 
-interface LinkedLfm2 {
-  definition: ReturnType<typeof defineLfm2>;
+interface LinkedKrystal {
+  definition: ReturnType<typeof defineKrystal>;
   programs: NamedSource[];
 }
 
-/** Same input set and link flow as scripts/build-lfm2-artifact.ts. */
-async function linkCurrentSources(): Promise<LinkedLfm2> {
-  const core = await readNamed<Lfm2ShaderName>(shaderDir, LFM2_SHADER_NAMES);
+/** Same input set and link flow as scripts/build-krystal-artifact.ts. */
+async function linkCurrentSources(): Promise<LinkedKrystal> {
+  const core = await readNamed<KrystalShaderName>(shaderDir, KRYSTAL_SHADER_NAMES);
   const training = await readNamed<TrainingShaderName>(trainingDir, TRAINING_SHADER_NAMES);
   const krystal = await readNamed<KrystalForwardShaderName>(trainingDir, KRYSTAL_FORWARD_SHADER_NAMES);
   const backward = await readNamed<KrystalBackwardShaderName>(trainingDir, KRYSTAL_BACKWARD_SHADER_NAMES);
   const sources = { ...core, ...training, ...krystal, ...backward };
-  const includes = await readNamed<Lfm2IncludeName>(includeDir, LFM2_INCLUDE_NAMES);
-  const definition = defineLfm2({ sources, includes });
+  const includes = await readNamed<KrystalIncludeName>(includeDir, KRYSTAL_INCLUDE_NAMES);
+  const definition = defineKrystal({ sources, includes });
   definition.engine.link();
-  const programs = [...LFM2_SHADER_NAMES, ...TRAINING_SHADER_NAMES, ...KRYSTAL_FORWARD_SHADER_NAMES, ...KRYSTAL_BACKWARD_SHADER_NAMES].map((name) => ({
+  const programs = [...KRYSTAL_SHADER_NAMES, ...TRAINING_SHADER_NAMES, ...KRYSTAL_FORWARD_SHADER_NAMES, ...KRYSTAL_BACKWARD_SHADER_NAMES].map((name) => ({
     label: name,
     code: definition.programs[name].source,
   }));
@@ -95,7 +95,7 @@ async function requestDevice(): Promise<GPUDevice> {
   if (!adapter) {
     throw new Error("SKIP: no WebGPU adapter (backend without a GPU driver?)");
   }
-  return adapter.requestDevice({ label: "lfm2-shader-validation" });
+  return adapter.requestDevice({ label: "krystal-shader-validation" });
 }
 
 // --- Validation -------------------------------------------------------------
@@ -139,7 +139,7 @@ async function validateShaders(stage: string, programs: NamedSource[], device: G
 const full = Deno.args.includes("--full");
 
 console.log("[validate] linking current shader sources…");
-let linked: LinkedLfm2;
+let linked: LinkedKrystal;
 try {
   linked = await linkCurrentSources();
 } catch (error) {
@@ -180,6 +180,6 @@ if (full) {
 console.log(
   failed
     ? `\n${failed} shader(s) with errors`
-    : `\n${LFM2_SHADER_NAMES.length}/${LFM2_SHADER_NAMES.length} shaders OK`,
+    : `\n${KRYSTAL_SHADER_NAMES.length}/${KRYSTAL_SHADER_NAMES.length} shaders OK`,
 );
 Deno.exit(failed ? 1 : 0);

@@ -1,73 +1,81 @@
-# LFM2 shader sources
+# Krystal shader sources
 
 These are the shaders the runtime actually runs. They are linked at build time
-into `src/lfm2.artifact.generated.ts` by `scripts/build-lfm2-artifact.ts`, and
-the runtime loads that artifact — it never reads this directory.
+into `src/krystal.artifact.generated.ts` by `scripts/build-krystal-artifact.ts`,
+and the runtime loads that artifact — it never reads this directory.
 
-Each top-level `.wgsl` file contains **only the compute function body**.
-Sandblaster generates the entry point, the builtin parameters and the resource
-declarations from the `engine.compute({...})` call in `src/lfm2-definition.ts`.
-`includes/` holds shared helpers and workgroup scratch declarations, and is also
-where any `var<workgroup>` must live — WGSL does not allow one in a function
-body, which is what the body-only convention would otherwise tempt you into.
+Each `.wgsl` file contains **only the compute function body**. Sandblaster
+generates the entry point, the builtin parameters and the resource declarations
+from the `engine.compute({...})` call in `src/krystal-definition.ts`. `includes/`
+holds shared helpers and workgroup scratch declarations, and is also where any
+`var<workgroup>` must live — WGSL does not allow one in a function body, which
+is what the body-only convention would otherwise tempt you into.
 
 The header comment at the top of each body (`// entryPoint:`,
 `// workgroupSize:`, `// builtins:`) is **documentation, not configuration**.
-Nothing parses it. The values that take effect are in `lfm2-definition.ts`, so
-if the two disagree, the header is the one that is wrong.
+Nothing parses it. The values that take effect are in `krystal-definition.ts`,
+so if the two disagree, the header is the one that is wrong.
 
 ## Where the truth lives
 
 | question | file |
 |---|---|
-| which includes, which resources, which workgroup size | `src/lfm2-definition.ts` |
-| how many workgroups a dispatch launches | `src/lfm2-layout.ts` (`defineLfm2Passes`) |
-| which shader files exist | `LFM2_SHADER_NAMES` in `src/lfm2-layout.ts` |
-| which *programs* exist | `LFM2_PROGRAM_NAMES` — not the same set, see below |
+| which includes, which resources, which workgroup size | `src/krystal-definition.ts` |
+| how many workgroups a dispatch launches | `src/krystal-layout.ts` (`defineKrystalPasses`) |
+| which shader files exist | the `*_SHADER_NAMES` lists in `src/krystal-layout.ts` |
+| which *programs* exist | `KRYSTAL_PROGRAM_NAMES` — the union of the lists above |
 
 A per-shader table of includes used to live here and silently went stale, so it
-is deliberately gone. `lfm2-definition.ts` is short and it is the thing that
+is deliberately gone. `krystal-definition.ts` is short and it is the thing that
 executes.
 
 ## Shaders
 
+### Core elementwise/utility (`src/shaders/`)
+
 | shader | WG | notes |
 |---|---:|---|
-| `embedding` | 256 | F16 weights |
-| `embedding_wq4` | 256 | tied `token_embd`, WQ4 |
-| `rms_norm` | 64 | |
-| `matmul_f16` | 64 | fallback path |
-| `matmul_f32` | 64 | fallback path |
-| `matmul_wq4` | 64 | the hot kernel — compiled twice, see below |
-| `residual_add` | 256 | |
-| `silu_mul` | 256 | |
-| `shortconv_prefill` | 256 | |
-| `shortconv_continue` | 1 | resumes a conv window from cached state |
-| `shortconv_decode` | 256 | |
-| `qk_norm_rope` | 64 | |
-| `kv_store` | 256 | |
-| `attention` | 64 | |
-| `arena_copy` | 256 | |
-| `argmax_candidates` | 256 | sparse candidate set |
-| `argmax` | 256 | full vocabulary |
-| `constraint_mask` | 64 | structured decoding: legal-token mask |
-| `constraint_argmax` | 256 | structured decoding: masked argmax |
+| `matmul_f32` | 64 | y = x @ W^T against a weight32 page (row-reduce over input dim) |
+| `residual_add` | 256 | arena[out] = arena[in] + arena[aux] |
+| `arena_copy` | 256 | arena[out] = arena[in] |
 
-`schema.wgsl` is generated from the schema package for reference and is **not**
-one of these — it is not linked and must not be included.
+### M1 training (`src/shaders/training/`)
 
-## One body, two programs
+| shader | WG | notes |
+|---|---:|---|
+| `embedding_f32` | 256 | hidden = E[tokens] against a weight32 page |
+| `zero_f32` | 256 | zero a region |
+| `cross_entropy_forward_backward` | 64 | fused CE forward + dLogits |
+| `loss_reduce` | 64 | mean scalar loss telemetry |
+| `matmul_backward_input` | 256 | dInput = dOutput @ W against a weight32 page |
+| `matmul_backward_weight` | 256 | dW = dOutput^T @ input |
+| `embedding_backward` | 256 | scatter-add of dHidden onto token rows |
+| `sgd_step` | 256 | in-place parameter update against a weight32 page |
+| `attention_forward` | 64 | persists softmax probs for backward |
+| `attention_backward_scores` | 64 | softmax-score gradient |
+| `attention_backward_qkv` | 256 | dQ/dK/dV |
 
-`matmul_wq4.wgsl` is compiled twice, into `matmul_wq4` and `matmul_wq4_wide`.
-They differ only in the `MATMUL_ROWS` constant, supplied by the
-`matmul-rows` / `matmul-rows-wide` include, and `matmulWq4Program(outputDim)`
-in `src/lfm2-layout.ts` picks between them per call. The measured reason for
-two is in `includes/matmul-rows-wide.wgsl`.
+### M2b Krystal forward (`src/shaders/training/`)
 
-This is why `MATMUL_ROWS` is not in `includes/common.wgsl` with the other
-constants, and why program names are no longer 1:1 with file names. It could not
-be a pipeline-overridable constant: WGSL requires a const-expression for the
-size of the function-scope accumulator array.
+| shader | WG | notes |
+|---|---:|---|
+| `krystal_field_embed` | 256 | SoA frame -> field states (concatenated tables, weight32) |
+| `krystal_attention_forward` | 64 | local record attention (bidirectional, host-masked) |
+| `relu` | 256 | FFN activation |
+| `krystal_pool` | 64 | learned-query pool (bank + query) |
+| `krystal_selector` | 64 | catalog selection + soft gather |
+| `krystal_decision_head` | 64 | typed route-kind logits (weight32) |
 
-Two things must agree or output rows are silently dropped: the include's
-`MATMUL_ROWS` and the divisor in that program's `defineLfm2Passes` entry.
+### M3 Krystal backward (`src/shaders/training/`)
+
+| shader | WG | notes |
+|---|---:|---|
+| `relu_backward` | 256 | |
+| `krystal_attention_backward_scores` | 64 | softmax-score gradient |
+| `krystal_attention_backward_qkv` | 256 | dQ/dK/dV |
+| `krystal_field_embed_backward` | 256 | scatter-add into the concatenated tables |
+| `krystal_pool_backward` | 64 | pool softmax/score gradients + dPool partials |
+| `krystal_pool_dpool` | 256 | reduce dPool partials over records |
+| `krystal_selector_backward_scores` | 64 | soft-gather score gradient + pointer loss |
+| `krystal_selector_backward_qkv` | 256 | dQProj/dKProj/dValue |
+| `krystal_decision_head_backward` | 256 | dCtx (3 parts) + dWh |

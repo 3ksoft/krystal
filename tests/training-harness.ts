@@ -1,6 +1,6 @@
 // Shared GPU harness for the M1 training vertical slice tests.
 //
-// `Lfm2ComputePass.run` resolves passes through the module-level `lfm2`
+// `KrystalComputePass.run` resolves passes through the module-level `krystal`
 // definition, so the harness compiles that singleton engine exactly once per
 // process on a single shared device — the same convention as `installDawn`
 // (which guards against a second native Dawn bootstrap aborting). All training
@@ -12,16 +12,16 @@
 // whole arena.
 import { expect } from "bun:test";
 import { createWebGpuDevice } from "../packages/webgpu/src/device.ts";
-import { lfm2, type Lfm2Definition } from "../packages/webgpu/src/lfm2.ts";
-import { Lfm2Executor } from "../packages/webgpu/src/pass.ts";
-import { TRAINING_READBACK_ELEMENTS } from "../packages/webgpu/src/lfm2-layout.ts";
+import { krystal, type KrystalDefinition } from "../packages/webgpu/src/krystal.ts";
+import { KrystalExecutor } from "../packages/webgpu/src/pass.ts";
+import { TRAINING_READBACK_ELEMENTS } from "../packages/webgpu/src/krystal-layout.ts";
 import { installDawn } from "./dawn.ts";
-import type { Lfm2OpParams } from "../packages/webgpu/src/lfm2-layout.ts";
+import type { KrystalOpParams } from "../packages/webgpu/src/krystal-layout.ts";
 
 export interface TrainingHarness {
   device: GPUDevice;
-  executor: Lfm2Executor;
-  definition: Lfm2Definition;
+  executor: KrystalExecutor;
+  definition: KrystalDefinition;
 }
 
 let instance: Promise<TrainingHarness> | undefined;
@@ -42,10 +42,10 @@ export function getTrainingHarness(): Promise<TrainingHarness> {
         maxStorageBufferBindingSize: Math.min(limit, 2147483644),
       },
     });
-    const compiled = await lfm2.engine.compile({ device });
+    const compiled = await krystal.engine.compile({ device });
     expect(compiled.failed).toBe(0);
-    const executor = new Lfm2Executor(lfm2);
-    return { device, executor, definition: lfm2 };
+    const executor = new KrystalExecutor(krystal);
+    return { device, executor, definition: krystal };
   })();
   return instance;
 }
@@ -83,7 +83,7 @@ export function createWeightPage(h: TrainingHarness, values: Float32Array): GPUB
 export async function runPassWait(
   h: TrainingHarness,
   name: string,
-  op: Readonly<Lfm2OpParams>,
+  op: Readonly<KrystalOpParams>,
   weight?: GPUBuffer,
 ): Promise<void> {
   h.executor.submit((encoder) => {

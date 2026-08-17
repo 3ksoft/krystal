@@ -1,12 +1,12 @@
-// ArkType-backed LFM2 definition DSL.
+// ArkType-backed Krystal definition DSL.
 //
 // This is the build-time path: it declares the whole typed resource/program
 // graph through Sandblaster's scope API and is used by the AOT scripts
-// (scripts/build-lfm2-artifact.ts, scripts/validate-lfm2-shaders.ts) to link
-// and serialize lfm2.artifact.generated.ts.
+// (scripts/build-krystal-artifact.ts, scripts/validate-krystal-shaders.ts) to link
+// and serialize krystal.artifact.generated.ts.
 //
-// The runtime never needs it. packages/webgpu/src/lfm2.ts builds the same
-// definition from the already-linked artifact (lfm2-artifact.ts), so this
+// The runtime never needs it. packages/webgpu/src/krystal.ts builds the same
+// definition from the already-linked artifact (krystal-artifact.ts), so this
 // module — and with it arktype and `$` — stays out of scriptc-compiled graphs.
 import {
   Sandblaster,
@@ -19,26 +19,26 @@ import {
   ARENA_ELEMENTS,
   TOKEN_CAPACITY,
   OP_PARAM_BUFFER_BYTES,
-  LFM2_DEFINITION_PLAIN,
-  LFM2_SHADER_NAMES,
+  KRYSTAL_DEFINITION_PLAIN,
+  KRYSTAL_SHADER_NAMES,
   TRAINING_READBACK_ELEMENTS,
   TRAINING_SHADER_NAMES,
   KRYSTAL_FORWARD_SHADER_NAMES,
   KRYSTAL_BACKWARD_SHADER_NAMES,
-  type Lfm2ProgramName,
-  type Lfm2ShaderName,
+  type KrystalProgramName,
+  type KrystalShaderName,
   type TrainingShaderName,
   type KrystalForwardShaderName,
   type KrystalBackwardShaderName,
-  defineLfm2Passes,
-} from "./lfm2-layout";
+  defineKrystalPasses,
+} from "./krystal-layout";
 
-export * from "./lfm2-layout";
+export * from "./krystal-layout";
 
 // Includes still referenced by the Krystal + M1 training programs. The LFM2
 // model-inference includes (weights, matmul-rows, sampling, constraint-vm,
 // telemetry, ...) were removed with the legacy runtime.
-export const LFM2_INCLUDE_NAMES = [
+export const KRYSTAL_INCLUDE_NAMES = [
   "attention-scores",
   "common",
   "pool-scores",
@@ -46,33 +46,33 @@ export const LFM2_INCLUDE_NAMES = [
   "reduce-f32",
 ] as const;
 
-export type Lfm2IncludeName = (typeof LFM2_INCLUDE_NAMES)[number];
+export type KrystalIncludeName = (typeof KRYSTAL_INCLUDE_NAMES)[number];
 
-export interface Lfm2ShaderBundle {
+export interface KrystalShaderBundle {
   readonly sources: Record<
-    Lfm2ShaderName | TrainingShaderName | KrystalForwardShaderName | KrystalBackwardShaderName,
+    KrystalShaderName | TrainingShaderName | KrystalForwardShaderName | KrystalBackwardShaderName,
     string
   >;
-  readonly includes: Record<Lfm2IncludeName, string>;
+  readonly includes: Record<KrystalIncludeName, string>;
 }
 
 function emptyRecord<const K extends readonly string[]>(keys: K): Record<K[number], string> {
   return Object.fromEntries(keys.map((key) => [key, ""])) as Record<K[number], string>;
 }
 
-export function emptyLfm2ShaderBundle(): Lfm2ShaderBundle {
+export function emptyKrystalShaderBundle(): KrystalShaderBundle {
   return {
     sources: emptyRecord([
-      ...LFM2_SHADER_NAMES,
+      ...KRYSTAL_SHADER_NAMES,
       ...TRAINING_SHADER_NAMES,
       ...KRYSTAL_FORWARD_SHADER_NAMES,
       ...KRYSTAL_BACKWARD_SHADER_NAMES,
     ]),
-    includes: emptyRecord(LFM2_INCLUDE_NAMES),
+    includes: emptyRecord(KRYSTAL_INCLUDE_NAMES),
   };
 }
 
-export function defineLfm2(bundle: Lfm2ShaderBundle = emptyLfm2ShaderBundle()) {
+export function defineKrystal(bundle: KrystalShaderBundle = emptyKrystalShaderBundle()) {
   const engine = Sandblaster.create($, {
     codec: "jit",
     schema: { autoSort: true },
@@ -83,32 +83,32 @@ export function defineLfm2(bundle: Lfm2ShaderBundle = emptyLfm2ShaderBundle()) {
   const OpParams = engine.type("OpParams");
 
   // One OpParams record per dispatch, selected by dynamic uniform offset.
-  // Lfm2ParamWriter accumulates the whole submit's records and writes them in
+  // KrystalParamWriter accumulates the whole submit's records and writes them in
   // one queue.writeBuffer before the command buffer runs, so the GPU buffer
   // must hold up to OP_PARAM_BUFFER_BYTES (not a small fixed ring). count
   // stays 1: Sandblaster sizes the buffer with `size`, and a scalar value is
   // only valid for count 1. Every record is overwritten before any pass reads
   // it, so no initial value is required.
   const op = engine.buffer(OpParams, {
-    label: "lfm2.op",
+    label: "krystal.op",
     size: OP_PARAM_BUFFER_BYTES,
   });
-  const tokens = engine.buffer(engine.type(`u32[] == ${TOKEN_CAPACITY}`), { label: "lfm2.tokens", readback: true });
+  const tokens = engine.buffer(engine.type(`u32[] == ${TOKEN_CAPACITY}`), { label: "krystal.tokens", readback: true });
   // Training targets (cross-entropy ground truth), same capacity convention as
   // the token-id buffer. Only written by trainStep before a submit; no readback.
-  const targets = engine.buffer(engine.type(`u32[] == ${TOKEN_CAPACITY}`), { label: "lfm2.targets" });
+  const targets = engine.buffer(engine.type(`u32[] == ${TOKEN_CAPACITY}`), { label: "krystal.targets" });
   // Compact loss telemetry: loss_reduce writes the mean scalar here (in
   // addition to the arena region) so trainStep can read back 4 bytes instead of
   // the whole arena. Debug/test-only readback, absent from the normal path.
-  const lossTelemetry = engine.buffer(engine.type("f32[] == 1"), { label: "lfm2.loss-telemetry", readback: true });
+  const lossTelemetry = engine.buffer(engine.type("f32[] == 1"), { label: "krystal.loss-telemetry", readback: true });
   // Debug readback staging: tests copy one arena region (logits, a parameter
   // page) here with copyBufferToBuffer and read back a small slice. Sized for
   // the largest training region (a full V*H parameter page).
   const trainingReadback = engine.buffer(engine.type(`f32[] == ${TRAINING_READBACK_ELEMENTS}`), {
-    label: "lfm2.training-readback",
+    label: "krystal.training-readback",
     readback: true,
   });
-  const arena = engine.buffer(engine.type(`f32[] == ${ARENA_ELEMENTS}`), { label: "lfm2.arena", readback: true });
+  const arena = engine.buffer(engine.type(`f32[] == ${ARENA_ELEMENTS}`), { label: "krystal.arena", readback: true });
   // Placeholder overridden per dispatch with real tensor pages (pass.ts
   // `resources.weight32`). It must be declared as a count>1 SCALAR buffer so
   // Sandblaster emits a runtime-sized `array<f32>` in WGSL: a fixed-length
@@ -116,7 +116,7 @@ export function defineLfm2(bundle: Lfm2ShaderBundle = emptyLfm2ShaderBundle()) {
   // declared type size. With a runtime array, shaders can address pages of any
   // size and the layout has no minBindingSize. count=2 keeps this placeholder
   // at 8 bytes; no initial value is required.
-  const weight32 = engine.buffer(engine.type("f32"), { label: "lfm2.probe-weight32", count: 2 });
+  const weight32 = engine.buffer(engine.type("f32"), { label: "krystal.probe-weight32", count: 2 });
 
 
   type Resource = BufferResource<any>;
@@ -142,7 +142,7 @@ export function defineLfm2(bundle: Lfm2ShaderBundle = emptyLfm2ShaderBundle()) {
    * dynamic offset; tensor pages live in group 1 so they can be overridden per
    * dispatch without rebuilding the long-lived runtime group.
    */
-  function lfm2ResourceViews() {
+  function krystalResourceViews() {
     return {
       op: {
         resource: op,
@@ -165,7 +165,7 @@ export function defineLfm2(bundle: Lfm2ShaderBundle = emptyLfm2ShaderBundle()) {
     } as const;
   }
 
-  const r = lfm2ResourceViews();
+  const r = krystalResourceViews();
 
   /**
    * Define all current compute entry points against the per-program resource
@@ -493,9 +493,9 @@ export function defineLfm2(bundle: Lfm2ShaderBundle = emptyLfm2ShaderBundle()) {
         code: sources.krystal_decision_head_backward,
       },
     }),
-  } satisfies Record<Lfm2ProgramName, AnyComputeHandle>;
+  } satisfies Record<KrystalProgramName, AnyComputeHandle>;
 
-  const passes = defineLfm2Passes(programs);
+  const passes = defineKrystalPasses(programs);
 
   const resources = {
     op,
@@ -509,7 +509,7 @@ export function defineLfm2(bundle: Lfm2ShaderBundle = emptyLfm2ShaderBundle()) {
 
 
   return {
-    ...LFM2_DEFINITION_PLAIN,
+    ...KRYSTAL_DEFINITION_PLAIN,
     engine,
     resources,
     programs,

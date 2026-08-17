@@ -149,9 +149,9 @@ export const SIZEOF_ActionArgumentAuthoringSpec = 48;
 export const SIZEOF_ActionIntentAuthoringSpec = 92;
 export const SIZEOF_SoftGatherResult = 32;
 export const SIZEOF_TypedArgumentValue = 60;
-export const SIZEOF_IntentProposal = 320;
+export const SIZEOF_IntentProposal = 324;
 export const INTENT_PROPOSAL_ARGUMENTS_LEN = 4;
-export const SIZEOF_IntentSet = 2576;
+export const SIZEOF_IntentSet = 2608;
 export const INTENT_SET_PROPOSALS_LEN = 8;
 export const SIZEOF_ActiveIntentState = 64;
 export const SIZEOF_ActiveIntentTable = 1040;
@@ -168,7 +168,7 @@ export const SIZEOF_BrainModelConfig = 40;
 export const SIZEOF_BrainRuntimeConfig = 108;
 export const SIZEOF_BrainRuntimeState = 32;
 export const SIZEOF_BrainStepTelemetry = 72;
-export const SIZEOF_BrainStepResult = 2680;
+export const SIZEOF_BrainStepResult = 2712;
 
 export function deserializeBandMask(view: DataView, offset: number): BandMask {
 	return view.getUint32(offset, true) as any;
@@ -2024,7 +2024,7 @@ export function serializeIntentExecutionStatus(val: IntentExecutionStatus, view:
 export function deserializeIntentProposal(view: DataView, offset: number, outObj?: any): IntentProposal {
 	if (!outObj) {
 		const _arr_arguments = new Array(4);
-		for (let i = 0, _off_arguments = offset + 80; i < 4; i++, _off_arguments += 60) {
+		for (let i = 0, _off_arguments = offset + 84; i < 4; i++, _off_arguments += 60) {
 			_arr_arguments[i] = ({ kind: deserializeBrainValueKind(view, _off_arguments), token: view.getUint32(_off_arguments + 4, true), flags: view.getUint32(_off_arguments + 8, true), reserved0: view.getUint32(_off_arguments + 12, true), handle: deserializeRuntimeRefHandle(view, _off_arguments + 16), selector: deserializeSoftGatherResult(view, _off_arguments + 28) });
 		}
 		return {
@@ -2038,13 +2038,14 @@ export function deserializeIntentProposal(view: DataView, offset: number, outObj
 			topic: deserializeRuntimeRefHandle(view, offset + 52),
 			activation: view.getFloat32(offset + 64, true),
 			priority: view.getFloat32(offset + 68, true),
-			persistence: view.getFloat32(offset + 72, true),
-			confidence: view.getFloat32(offset + 76, true),
+			intensity: view.getFloat32(offset + 72, true),
+			persistence: view.getFloat32(offset + 76, true),
+			confidence: view.getFloat32(offset + 80, true),
 			arguments: _arr_arguments,
 		} as any;
 	}
 	const _arr_arguments = new Array(4);
-	for (let i = 0, _off_arguments = offset + 80; i < 4; i++, _off_arguments += 60) {
+	for (let i = 0, _off_arguments = offset + 84; i < 4; i++, _off_arguments += 60) {
 		_arr_arguments[i] = ({ kind: deserializeBrainValueKind(view, _off_arguments), token: view.getUint32(_off_arguments + 4, true), flags: view.getUint32(_off_arguments + 8, true), reserved0: view.getUint32(_off_arguments + 12, true), handle: deserializeRuntimeRefHandle(view, _off_arguments + 16), selector: deserializeSoftGatherResult(view, _off_arguments + 28) });
 	}
 	outObj.proposalSlot = view.getUint32(offset, true);
@@ -2057,8 +2058,9 @@ export function deserializeIntentProposal(view: DataView, offset: number, outObj
 	outObj.topic = deserializeRuntimeRefHandle(view, offset + 52);
 	outObj.activation = view.getFloat32(offset + 64, true);
 	outObj.priority = view.getFloat32(offset + 68, true);
-	outObj.persistence = view.getFloat32(offset + 72, true);
-	outObj.confidence = view.getFloat32(offset + 76, true);
+	outObj.intensity = view.getFloat32(offset + 72, true);
+	outObj.persistence = view.getFloat32(offset + 76, true);
+	outObj.confidence = view.getFloat32(offset + 80, true);
 	outObj.arguments = _arr_arguments;
 	return outObj;
 }
@@ -2074,16 +2076,17 @@ export function serializeIntentProposal(val: IntentProposal, view: DataView, off
 	serializeRuntimeRefHandle(val.topic, view, offset + 52);
 	view.setFloat32(offset + 64, val.activation, true);
 	view.setFloat32(offset + 68, val.priority, true);
-	view.setFloat32(offset + 72, val.persistence, true);
-	view.setFloat32(offset + 76, val.confidence, true);
-	{ for (let i = 0, __o = offset + 80; i < 4; i++, __o += 60) { const __e = val.arguments[i]!; { serializeBrainValueKind(__e.kind, view, __o); view.setUint32(__o + 4, __e.token, true); view.setUint32(__o + 8, __e.flags, true); view.setUint32(__o + 12, __e.reserved0, true); serializeRuntimeRefHandle(__e.handle, view, __o + 16); serializeSoftGatherResult(__e.selector, view, __o + 28); } } }
+	view.setFloat32(offset + 72, val.intensity, true);
+	view.setFloat32(offset + 76, val.persistence, true);
+	view.setFloat32(offset + 80, val.confidence, true);
+	{ for (let i = 0, __o = offset + 84; i < 4; i++, __o += 60) { const __e = val.arguments[i]!; { serializeBrainValueKind(__e.kind, view, __o); view.setUint32(__o + 4, __e.token, true); view.setUint32(__o + 8, __e.flags, true); view.setUint32(__o + 12, __e.reserved0, true); serializeRuntimeRefHandle(__e.handle, view, __o + 16); serializeSoftGatherResult(__e.selector, view, __o + 28); } } }
 }
 
 export function deserializeIntentSet(view: DataView, offset: number, outObj?: any): IntentSet {
 	if (!outObj) {
 		const _arr_proposals = new Array(8);
-		for (let i = 0, _off_proposals = offset + 16; i < 8; i++, _off_proposals += 320) {
-			_arr_proposals[i] = ({ proposalSlot: view.getUint32(_off_proposals, true), lifecycle: deserializeIntentLifecycle(view, _off_proposals + 4), intentId: view.getUint32(_off_proposals + 8, true), flags: view.getUint32(_off_proposals + 12, true), intentRef: deserializeRuntimeRefHandle(view, _off_proposals + 16), purposeGoal: deserializeRuntimeRefHandle(view, _off_proposals + 28), controllerHint: deserializeRuntimeRefHandle(view, _off_proposals + 40), topic: deserializeRuntimeRefHandle(view, _off_proposals + 52), activation: view.getFloat32(_off_proposals + 64, true), priority: view.getFloat32(_off_proposals + 68, true), persistence: view.getFloat32(_off_proposals + 72, true), confidence: view.getFloat32(_off_proposals + 76, true), arguments: ((o) => { const a: any[] = []; for(let i=0; i<4; i++) a.push(deserializeTypedArgumentValue(view, o + (i * 60))); return a; })(_off_proposals + 80) });
+		for (let i = 0, _off_proposals = offset + 16; i < 8; i++, _off_proposals += 324) {
+			_arr_proposals[i] = ({ proposalSlot: view.getUint32(_off_proposals, true), lifecycle: deserializeIntentLifecycle(view, _off_proposals + 4), intentId: view.getUint32(_off_proposals + 8, true), flags: view.getUint32(_off_proposals + 12, true), intentRef: deserializeRuntimeRefHandle(view, _off_proposals + 16), purposeGoal: deserializeRuntimeRefHandle(view, _off_proposals + 28), controllerHint: deserializeRuntimeRefHandle(view, _off_proposals + 40), topic: deserializeRuntimeRefHandle(view, _off_proposals + 52), activation: view.getFloat32(_off_proposals + 64, true), priority: view.getFloat32(_off_proposals + 68, true), intensity: view.getFloat32(_off_proposals + 72, true), persistence: view.getFloat32(_off_proposals + 76, true), confidence: view.getFloat32(_off_proposals + 80, true), arguments: ((o) => { const a: any[] = []; for(let i=0; i<4; i++) a.push(deserializeTypedArgumentValue(view, o + (i * 60))); return a; })(_off_proposals + 84) });
 		}
 		return {
 			tick: view.getUint32(offset, true),
@@ -2094,8 +2097,8 @@ export function deserializeIntentSet(view: DataView, offset: number, outObj?: an
 		} as any;
 	}
 	const _arr_proposals = new Array(8);
-	for (let i = 0, _off_proposals = offset + 16; i < 8; i++, _off_proposals += 320) {
-		_arr_proposals[i] = ({ proposalSlot: view.getUint32(_off_proposals, true), lifecycle: deserializeIntentLifecycle(view, _off_proposals + 4), intentId: view.getUint32(_off_proposals + 8, true), flags: view.getUint32(_off_proposals + 12, true), intentRef: deserializeRuntimeRefHandle(view, _off_proposals + 16), purposeGoal: deserializeRuntimeRefHandle(view, _off_proposals + 28), controllerHint: deserializeRuntimeRefHandle(view, _off_proposals + 40), topic: deserializeRuntimeRefHandle(view, _off_proposals + 52), activation: view.getFloat32(_off_proposals + 64, true), priority: view.getFloat32(_off_proposals + 68, true), persistence: view.getFloat32(_off_proposals + 72, true), confidence: view.getFloat32(_off_proposals + 76, true), arguments: ((o) => { const a: any[] = []; for(let i=0; i<4; i++) a.push(deserializeTypedArgumentValue(view, o + (i * 60))); return a; })(_off_proposals + 80) });
+	for (let i = 0, _off_proposals = offset + 16; i < 8; i++, _off_proposals += 324) {
+		_arr_proposals[i] = ({ proposalSlot: view.getUint32(_off_proposals, true), lifecycle: deserializeIntentLifecycle(view, _off_proposals + 4), intentId: view.getUint32(_off_proposals + 8, true), flags: view.getUint32(_off_proposals + 12, true), intentRef: deserializeRuntimeRefHandle(view, _off_proposals + 16), purposeGoal: deserializeRuntimeRefHandle(view, _off_proposals + 28), controllerHint: deserializeRuntimeRefHandle(view, _off_proposals + 40), topic: deserializeRuntimeRefHandle(view, _off_proposals + 52), activation: view.getFloat32(_off_proposals + 64, true), priority: view.getFloat32(_off_proposals + 68, true), intensity: view.getFloat32(_off_proposals + 72, true), persistence: view.getFloat32(_off_proposals + 76, true), confidence: view.getFloat32(_off_proposals + 80, true), arguments: ((o) => { const a: any[] = []; for(let i=0; i<4; i++) a.push(deserializeTypedArgumentValue(view, o + (i * 60))); return a; })(_off_proposals + 84) });
 	}
 	outObj.tick = view.getUint32(offset, true);
 	outObj.count = view.getUint32(offset + 4, true);
@@ -2110,7 +2113,7 @@ export function serializeIntentSet(val: IntentSet, view: DataView, offset: numbe
 	view.setUint32(offset + 4, val.count, true);
 	view.setUint32(offset + 8, val.revision, true);
 	view.setUint32(offset + 12, val.flags, true);
-	{ for (let i = 0, __o = offset + 16; i < 8; i++, __o += 320) { const __e = val.proposals[i]!; { view.setUint32(__o, __e.proposalSlot, true); serializeIntentLifecycle(__e.lifecycle, view, __o + 4); view.setUint32(__o + 8, __e.intentId, true); view.setUint32(__o + 12, __e.flags, true); serializeRuntimeRefHandle(__e.intentRef, view, __o + 16); serializeRuntimeRefHandle(__e.purposeGoal, view, __o + 28); serializeRuntimeRefHandle(__e.controllerHint, view, __o + 40); serializeRuntimeRefHandle(__e.topic, view, __o + 52); view.setFloat32(__o + 64, __e.activation, true); view.setFloat32(__o + 68, __e.priority, true); view.setFloat32(__o + 72, __e.persistence, true); view.setFloat32(__o + 76, __e.confidence, true); { for (let i = 0, __o1 = __o + 80; i < 4; i++, __o1 += 60) { const __e1 = __e.arguments[i]!; { serializeBrainValueKind(__e1.kind, view, __o1); view.setUint32(__o1 + 4, __e1.token, true); view.setUint32(__o1 + 8, __e1.flags, true); view.setUint32(__o1 + 12, __e1.reserved0, true); serializeRuntimeRefHandle(__e1.handle, view, __o1 + 16); serializeSoftGatherResult(__e1.selector, view, __o1 + 28); } } } } } }
+	{ for (let i = 0, __o = offset + 16; i < 8; i++, __o += 324) { const __e = val.proposals[i]!; { view.setUint32(__o, __e.proposalSlot, true); serializeIntentLifecycle(__e.lifecycle, view, __o + 4); view.setUint32(__o + 8, __e.intentId, true); view.setUint32(__o + 12, __e.flags, true); serializeRuntimeRefHandle(__e.intentRef, view, __o + 16); serializeRuntimeRefHandle(__e.purposeGoal, view, __o + 28); serializeRuntimeRefHandle(__e.controllerHint, view, __o + 40); serializeRuntimeRefHandle(__e.topic, view, __o + 52); view.setFloat32(__o + 64, __e.activation, true); view.setFloat32(__o + 68, __e.priority, true); view.setFloat32(__o + 72, __e.intensity, true); view.setFloat32(__o + 76, __e.persistence, true); view.setFloat32(__o + 80, __e.confidence, true); { for (let i = 0, __o1 = __o + 84; i < 4; i++, __o1 += 60) { const __e1 = __e.arguments[i]!; { serializeBrainValueKind(__e1.kind, view, __o1); view.setUint32(__o1 + 4, __e1.token, true); view.setUint32(__o1 + 8, __e1.flags, true); view.setUint32(__o1 + 12, __e1.reserved0, true); serializeRuntimeRefHandle(__e1.handle, view, __o1 + 16); serializeSoftGatherResult(__e1.selector, view, __o1 + 28); } } } } } }
 }
 
 export function deserializeActiveIntentState(view: DataView, offset: number, outObj?: any): ActiveIntentState {
@@ -2761,18 +2764,18 @@ export function deserializeBrainStepResult(view: DataView, offset: number, outOb
 		return {
 			state: deserializeBrainRuntimeState(view, offset),
 			intents: deserializeIntentSet(view, offset + 32),
-			telemetry: deserializeBrainStepTelemetry(view, offset + 2608),
+			telemetry: deserializeBrainStepTelemetry(view, offset + 2640),
 		} as any;
 	}
 	outObj.state = deserializeBrainRuntimeState(view, offset);
 	outObj.intents = deserializeIntentSet(view, offset + 32);
-	outObj.telemetry = deserializeBrainStepTelemetry(view, offset + 2608);
+	outObj.telemetry = deserializeBrainStepTelemetry(view, offset + 2640);
 	return outObj;
 }
 
 export function serializeBrainStepResult(val: BrainStepResult, view: DataView, offset: number): void {
 	serializeBrainRuntimeState(val.state, view, offset);
 	serializeIntentSet(val.intents, view, offset + 32);
-	serializeBrainStepTelemetry(val.telemetry, view, offset + 2608);
+	serializeBrainStepTelemetry(val.telemetry, view, offset + 2640);
 }
 
