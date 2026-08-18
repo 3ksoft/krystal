@@ -105,6 +105,36 @@ export const FIXTURE_ACTION_INTENTS: readonly ActionIntentAuthoringSpec[] = [
     arguments: [],
     doc: "communicative LAUGH() — positive homeostasis valence",
   },
+  {
+    // W2 case-binding assay (docs/word_attention_bias.md). CHASE is the first
+    // fixture intent whose argument is identified by a *grammatical* role
+    // rather than by feasibility: every animate record is an equally legal
+    // filler, so the candidate mask admits all of them and only the
+    // ACCUSATIVE marking distinguishes the patient from the agent. That is
+    // deliberate — an argument the mask can pre-select would make the assay
+    // measure the mask, not the case binding.
+    name: "CHASE",
+    actionToken: fixtureTokenId("CHASE"),
+    semanticIntentToken: fixtureTokenId("CHASE"),
+    domain: "postural",
+    durative: true,
+    arguments: [
+      {
+        name: "target",
+        // The argument's grammatical role, declared here rather than implied
+        // by argument order: the filler is the participant marked ACCUSATIVE.
+        roleToken: fixtureTokenId("ACCUSATIVE"),
+        valueKind: "context_ref",
+        // Identity exemplar (as EAT names Apple); the "animate" capability is
+        // what actually widens acceptance to Dog/Cat/Mother.
+        acceptedSchema: "Dog",
+        candidateBands: ["vision", "memory"],
+        required: true,
+        doc: "the pursued participant — the accusative-marked entity (capability: animate)",
+      },
+    ],
+    doc: "CHASE(ref) — pursue the accusative-marked animate participant",
+  },
 ];
 
 export class FixtureActionCatalogError extends Error {
@@ -133,11 +163,11 @@ function domainFlag(domain: ActionIntentAuthoringSpec["domain"]): number {
   }
 }
 
-function validateFixtureActionIntents(): void {
+function validateFixtureActionIntents(intents: readonly ActionIntentAuthoringSpec[]): void {
   const knownTokens = new Set(FIXTURE_TOKENS.map((spec) => spec.id));
   const recordNames = new Set(FIXTURE_RECORD_SCHEMAS.map((schema) => schema.name));
   const intentNames = new Set<string>();
-  for (const intent of FIXTURE_ACTION_INTENTS) {
+  for (const intent of intents) {
     if (intentNames.has(intent.name)) {
       throw new FixtureActionCatalogError(`duplicate intent name: ${intent.name}`);
     }
@@ -181,17 +211,24 @@ export interface CompiledActionCatalog {
   arguments: ActionArgumentDescriptor[];
 }
 
-/** Compile the fixture ActionIntent catalog into device manifest forms. */
-export function buildFixtureActionCatalog(): CompiledActionCatalog {
-  validateFixtureActionIntents();
+/**
+ * Compile an ActionIntent catalog into device manifest forms. `intents`
+ * defaults to the fixture catalog; it is a parameter so a caller (and the
+ * catalog-integrity test) can compile a variant without mutating the module
+ * constant. A later game-derived catalog compiles through this same path.
+ */
+export function buildFixtureActionCatalog(
+  intents: readonly ActionIntentAuthoringSpec[] = FIXTURE_ACTION_INTENTS,
+): CompiledActionCatalog {
+  validateFixtureActionIntents(intents);
   const schemaIdOf = (name: string | undefined): number =>
     name ? FIXTURE_RECORD_SCHEMAS.findIndex((schema) => schema.name === name) : 0;
 
   const descriptors: ActionIntentDescriptor[] = [];
   const argDescriptors: ActionArgumentDescriptor[] = [];
   let argumentOffset = 0;
-  for (let intentId = 0; intentId < FIXTURE_ACTION_INTENTS.length; intentId++) {
-    const intent = FIXTURE_ACTION_INTENTS[intentId]!;
+  for (let intentId = 0; intentId < intents.length; intentId++) {
+    const intent = intents[intentId]!;
     const flags =
       (intent.durative ? ACTION_INTENT_FLAGS.durative : 0) | domainFlag(intent.domain);
     descriptors.push({
@@ -240,7 +277,7 @@ export function buildFixtureActionCatalog(): CompiledActionCatalog {
       descriptor.preferredControllerRole,
     );
   }
-  for (const argument of arguments) {
+  for (const argument of argDescriptors) {
     words.push(
       argument.intentId,
       argument.argumentIndex,
@@ -255,7 +292,7 @@ export function buildFixtureActionCatalog(): CompiledActionCatalog {
   const header: ActionIntentCatalogHeader = {
     version: FIXTURE_ACTION_CATALOG_VERSION,
     intentCount: descriptors.length,
-    argumentCount: arguments.length,
+    argumentCount: argDescriptors.length,
     flags: 0,
     catalogHashLo: hash.lo,
     catalogHashHi: hash.hi,

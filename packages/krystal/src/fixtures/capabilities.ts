@@ -20,10 +20,12 @@ export const FIXTURE_SCHEMA_CAPABILITIES: Readonly<Record<string, readonly strin
   Apple: ["observable", "edible"],
   Berry: ["observable", "edible"],
   Bread: ["observable", "edible"],
-  Mother: ["observable", "agent"],
+  Mother: ["observable", "agent", "animate"],
   Stone: ["observable"],
   Feces: ["observable"],
   UnknownObject: ["observable"],
+  Dog: ["observable", "animate"],
+  Cat: ["observable", "animate"],
   HomeostasisQuery: [],
   MemoryObject: ["observable", "remembered"],
 };
@@ -31,13 +33,17 @@ export const FIXTURE_SCHEMA_CAPABILITIES: Readonly<Record<string, readonly strin
 /**
  * Capability required by each intent argument, keyed `intentName.argName`.
  * `EAT.target` requires "edible" (S7: any edible record, not just Apple);
- * `LOOK.target` and `MOVE_TOWARDS.target` require "observable". Absent entries
- * fall back to the argument's `acceptedSchema` identity check.
+ * `LOOK.target` and `MOVE_TOWARDS.target` require "observable";
+ * `CHASE.target` requires "animate" — a thing that can flee, so every animate
+ * record is an equally legal filler and the mask cannot pre-select the patient
+ * for the selector. Absent entries fall back to the argument's
+ * `acceptedSchema` identity check.
  */
 export const FIXTURE_ARGUMENT_CAPABILITIES: Readonly<Record<string, string>> = {
   "EAT.target": "edible",
   "LOOK.target": "observable",
   "MOVE_TOWARDS.target": "observable",
+  "CHASE.target": "animate",
 };
 
 /** Capability traits of one schema, resolved by name (throws on unknown). */

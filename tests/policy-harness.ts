@@ -1,6 +1,7 @@
 // Test adapter around the production policy runner. Keeping the GPU device
 // bootstrap test-local avoids coupling runtime code to `bun:test`.
 import { getTrainingHarness } from "./training-harness.ts";
+import type { WordBias } from "../packages/krystal/src/forward/masks.ts";
 import {
   productionSelection as runProductionSelection,
   type ProductionSelection,
@@ -17,6 +18,7 @@ export async function productionSelection(
   runner: KrystalForward,
   frame: v1_0_0.BrainFrameGpu,
   catalog: CompiledActionCatalog,
+  wordBias?: WordBias,
 ): Promise<ProductionSelection | null> {
-  return runProductionSelection(harness.device, runner, frame, catalog);
+  return runProductionSelection(harness.device, runner, frame, catalog, wordBias);
 }

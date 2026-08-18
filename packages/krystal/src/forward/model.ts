@@ -22,6 +22,7 @@
  *   pool        [2, H] qk row 0, qv row 1
  *   mixer[b]    same block shape as enc[b]
  */
+import { BRAIN_LIMITS } from "../../../schema/src/krystal-engine-schema.ts";
 
 export interface BrainForwardConfig {
   readonly hiddenSize: number;
@@ -51,9 +52,9 @@ export const BRAIN_FORWARD_CONFIG: BrainForwardConfig = {
   tokenSpace: 0x1000, // 12-bit token space (KRYSTAL_ABI_V0.md section 3)
   fieldSpace: 0x1000, // field roles are KrystalTokenIds in the fixture ABI
   schemaSpace: 0x100, // maxRecordSchemas
-  bandSpace: 11, // frameBands
+  bandSpace: BRAIN_LIMITS.frameBands, // one embedding row per frame band
   streamSpace: 2, // record / query
-  posSpace: 8, // recordWidth (learned record-local positions 0..7)
+  posSpace: BRAIN_LIMITS.recordWidth, // learned record-local positions
   routeKindCount: 4, // DIRECT / ACTION / ALU / NONE (provisional fixture set)
 };
 
@@ -62,13 +63,18 @@ export interface EmbeddingTableLayout {
   readonly rows: number;
 }
 
+/**
+ * Table order and row counts of the concatenated embeddings page, derived from
+ * the forward config so the two cannot disagree: a mismatch surfaces only as an
+ * "embedding row N outside table K" failure inside a training step.
+ */
 export const EMBEDDING_TABLES: readonly EmbeddingTableLayout[] = [
-  { name: "token", rows: 0x1000 },
-  { name: "field", rows: 0x1000 },
-  { name: "schema", rows: 0x100 },
-  { name: "band", rows: 11 },
-  { name: "stream", rows: 2 },
-  { name: "pos", rows: 8 },
+  { name: "token", rows: BRAIN_FORWARD_CONFIG.tokenSpace },
+  { name: "field", rows: BRAIN_FORWARD_CONFIG.fieldSpace },
+  { name: "schema", rows: BRAIN_FORWARD_CONFIG.schemaSpace },
+  { name: "band", rows: BRAIN_FORWARD_CONFIG.bandSpace },
+  { name: "stream", rows: BRAIN_FORWARD_CONFIG.streamSpace },
+  { name: "pos", rows: BRAIN_FORWARD_CONFIG.posSpace },
 ] as const;
 
 /** Base word offset of each table inside the concatenated embeddings page. */

@@ -35,6 +35,7 @@ import {
   type ComfortEpisodesArtifact,
 } from "../packages/krystal/src/bridge/comfort.ts";
 import { ACTION_INTENT_SCHEMA_ID } from "../packages/krystal/src/fixtures/frame.ts";
+import { BRAIN_FIXED_RECORDS } from "../packages/schema/src/krystal-engine-schema.ts";
 import type { v1_0_0 } from "../packages/schema/generated/krystal.types.ts";
 
 const ARTIFACT = JSON.parse(
@@ -212,10 +213,13 @@ test("lowerer: counterfactual pair frames differ only in the homeostasis signal"
     if (a.tokenIds[i] !== b.tokenIds[i]) {
       signalTokens++;
       // The only differing positions are the FEEL_BAD/FEEL_GOOD sign tokens
-      // inside the two signal records (homeostasis summary slot 4 + query
-      // slot 122); every noise coordinate is byte-identical.
+      // inside the two signal records (the homeostasis summary and the query
+      // record); every noise coordinate is byte-identical. The slots come from
+      // the band table so a layout change moves them with it.
       const slot = i >> 3;
-      expect(slot === 4 || slot === 122).toBe(true);
+      expect(
+        slot === BRAIN_FIXED_RECORDS.homeostasisSummary || slot === BRAIN_FIXED_RECORDS.primaryQuery,
+      ).toBe(true);
     }
     if (a.tokenIds[i] !== 0) noiseTokens++;
   }

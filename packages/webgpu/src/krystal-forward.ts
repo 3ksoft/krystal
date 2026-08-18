@@ -33,6 +33,7 @@ import {
   compileActiveFrame,
   compileMixerMask,
   compileRecordMask,
+  type WordBias,
   type ActiveFrame,
 } from "../../krystal/src/forward/masks";
 import {
@@ -146,7 +147,11 @@ export class KrystalForward {
    * return the compiled dimensions (t/r/q). The uploads live in the shared
    * arena, so the composed backward runner prepares once and reuses them.
    */
-  prepare(frame: v1_0_0.BrainFrameGpu, selection?: SelectionMasks): PreparedForward {
+  prepare(
+    frame: v1_0_0.BrainFrameGpu,
+    selection?: SelectionMasks,
+    wordBias?: WordBias,
+  ): PreparedForward {
     const { hiddenSize: h, ffnSize: ffn, headCount: heads, headDim, encoderBlocks, mixerBlocks } = this.config;
     const A = KRYSTAL_FORWARD_ARENA;
     const active = compileActiveFrame(frame);
@@ -158,7 +163,7 @@ export class KrystalForward {
     validate(q <= KRYSTAL_MAX_QUERIES, `query records ${q} exceed capacity`);
     validate(q > 0, "the frame must contain at least one query record for the mixer");
 
-    const { mask: recordMask } = compileRecordMask(active.activeTokens);
+    const { mask: recordMask } = compileRecordMask(active.activeTokens, wordBias);
     const mixerMask = compileMixerMask(frame, active);
     if (selection) {
       validate(
@@ -461,8 +466,12 @@ export class KrystalForward {
   }
 
   /** Run the full encoder + mixer + selection forward, GPU-resident. */
-  forward(frame: v1_0_0.BrainFrameGpu, selection?: SelectionMasks): void {
-    const prepared = this.prepare(frame, selection);
+  forward(
+    frame: v1_0_0.BrainFrameGpu,
+    selection?: SelectionMasks,
+    wordBias?: WordBias,
+  ): void {
+    const prepared = this.prepare(frame, selection, wordBias);
     this.executor.submit((encoder) => this.dispatchForward(encoder, prepared, false));
   }
 

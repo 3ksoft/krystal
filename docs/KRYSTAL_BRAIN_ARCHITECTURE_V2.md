@@ -137,8 +137,15 @@ Structural metadata should use small, dedicated embedding tables to avoid unnece
 
 A frame has a single shared limit for active tokens:
 - **Standard profile:** up to 512 tokens.
-- **Hard v2 capacity:** up to 1024 tokens.
+- **Hard v2 capacity:** up to 1536 active tokens.
 - **Execution:** runs on `activeTokenCount` only; padding up to the maximum is ignored.
+
+Slot geometry and processing capacity are deliberately separate. The frame owns
+288 record slots (2304 token positions) so bands have room for records a game
+may one day supply, while the encoder arena is sized for the 1536 active tokens
+it can actually process at once — attention memory is quadratic in tokens and
+only linear in records, so an unoccupied slot is nearly free and an occupied one
+is not.
 
 There is no fixed 256-token quota per band. The runtime maintains separate buffers or ring buffers for vision, audio, touch, proprioception, interoception, communication, and other sources. The frame composer selects whole records based on recency, delta/change, saliency, and the current need/query.
 
@@ -188,7 +195,7 @@ schemaIds[R]
 candidateMetadata[R]
 ```
 
-Global interaction cost scales with record count $R$, not the quadratic of raw tokens $T^2$. For ~1024 tokens and ~128 records, this represents a significantly smaller mixing space.
+Global interaction cost scales with record count $R$, not the quadratic of raw tokens $T^2$. For ~1536 tokens and ~288 record slots, this represents a significantly smaller mixing space.
 
 ### 6.4 Record Mixer
 
@@ -308,7 +315,7 @@ The values below represent the default implementation profile and are not part o
 | Hidden Size `H` | 128 |
 | FFN Size | 384 |
 | Block Type | LFM2 ShortConv + GQA / Cross-Attention |
-| Max Active Frame | 1024 tokens |
+| Max Active Frame | 1536 tokens (288 record slots) |
 | Typical Active Frame | up to 512 tokens |
 | Output | Typed heads (not an autoregressive LM) |
 

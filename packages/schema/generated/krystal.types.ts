@@ -51,8 +51,9 @@ export namespace v1_0_0 {
 		memory: 8,
 		focus: 9,
 		query: 10,
+		catalog: 11,
 	} as const;
-	export type BrainBandKind = "system" | "homeostasis" | "body" | "vision" | "audio" | "olfaction" | "taste" | "touch" | "memory" | "focus" | "query";
+	export type BrainBandKind = "system" | "homeostasis" | "body" | "vision" | "audio" | "olfaction" | "taste" | "touch" | "memory" | "focus" | "query" | "catalog";
 	
 	export const BandPlacementPolicy = {
 		fixed: 0,

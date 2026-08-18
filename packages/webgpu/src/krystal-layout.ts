@@ -13,6 +13,7 @@
 // The runtime entry (krystal.ts) imports only this module and krystal-artifact.ts,
 // so the DSL, `$` and arktype never enter a scriptc-compiled graph.
 import type { AnyComputeHandle } from "@sandblaster/core";
+import { BRAIN_LIMITS } from "../../schema/src/krystal-engine-schema.ts";
 
 export const CONTEXT_CAPACITY = 1024;
 // Capacity guard for the schema-derived decode budget. The parameter itself is
@@ -127,8 +128,30 @@ export const TRAINING_READBACK_ELEMENTS = TRAINING_MAX_V * TRAINING_MAX_H;
 // record masks follow concerns answer 15/16 (host-compiled masks, dispatch
 // over active records/tokens only).
 
-export const KRYSTAL_MAX_TOKENS = 1024; // frameTokens (hard v2 capacity)
-export const KRYSTAL_MAX_RECORDS = 128; // frameRecordSlots
+// PROCESSING capacity, deliberately NOT the frame's slot geometry.
+//
+// The arena preallocates encoder attention scores as [heads, T, T], so token
+// capacity costs quadratic memory while record capacity costs linear. The
+// frame may therefore hold many more slots than the model ever processes at
+// once: a band exists to give real records somewhere to live, and only the
+// OCCUPIED ones reach the encoder. Sizing this from BRAIN_LIMITS.frameTokens
+// would make every band enlargement quadruple the arena — at 288 slots that
+// is a ~400 MB allocation, past the default 256 MB maxBufferSize, which
+// surfaces as silent garbage rather than an allocation error.
+//
+// A frame whose occupancy exceeds this budget fails loudly in prepare() with
+// "active tokens exceed capacity"; the kaleidoscope noise budget in
+// bridge/policy.ts is what keeps occupancy well inside it.
+export const KRYSTAL_MAX_TOKENS = 1536; // ≈192 occupied records of 8 tokens
+export const KRYSTAL_MAX_RECORDS = BRAIN_LIMITS.frameRecordSlots;
+
+/**
+ * Storage for the SoA frame arrays that are addressed by FRAME token index
+ * (slot * recordWidth + local), not by compacted active-token index. They must
+ * span the whole frame even when only part of it is occupied, so they follow
+ * the ABI geometry rather than the processing budget above.
+ */
+export const KRYSTAL_FRAME_TOKENS = BRAIN_LIMITS.frameTokens;
 export const KRYSTAL_MAX_H = 128; // first profile hidden size (answer 9)
 export const KRYSTAL_MAX_FFN = 384; // first profile FFN size (answer 9)
 export const KRYSTAL_MAX_HEADS = 4; // first profile full attention heads (answer 11)
@@ -138,8 +161,10 @@ export const KRYSTAL_MAX_BLOCKS = 2; // shared capacity for encoder + mixer bloc
 
 export interface KrystalForwardArenaLayout {
   // SoA frame inputs (u32 payloads bitcast in shaders) + host-compiled lists.
-  tokenIds: number; // [maxTokens]
-  fieldRoles: number; // [maxTokens]
+  // tokenIds/fieldRoles are indexed by FRAME token index, so they span the
+  // whole frame; every [maxTokens, …] array below is compacted-active indexed.
+  tokenIds: number; // [frameTokens]
+  fieldRoles: number; // [frameTokens]
   schemaIds: number; // [maxRecords]
   bandIds: number; // [maxRecords]
   streamIds: number; // [maxRecords]
@@ -218,8 +243,8 @@ function createKrystalForwardArenaLayout(): KrystalForwardArenaLayout {
   const qh = KRYSTAL_MAX_QUERIES * KRYSTAL_MAX_H;
   const tf = KRYSTAL_MAX_TOKENS * KRYSTAL_MAX_FFN;
   return {
-    tokenIds: take(KRYSTAL_MAX_TOKENS),
-    fieldRoles: take(KRYSTAL_MAX_TOKENS),
+    tokenIds: take(KRYSTAL_FRAME_TOKENS),
+    fieldRoles: take(KRYSTAL_FRAME_TOKENS),
     schemaIds: take(KRYSTAL_MAX_RECORDS),
     bandIds: take(KRYSTAL_MAX_RECORDS),
     streamIds: take(KRYSTAL_MAX_RECORDS),

@@ -94,17 +94,56 @@ export function compileActiveFrame(frame: v1_0_0.BrainFrameGpu): ActiveFrame {
  * -1e30 otherwise (no token ever attends across a record boundary). The
  * padding positions are already absent from the compact list.
  */
+export const INVALID_WORD_ID = 0xffff_ffff;
+
+/**
+ * Optional same-word structural bias (docs/word_attention_bias.md).
+ *
+ * `wordIds` is indexed by FRAME token index, exactly like the entries of
+ * `activeTokens`, and carries an arbitrary local label per token;
+ * INVALID_WORD_ID means "no word" (KEY/VALUE/pooling/query control slots),
+ * which never receives the bias. Labels are compared only inside one record,
+ * so the same local id may be reused freely across records.
+ *
+ * The bias is additive on the attention logit, which is why it rides in the
+ * existing record mask: the shader already computes
+ * `score = q·k*scale + mask[i][j]`, and the backward never re-reads the mask.
+ * Nothing in the device path changes, and `alpha = 0` is bit-identical to the
+ * unbiased mask by construction.
+ */
+export interface WordBias {
+  readonly wordIds: Readonly<Record<number, number>> | Uint32Array;
+  readonly alpha: number;
+}
+
 export function compileRecordMask(
   activeTokens: readonly number[] | Uint32Array,
+  wordBias?: WordBias,
 ): { mask: Float32Array; tokenRecords: Uint32Array } {
   const t = activeTokens.length;
   const tokenRecords = new Uint32Array(t);
   for (let i = 0; i < t; i++) tokenRecords[i] = activeTokens[i]! >> 3; // slot = frameToken / recordWidth
 
+  const words = new Uint32Array(t).fill(INVALID_WORD_ID);
+  if (wordBias && wordBias.alpha !== 0) {
+    for (let i = 0; i < t; i++) {
+      const frameToken = activeTokens[i]!;
+      const id = (wordBias.wordIds as Record<number, number>)[frameToken];
+      words[i] = id === undefined ? INVALID_WORD_ID : id;
+    }
+  }
+  const alpha = wordBias?.alpha ?? 0;
+
   const mask = new Float32Array(t * t);
   for (let i = 0; i < t; i++) {
     for (let j = 0; j < t; j++) {
-      mask[i * t + j] = tokenRecords[i] === tokenRecords[j] ? 0 : -1e30;
+      if (tokenRecords[i] !== tokenRecords[j]) {
+        mask[i * t + j] = -1e30;
+        continue;
+      }
+      const sameWord =
+        alpha !== 0 && words[i] !== INVALID_WORD_ID && words[i] === words[j];
+      mask[i * t + j] = sameWord ? alpha : 0;
     }
   }
   return { mask, tokenRecords };

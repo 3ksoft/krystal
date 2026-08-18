@@ -178,6 +178,28 @@ export const FIXTURE_RECORD_SCHEMAS: readonly RecordSchemaAuthoringSpec[] = [
     ],
     doc: "partially/not-yet observed record; LOOK argument candidate (S6)",
   },
+  {
+    name: "Dog",
+    familyToken: fixtureTokenId("DOG"),
+    defaultBand: "vision",
+    fields: [
+      { name: "family", localTokenIndex: 0, roleToken: fixtureTokenId("DOG"), valueKind: "token", required: true },
+      { name: "referent", localTokenIndex: 1, roleToken: 0, valueKind: "context_ref", required: true, exactRuntime: true },
+      { name: "case", localTokenIndex: 2, roleToken: fixtureTokenId("ACCUSATIVE"), valueKind: "token", doc: "grammatical case marker: NOMINATIVE or ACCUSATIVE" },
+    ],
+    doc: "animate vision record; W2 case-binding assay (docs/word_attention_bias.md)",
+  },
+  {
+    name: "Cat",
+    familyToken: fixtureTokenId("CAT"),
+    defaultBand: "vision",
+    fields: [
+      { name: "family", localTokenIndex: 0, roleToken: fixtureTokenId("CAT"), valueKind: "token", required: true },
+      { name: "referent", localTokenIndex: 1, roleToken: 0, valueKind: "context_ref", required: true, exactRuntime: true },
+      { name: "case", localTokenIndex: 2, roleToken: fixtureTokenId("ACCUSATIVE"), valueKind: "token", doc: "grammatical case marker: NOMINATIVE or ACCUSATIVE" },
+    ],
+    doc: "animate vision record; W2 case-binding assay (docs/word_attention_bias.md)",
+  },
 ];
 
 export class FixtureRecordCatalogError extends Error {

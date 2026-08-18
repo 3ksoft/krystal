@@ -40,6 +40,7 @@ import {
   type PreparedForward,
   type SelectionMasks,
 } from "./krystal-forward";
+import type { WordBias } from "../../krystal/src/forward/masks";
 import { EMBEDDING_TABLES } from "../../krystal/src/forward/model";
 import type { v1_0_0 } from "../../schema/generated/krystal.types";
 
@@ -68,6 +69,11 @@ export interface KrystalTrainStepOptions {
    */
   readonly intentGold?: readonly number[] | Uint32Array;
   readonly learningRate: number;
+  /**
+   * Optional same-word attention bias (docs/word_attention_bias.md). It rides
+   * in the record mask, so it needs no device change and no gradient.
+   */
+  readonly wordBias?: WordBias;
   /** Read back the scalar mean loss (compact telemetry); off by default. */
   readonly telemetry?: boolean;
 }
@@ -118,7 +124,7 @@ export class KrystalBackward {
     const B = KRYSTAL_BACKWARD_ARENA;
     const T = KRYSTAL_TRAINING_ARENA;
 
-    const prepared = this.forward.prepare(options.frame, options.selection);
+    const prepared = this.forward.prepare(options.frame, options.selection, options.wordBias);
     const { active, t, r, q } = prepared;
     const routeKinds = options.routeKinds instanceof Uint32Array
       ? options.routeKinds

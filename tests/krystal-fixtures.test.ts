@@ -143,3 +143,32 @@ test("action catalog: argument band masks and hash are deterministic", () => {
   const look = fixtureIntent("LOOK");
   expect(a.arguments[look.argumentOffset]!.candidateBandMask).toBe((1 << 3) | (1 << 8));
 });
+
+test("action catalog: the header counts and the hash cover argument descriptors", () => {
+  const catalog = buildFixtureActionCatalog();
+
+  // The header must describe the compiled arguments, not zero of them: it is
+  // the device-side length of the argument-descriptor section.
+  expect(catalog.arguments.length).toBeGreaterThan(0);
+  expect(catalog.header.argumentCount).toBe(catalog.arguments.length);
+  expect(catalog.header.argumentCount).toBe(
+    catalog.descriptors.reduce((sum, descriptor) => sum + descriptor.argumentCount, 0),
+  );
+
+  // The hash is the catalog's integrity mechanism, so it must move when an
+  // argument descriptor changes even though every intent stays identical.
+  // Narrowing EAT's candidate bands to vision alone is exactly the kind of
+  // edit a widened catalog will make.
+  const narrowed = FIXTURE_ACTION_INTENTS.map((intent) =>
+    intent.name !== "EAT"
+      ? intent
+      : { ...intent, arguments: intent.arguments.map((arg) => ({ ...arg, candidateBands: ["vision"] as const })) },
+  );
+  const variant = buildFixtureActionCatalog(narrowed);
+  expect(variant.header.intentCount).toBe(catalog.header.intentCount);
+  expect(variant.header.argumentCount).toBe(catalog.header.argumentCount);
+  expect(
+    variant.header.catalogHashLo !== catalog.header.catalogHashLo ||
+      variant.header.catalogHashHi !== catalog.header.catalogHashHi,
+  ).toBe(true);
+});

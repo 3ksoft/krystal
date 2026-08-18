@@ -1,12 +1,13 @@
 /**
  * Canonical fixture BrainFrame (AoS form) exercising all record kinds used by
- * the first milestones: Self (body, fixed slot 12), Apple (vision, slot 24),
- * HomeostasisQuery (homeostasis, fixed slot 4), MemoryObject (memory, slot
- * 90), the LOOK/EAT/WAIT ActionIntent catalog records (focus band, slots
- * 116-118, which the intent selector scores against) and the active query
- * (query band, fixed slot 122, which the M2b mixer cross-attends to the
- * record bank). Token patterns follow the schema's illustrative lowerings;
- * reference bindings carry exact 0xExx handles with generations.
+ * the first milestones: Self (body), Apple (first vision slot),
+ * HomeostasisQuery (homeostasis), MemoryObject (first memory slot), the
+ * LOOK/EAT/WAIT ActionIntent catalog records (catalog band, which the intent
+ * selector scores against) and the active query (query band, which the M2b
+ * mixer cross-attends to the record bank). Slots come from the band table
+ * rather than literals, so a layout change moves them together. Token
+ * patterns follow the schema's illustrative lowerings; reference bindings
+ * carry exact 0xExx handles with generations.
  */
 
 /**
@@ -63,6 +64,9 @@ export interface FixtureRecordSpec {
 export const FIXTURE_APPLE_REF = 0xe11;
 export const FIXTURE_MEMORY_REF = 0xe43;
 
+const VISION_BAND_OFFSET = BRAIN_FRAME_BANDS.find((band) => band.kind === "vision")!.recordOffset;
+const MEMORY_BAND_OFFSET = BRAIN_FRAME_BANDS.find((band) => band.kind === "memory")!.recordOffset;
+
 export function buildFixtureRecords(): readonly FixtureRecordSpec[] {
   const APPLE = fixtureTokenId("APPLE");
   const SELF = fixtureTokenId("SELF");
@@ -99,7 +103,7 @@ export function buildFixtureRecords(): readonly FixtureRecordSpec[] {
       flags: RECORD_FLAGS.occupied | RECORD_FLAGS.fixed,
     },
     {
-      slot: 24, // first vision slot
+      slot: VISION_BAND_OFFSET, // first vision slot
       band: "vision",
       schemaId: 2, // Apple
       tokens: [APPLE, FIXTURE_APPLE_REF, RED, SMALL, PAD_TOKEN_ID, PAD_TOKEN_ID, PAD_TOKEN_ID, PAD_TOKEN_ID],
@@ -109,7 +113,7 @@ export function buildFixtureRecords(): readonly FixtureRecordSpec[] {
       flags: RECORD_FLAGS.occupied,
     },
     {
-      slot: 90, // first memory slot
+      slot: MEMORY_BAND_OFFSET, // first memory slot
       band: "memory",
       schemaId: 4, // MemoryObject
       tokens: [REMEMBER, FIXTURE_MEMORY_REF, STICK, LAST_ACTION, HOLD, PAD_TOKEN_ID, PAD_TOKEN_ID, PAD_TOKEN_ID],
@@ -127,12 +131,12 @@ export function buildFixtureRecords(): readonly FixtureRecordSpec[] {
       source: "query",
       flags: RECORD_FLAGS.occupied | RECORD_FLAGS.fixed | RECORD_FLAGS.query,
     },
-    // ActionIntent catalog records (focus band): the intent selector scores
+    // ActionIntent catalog records (catalog band): the intent selector scores
     // the mixed query state against their pooled keys. The action token is the
     // embedded family/discriminator (LOOK vs EAT vs WAIT).
     {
-      slot: BRAIN_FIXED_RECORDS.perceptualFocus,
-      band: "focus",
+      slot: BRAIN_FIXED_RECORDS.catalogBase,
+      band: "catalog",
       schemaId: ACTION_INTENT_SCHEMA_ID,
       tokens: [LOOK, PAD_TOKEN_ID, PAD_TOKEN_ID, PAD_TOKEN_ID, PAD_TOKEN_ID, PAD_TOKEN_ID, PAD_TOKEN_ID, PAD_TOKEN_ID],
       roleTokens: [LOOK, 0, 0, 0, 0, 0, 0, 0],
@@ -140,8 +144,8 @@ export function buildFixtureRecords(): readonly FixtureRecordSpec[] {
       flags: RECORD_FLAGS.occupied | RECORD_FLAGS.fixed | RECORD_FLAGS.creatorAuthored,
     },
     {
-      slot: BRAIN_FIXED_RECORDS.thoughtFocus,
-      band: "focus",
+      slot: BRAIN_FIXED_RECORDS.catalogBase + 1,
+      band: "catalog",
       schemaId: ACTION_INTENT_SCHEMA_ID,
       tokens: [EAT, PAD_TOKEN_ID, PAD_TOKEN_ID, PAD_TOKEN_ID, PAD_TOKEN_ID, PAD_TOKEN_ID, PAD_TOKEN_ID, PAD_TOKEN_ID],
       roleTokens: [EAT, 0, 0, 0, 0, 0, 0, 0],
@@ -149,8 +153,8 @@ export function buildFixtureRecords(): readonly FixtureRecordSpec[] {
       flags: RECORD_FLAGS.occupied | RECORD_FLAGS.fixed | RECORD_FLAGS.creatorAuthored,
     },
     {
-      slot: BRAIN_FIXED_RECORDS.speechTopic,
-      band: "focus",
+      slot: BRAIN_FIXED_RECORDS.catalogBase + 2,
+      band: "catalog",
       schemaId: ACTION_INTENT_SCHEMA_ID,
       tokens: [WAIT, PAD_TOKEN_ID, PAD_TOKEN_ID, PAD_TOKEN_ID, PAD_TOKEN_ID, PAD_TOKEN_ID, PAD_TOKEN_ID, PAD_TOKEN_ID],
       roleTokens: [WAIT, 0, 0, 0, 0, 0, 0, 0],

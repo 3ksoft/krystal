@@ -107,8 +107,8 @@ export const SIZEOF_RecordSchemaAuthoringSpec = 28;
 export const SIZEOF_BrainBandLayout = 32;
 export const SIZEOF_FixedRecordBinding = 16;
 export const SIZEOF_BrainFrameLayoutHeader = 44;
-export const SIZEOF_BrainFrameLayout = 908;
-export const BRAIN_FRAME_LAYOUT_BANDS_LEN = 11;
+export const SIZEOF_BrainFrameLayout = 940;
+export const BRAIN_FRAME_LAYOUT_BANDS_LEN = 12;
 export const BRAIN_FRAME_LAYOUT_FIXEDRECORDS_LEN = 32;
 export const SIZEOF_BrainTokenMeta = 16;
 export const SIZEOF_BrainReferenceBinding = 28;
@@ -119,20 +119,20 @@ export const BRAIN_RECORD_SLOT_TOKENMETA_LEN = 8;
 export const BRAIN_RECORD_SLOT_REFERENCES_LEN = 8;
 export const SIZEOF_BrainBandState = 32;
 export const SIZEOF_BrainFrameHeader = 52;
-export const SIZEOF_BrainFrame = 55188;
-export const BRAIN_FRAME_BANDS_LEN = 11;
-export const BRAIN_FRAME_RECORDS_LEN = 128;
+export const SIZEOF_BrainFrame = 123700;
+export const BRAIN_FRAME_BANDS_LEN = 12;
+export const BRAIN_FRAME_RECORDS_LEN = 288;
 export const SIZEOF_BinaryLayoutPlanHeader = 44;
 export const SIZEOF_BinaryLayoutBufferDesc = 16;
 export const SIZEOF_BinaryLayoutPlan = 48;
-export const SIZEOF_BrainFrameGpu = 14380;
-export const BRAIN_FRAME_GPU_TOKENIDS_LEN = 1024;
-export const BRAIN_FRAME_GPU_FIELDROLES_LEN = 1024;
-export const BRAIN_FRAME_GPU_SCHEMAIDS_LEN = 128;
-export const BRAIN_FRAME_GPU_BANDIDS_LEN = 128;
-export const BRAIN_FRAME_GPU_RUNTIMEREFS_LEN = 1024;
-export const BRAIN_FRAME_GPU_RECORDFLAGS_LEN = 128;
-export const BRAIN_FRAME_GPU_ACTIVERECORDINDICES_LEN = 128;
+export const SIZEOF_BrainFrameGpu = 32300;
+export const BRAIN_FRAME_GPU_TOKENIDS_LEN = 2304;
+export const BRAIN_FRAME_GPU_FIELDROLES_LEN = 2304;
+export const BRAIN_FRAME_GPU_SCHEMAIDS_LEN = 288;
+export const BRAIN_FRAME_GPU_BANDIDS_LEN = 288;
+export const BRAIN_FRAME_GPU_RUNTIMEREFS_LEN = 2304;
+export const BRAIN_FRAME_GPU_RECORDFLAGS_LEN = 288;
+export const BRAIN_FRAME_GPU_ACTIVERECORDINDICES_LEN = 288;
 export const SIZEOF_HomeostasisSignal = 44;
 export const SIZEOF_BrainQueryState = 68;
 export const SIZEOF_BrainQuerySet = 560;
@@ -276,6 +276,7 @@ export function deserializeBrainBandKind(view: DataView, offset: number): BrainB
 		case 8: return "memory";
 		case 9: return "focus";
 		case 10: return "query";
+		case 11: return "catalog";
 		default: throw new Error("Unknown Enum value for BrainBandKind: " + v);
 	}
 }
@@ -292,6 +293,7 @@ export function serializeBrainBandKind(val: BrainBandKind, view: DataView, offse
 	if(val === "memory") { view.setUint8(offset, 8); return; }
 	if(val === "focus") { view.setUint8(offset, 9); return; }
 	if(val === "query") { view.setUint8(offset, 10); return; }
+	if(val === "catalog") { view.setUint8(offset, 11); return; }
 }
 
 export function deserializeBandPlacementPolicy(view: DataView, offset: number): BandPlacementPolicy {
@@ -836,12 +838,12 @@ export function serializeBrainFrameLayoutHeader(val: BrainFrameLayoutHeader, vie
 
 export function deserializeBrainFrameLayout(view: DataView, offset: number, outObj?: any): BrainFrameLayout {
 	if (!outObj) {
-		const _arr_bands = new Array(11);
-		for (let i = 0, _off_bands = offset + 44; i < 11; i++, _off_bands += 32) {
+		const _arr_bands = new Array(12);
+		for (let i = 0, _off_bands = offset + 44; i < 12; i++, _off_bands += 32) {
 			_arr_bands[i] = ({ kind: deserializeBrainBandKind(view, _off_bands), recordOffset: view.getUint32(_off_bands + 4, true), recordCapacity: view.getUint32(_off_bands + 8, true), tokenOffset: view.getUint32(_off_bands + 12, true), tokenCapacity: view.getUint32(_off_bands + 16, true), placement: deserializeBandPlacementPolicy(view, _off_bands + 20), overflow: deserializeBandOverflowPolicy(view, _off_bands + 21), flags: view.getUint32(_off_bands + 24, true), reserved0: view.getUint32(_off_bands + 28, true) });
 		}
 		const _arr_fixedRecords = new Array(32);
-		for (let i = 0, _off_fixedRecords = offset + 396; i < 32; i++, _off_fixedRecords += 16) {
+		for (let i = 0, _off_fixedRecords = offset + 428; i < 32; i++, _off_fixedRecords += 16) {
 			_arr_fixedRecords[i] = ({ roleToken: view.getUint32(_off_fixedRecords, true), recordIndex: view.getUint32(_off_fixedRecords + 4, true), expectedSchemaId: view.getUint32(_off_fixedRecords + 8, true), flags: view.getUint32(_off_fixedRecords + 12, true) });
 		}
 		return {
@@ -850,12 +852,12 @@ export function deserializeBrainFrameLayout(view: DataView, offset: number, outO
 			fixedRecords: _arr_fixedRecords,
 		} as any;
 	}
-	const _arr_bands = new Array(11);
-	for (let i = 0, _off_bands = offset + 44; i < 11; i++, _off_bands += 32) {
+	const _arr_bands = new Array(12);
+	for (let i = 0, _off_bands = offset + 44; i < 12; i++, _off_bands += 32) {
 		_arr_bands[i] = ({ kind: deserializeBrainBandKind(view, _off_bands), recordOffset: view.getUint32(_off_bands + 4, true), recordCapacity: view.getUint32(_off_bands + 8, true), tokenOffset: view.getUint32(_off_bands + 12, true), tokenCapacity: view.getUint32(_off_bands + 16, true), placement: deserializeBandPlacementPolicy(view, _off_bands + 20), overflow: deserializeBandOverflowPolicy(view, _off_bands + 21), flags: view.getUint32(_off_bands + 24, true), reserved0: view.getUint32(_off_bands + 28, true) });
 	}
 	const _arr_fixedRecords = new Array(32);
-	for (let i = 0, _off_fixedRecords = offset + 396; i < 32; i++, _off_fixedRecords += 16) {
+	for (let i = 0, _off_fixedRecords = offset + 428; i < 32; i++, _off_fixedRecords += 16) {
 		_arr_fixedRecords[i] = ({ roleToken: view.getUint32(_off_fixedRecords, true), recordIndex: view.getUint32(_off_fixedRecords + 4, true), expectedSchemaId: view.getUint32(_off_fixedRecords + 8, true), flags: view.getUint32(_off_fixedRecords + 12, true) });
 	}
 	outObj.header = deserializeBrainFrameLayoutHeader(view, offset);
@@ -866,8 +868,8 @@ export function deserializeBrainFrameLayout(view: DataView, offset: number, outO
 
 export function serializeBrainFrameLayout(val: BrainFrameLayout, view: DataView, offset: number): void {
 	serializeBrainFrameLayoutHeader(val.header, view, offset);
-	{ for (let i = 0, __o = offset + 44; i < 11; i++, __o += 32) { const __e = val.bands[i]!; { serializeBrainBandKind(__e.kind, view, __o); view.setUint32(__o + 4, __e.recordOffset, true); view.setUint32(__o + 8, __e.recordCapacity, true); view.setUint32(__o + 12, __e.tokenOffset, true); view.setUint32(__o + 16, __e.tokenCapacity, true); serializeBandPlacementPolicy(__e.placement, view, __o + 20); serializeBandOverflowPolicy(__e.overflow, view, __o + 21); view.setUint32(__o + 24, __e.flags, true); view.setUint32(__o + 28, __e.reserved0, true); } } }
-	{ for (let i = 0, __o = offset + 396; i < 32; i++, __o += 16) { const __e = val.fixedRecords[i]!; { view.setUint32(__o, __e.roleToken, true); view.setUint32(__o + 4, __e.recordIndex, true); view.setUint32(__o + 8, __e.expectedSchemaId, true); view.setUint32(__o + 12, __e.flags, true); } } }
+	{ for (let i = 0, __o = offset + 44; i < 12; i++, __o += 32) { const __e = val.bands[i]!; { serializeBrainBandKind(__e.kind, view, __o); view.setUint32(__o + 4, __e.recordOffset, true); view.setUint32(__o + 8, __e.recordCapacity, true); view.setUint32(__o + 12, __e.tokenOffset, true); view.setUint32(__o + 16, __e.tokenCapacity, true); serializeBandPlacementPolicy(__e.placement, view, __o + 20); serializeBandOverflowPolicy(__e.overflow, view, __o + 21); view.setUint32(__o + 24, __e.flags, true); view.setUint32(__o + 28, __e.reserved0, true); } } }
+	{ for (let i = 0, __o = offset + 428; i < 32; i++, __o += 16) { const __e = val.fixedRecords[i]!; { view.setUint32(__o, __e.roleToken, true); view.setUint32(__o + 4, __e.recordIndex, true); view.setUint32(__o + 8, __e.expectedSchemaId, true); view.setUint32(__o + 12, __e.flags, true); } } }
 }
 
 export function deserializeBrainTokenMeta(view: DataView, offset: number, outObj?: any): BrainTokenMeta {
@@ -1100,12 +1102,12 @@ export function serializeBrainFrameHeader(val: BrainFrameHeader, view: DataView,
 
 export function deserializeBrainFrame(view: DataView, offset: number, outObj?: any): BrainFrame {
 	if (!outObj) {
-		const _arr_bands = new Array(11);
-		for (let i = 0, _off_bands = offset + 52; i < 11; i++, _off_bands += 32) {
+		const _arr_bands = new Array(12);
+		for (let i = 0, _off_bands = offset + 52; i < 12; i++, _off_bands += 32) {
 			_arr_bands[i] = ({ kind: deserializeBrainBandKind(view, _off_bands), activeRecords: view.getUint32(_off_bands + 4, true), activeTokens: view.getUint32(_off_bands + 8, true), overflowRecords: view.getUint32(_off_bands + 12, true), truncatedRecords: view.getUint32(_off_bands + 16, true), revision: view.getUint32(_off_bands + 20, true), flags: view.getUint32(_off_bands + 24, true), reserved0: view.getUint32(_off_bands + 28, true) });
 		}
-		const _arr_records = new Array(128);
-		for (let i = 0, _off_records = offset + 404; i < 128; i++, _off_records += 428) {
+		const _arr_records = new Array(288);
+		for (let i = 0, _off_records = offset + 436; i < 288; i++, _off_records += 428) {
 			_arr_records[i] = ({ header: deserializeBrainRecordHeader(view, _off_records), tokens: ((o) => { const a: any[] = []; for(let i=0; i<8; i++) a.push(view.getUint32(o + (i * 4), true)); return a; })(_off_records + 44), tokenMeta: ((o) => { const a: any[] = []; for(let i=0; i<8; i++) a.push(deserializeBrainTokenMeta(view, o + (i * 16))); return a; })(_off_records + 76), references: ((o) => { const a: any[] = []; for(let i=0; i<8; i++) a.push(deserializeBrainReferenceBinding(view, o + (i * 28))); return a; })(_off_records + 204) });
 		}
 		return {
@@ -1114,12 +1116,12 @@ export function deserializeBrainFrame(view: DataView, offset: number, outObj?: a
 			records: _arr_records,
 		} as any;
 	}
-	const _arr_bands = new Array(11);
-	for (let i = 0, _off_bands = offset + 52; i < 11; i++, _off_bands += 32) {
+	const _arr_bands = new Array(12);
+	for (let i = 0, _off_bands = offset + 52; i < 12; i++, _off_bands += 32) {
 		_arr_bands[i] = ({ kind: deserializeBrainBandKind(view, _off_bands), activeRecords: view.getUint32(_off_bands + 4, true), activeTokens: view.getUint32(_off_bands + 8, true), overflowRecords: view.getUint32(_off_bands + 12, true), truncatedRecords: view.getUint32(_off_bands + 16, true), revision: view.getUint32(_off_bands + 20, true), flags: view.getUint32(_off_bands + 24, true), reserved0: view.getUint32(_off_bands + 28, true) });
 	}
-	const _arr_records = new Array(128);
-	for (let i = 0, _off_records = offset + 404; i < 128; i++, _off_records += 428) {
+	const _arr_records = new Array(288);
+	for (let i = 0, _off_records = offset + 436; i < 288; i++, _off_records += 428) {
 		_arr_records[i] = ({ header: deserializeBrainRecordHeader(view, _off_records), tokens: ((o) => { const a: any[] = []; for(let i=0; i<8; i++) a.push(view.getUint32(o + (i * 4), true)); return a; })(_off_records + 44), tokenMeta: ((o) => { const a: any[] = []; for(let i=0; i<8; i++) a.push(deserializeBrainTokenMeta(view, o + (i * 16))); return a; })(_off_records + 76), references: ((o) => { const a: any[] = []; for(let i=0; i<8; i++) a.push(deserializeBrainReferenceBinding(view, o + (i * 28))); return a; })(_off_records + 204) });
 	}
 	outObj.header = deserializeBrainFrameHeader(view, offset);
@@ -1130,8 +1132,8 @@ export function deserializeBrainFrame(view: DataView, offset: number, outObj?: a
 
 export function serializeBrainFrame(val: BrainFrame, view: DataView, offset: number): void {
 	serializeBrainFrameHeader(val.header, view, offset);
-	{ for (let i = 0, __o = offset + 52; i < 11; i++, __o += 32) { const __e = val.bands[i]!; { serializeBrainBandKind(__e.kind, view, __o); view.setUint32(__o + 4, __e.activeRecords, true); view.setUint32(__o + 8, __e.activeTokens, true); view.setUint32(__o + 12, __e.overflowRecords, true); view.setUint32(__o + 16, __e.truncatedRecords, true); view.setUint32(__o + 20, __e.revision, true); view.setUint32(__o + 24, __e.flags, true); view.setUint32(__o + 28, __e.reserved0, true); } } }
-	{ for (let i = 0, __o = offset + 404; i < 128; i++, __o += 428) { const __e = val.records[i]!; { serializeBrainRecordHeader(__e.header, view, __o); { for (let i = 0, __o1 = __o + 44; i < 8; i++, __o1 += 4) { const __e1 = __e.tokens[i]!; view.setUint32(__o1, __e1, true); } } { for (let i = 0, __o1 = __o + 76; i < 8; i++, __o1 += 16) { const __e1 = __e.tokenMeta[i]!; { view.setUint32(__o1, __e1.fieldId, true); view.setUint32(__o1 + 4, __e1.roleToken, true); view.setUint32(__o1 + 8, __e1.flags, true); view.setUint32(__o1 + 12, __e1.referenceBinding, true); } } } { for (let i = 0, __o1 = __o + 204; i < 8; i++, __o1 += 28) { const __e1 = __e.references[i]!; { view.setUint32(__o1, __e1.localTokenIndex, true); view.setUint32(__o1 + 4, __e1.fieldId, true); view.setUint32(__o1 + 8, __e1.flags, true); view.setUint32(__o1 + 12, __e1.reserved0, true); serializeRuntimeRefHandle(__e1.handle, view, __o1 + 16); } } } } } }
+	{ for (let i = 0, __o = offset + 52; i < 12; i++, __o += 32) { const __e = val.bands[i]!; { serializeBrainBandKind(__e.kind, view, __o); view.setUint32(__o + 4, __e.activeRecords, true); view.setUint32(__o + 8, __e.activeTokens, true); view.setUint32(__o + 12, __e.overflowRecords, true); view.setUint32(__o + 16, __e.truncatedRecords, true); view.setUint32(__o + 20, __e.revision, true); view.setUint32(__o + 24, __e.flags, true); view.setUint32(__o + 28, __e.reserved0, true); } } }
+	{ for (let i = 0, __o = offset + 436; i < 288; i++, __o += 428) { const __e = val.records[i]!; { serializeBrainRecordHeader(__e.header, view, __o); { for (let i = 0, __o1 = __o + 44; i < 8; i++, __o1 += 4) { const __e1 = __e.tokens[i]!; view.setUint32(__o1, __e1, true); } } { for (let i = 0, __o1 = __o + 76; i < 8; i++, __o1 += 16) { const __e1 = __e.tokenMeta[i]!; { view.setUint32(__o1, __e1.fieldId, true); view.setUint32(__o1 + 4, __e1.roleToken, true); view.setUint32(__o1 + 8, __e1.flags, true); view.setUint32(__o1 + 12, __e1.referenceBinding, true); } } } { for (let i = 0, __o1 = __o + 204; i < 8; i++, __o1 += 28) { const __e1 = __e.references[i]!; { view.setUint32(__o1, __e1.localTokenIndex, true); view.setUint32(__o1 + 4, __e1.fieldId, true); view.setUint32(__o1 + 8, __e1.flags, true); view.setUint32(__o1 + 12, __e1.reserved0, true); serializeRuntimeRefHandle(__e1.handle, view, __o1 + 16); } } } } } }
 }
 
 export function deserializeBinaryLayoutPlanHeader(view: DataView, offset: number, outObj?: any): BinaryLayoutPlanHeader {
@@ -1220,32 +1222,32 @@ export function serializeBinaryLayoutPlan(val: BinaryLayoutPlan, view: DataView,
 
 export function deserializeBrainFrameGpu(view: DataView, offset: number, outObj?: any): BrainFrameGpu {
 	if (!outObj) {
-		const _arr_tokenIds = new Array(1024);
-		for (let i = 0, _off_tokenIds = offset + 44; i < 1024; i++, _off_tokenIds += 4) {
+		const _arr_tokenIds = new Array(2304);
+		for (let i = 0, _off_tokenIds = offset + 44; i < 2304; i++, _off_tokenIds += 4) {
 			_arr_tokenIds[i] = view.getUint32(_off_tokenIds, true);
 		}
-		const _arr_fieldRoles = new Array(1024);
-		for (let i = 0, _off_fieldRoles = offset + 4140; i < 1024; i++, _off_fieldRoles += 4) {
+		const _arr_fieldRoles = new Array(2304);
+		for (let i = 0, _off_fieldRoles = offset + 9260; i < 2304; i++, _off_fieldRoles += 4) {
 			_arr_fieldRoles[i] = view.getUint32(_off_fieldRoles, true);
 		}
-		const _arr_schemaIds = new Array(128);
-		for (let i = 0, _off_schemaIds = offset + 8236; i < 128; i++, _off_schemaIds += 4) {
+		const _arr_schemaIds = new Array(288);
+		for (let i = 0, _off_schemaIds = offset + 18476; i < 288; i++, _off_schemaIds += 4) {
 			_arr_schemaIds[i] = view.getUint32(_off_schemaIds, true);
 		}
-		const _arr_bandIds = new Array(128);
-		for (let i = 0, _off_bandIds = offset + 8748; i < 128; i++, _off_bandIds += 4) {
+		const _arr_bandIds = new Array(288);
+		for (let i = 0, _off_bandIds = offset + 19628; i < 288; i++, _off_bandIds += 4) {
 			_arr_bandIds[i] = view.getUint32(_off_bandIds, true);
 		}
-		const _arr_runtimeRefs = new Array(1024);
-		for (let i = 0, _off_runtimeRefs = offset + 9260; i < 1024; i++, _off_runtimeRefs += 4) {
+		const _arr_runtimeRefs = new Array(2304);
+		for (let i = 0, _off_runtimeRefs = offset + 20780; i < 2304; i++, _off_runtimeRefs += 4) {
 			_arr_runtimeRefs[i] = view.getUint32(_off_runtimeRefs, true);
 		}
-		const _arr_recordFlags = new Array(128);
-		for (let i = 0, _off_recordFlags = offset + 13356; i < 128; i++, _off_recordFlags += 4) {
+		const _arr_recordFlags = new Array(288);
+		for (let i = 0, _off_recordFlags = offset + 29996; i < 288; i++, _off_recordFlags += 4) {
 			_arr_recordFlags[i] = view.getUint32(_off_recordFlags, true);
 		}
-		const _arr_activeRecordIndices = new Array(128);
-		for (let i = 0, _off_activeRecordIndices = offset + 13868; i < 128; i++, _off_activeRecordIndices += 4) {
+		const _arr_activeRecordIndices = new Array(288);
+		for (let i = 0, _off_activeRecordIndices = offset + 31148; i < 288; i++, _off_activeRecordIndices += 4) {
 			_arr_activeRecordIndices[i] = view.getUint32(_off_activeRecordIndices, true);
 		}
 		return {
@@ -1259,32 +1261,32 @@ export function deserializeBrainFrameGpu(view: DataView, offset: number, outObj?
 			activeRecordIndices: _arr_activeRecordIndices,
 		} as any;
 	}
-	const _arr_tokenIds = new Array(1024);
-	for (let i = 0, _off_tokenIds = offset + 44; i < 1024; i++, _off_tokenIds += 4) {
+	const _arr_tokenIds = new Array(2304);
+	for (let i = 0, _off_tokenIds = offset + 44; i < 2304; i++, _off_tokenIds += 4) {
 		_arr_tokenIds[i] = view.getUint32(_off_tokenIds, true);
 	}
-	const _arr_fieldRoles = new Array(1024);
-	for (let i = 0, _off_fieldRoles = offset + 4140; i < 1024; i++, _off_fieldRoles += 4) {
+	const _arr_fieldRoles = new Array(2304);
+	for (let i = 0, _off_fieldRoles = offset + 9260; i < 2304; i++, _off_fieldRoles += 4) {
 		_arr_fieldRoles[i] = view.getUint32(_off_fieldRoles, true);
 	}
-	const _arr_schemaIds = new Array(128);
-	for (let i = 0, _off_schemaIds = offset + 8236; i < 128; i++, _off_schemaIds += 4) {
+	const _arr_schemaIds = new Array(288);
+	for (let i = 0, _off_schemaIds = offset + 18476; i < 288; i++, _off_schemaIds += 4) {
 		_arr_schemaIds[i] = view.getUint32(_off_schemaIds, true);
 	}
-	const _arr_bandIds = new Array(128);
-	for (let i = 0, _off_bandIds = offset + 8748; i < 128; i++, _off_bandIds += 4) {
+	const _arr_bandIds = new Array(288);
+	for (let i = 0, _off_bandIds = offset + 19628; i < 288; i++, _off_bandIds += 4) {
 		_arr_bandIds[i] = view.getUint32(_off_bandIds, true);
 	}
-	const _arr_runtimeRefs = new Array(1024);
-	for (let i = 0, _off_runtimeRefs = offset + 9260; i < 1024; i++, _off_runtimeRefs += 4) {
+	const _arr_runtimeRefs = new Array(2304);
+	for (let i = 0, _off_runtimeRefs = offset + 20780; i < 2304; i++, _off_runtimeRefs += 4) {
 		_arr_runtimeRefs[i] = view.getUint32(_off_runtimeRefs, true);
 	}
-	const _arr_recordFlags = new Array(128);
-	for (let i = 0, _off_recordFlags = offset + 13356; i < 128; i++, _off_recordFlags += 4) {
+	const _arr_recordFlags = new Array(288);
+	for (let i = 0, _off_recordFlags = offset + 29996; i < 288; i++, _off_recordFlags += 4) {
 		_arr_recordFlags[i] = view.getUint32(_off_recordFlags, true);
 	}
-	const _arr_activeRecordIndices = new Array(128);
-	for (let i = 0, _off_activeRecordIndices = offset + 13868; i < 128; i++, _off_activeRecordIndices += 4) {
+	const _arr_activeRecordIndices = new Array(288);
+	for (let i = 0, _off_activeRecordIndices = offset + 31148; i < 288; i++, _off_activeRecordIndices += 4) {
 		_arr_activeRecordIndices[i] = view.getUint32(_off_activeRecordIndices, true);
 	}
 	outObj.header = deserializeBinaryLayoutPlanHeader(view, offset);
@@ -1300,13 +1302,13 @@ export function deserializeBrainFrameGpu(view: DataView, offset: number, outObj?
 
 export function serializeBrainFrameGpu(val: BrainFrameGpu, view: DataView, offset: number): void {
 	serializeBinaryLayoutPlanHeader(val.header, view, offset);
-	{ for (let i = 0, __o = offset + 44; i < 1024; i++, __o += 4) { const __e = val.tokenIds[i]!; view.setUint32(__o, __e, true); } }
-	{ for (let i = 0, __o = offset + 4140; i < 1024; i++, __o += 4) { const __e = val.fieldRoles[i]!; view.setUint32(__o, __e, true); } }
-	{ for (let i = 0, __o = offset + 8236; i < 128; i++, __o += 4) { const __e = val.schemaIds[i]!; view.setUint32(__o, __e, true); } }
-	{ for (let i = 0, __o = offset + 8748; i < 128; i++, __o += 4) { const __e = val.bandIds[i]!; view.setUint32(__o, __e, true); } }
-	{ for (let i = 0, __o = offset + 9260; i < 1024; i++, __o += 4) { const __e = val.runtimeRefs[i]!; view.setUint32(__o, __e, true); } }
-	{ for (let i = 0, __o = offset + 13356; i < 128; i++, __o += 4) { const __e = val.recordFlags[i]!; view.setUint32(__o, __e, true); } }
-	{ for (let i = 0, __o = offset + 13868; i < 128; i++, __o += 4) { const __e = val.activeRecordIndices[i]!; view.setUint32(__o, __e, true); } }
+	{ for (let i = 0, __o = offset + 44; i < 2304; i++, __o += 4) { const __e = val.tokenIds[i]!; view.setUint32(__o, __e, true); } }
+	{ for (let i = 0, __o = offset + 9260; i < 2304; i++, __o += 4) { const __e = val.fieldRoles[i]!; view.setUint32(__o, __e, true); } }
+	{ for (let i = 0, __o = offset + 18476; i < 288; i++, __o += 4) { const __e = val.schemaIds[i]!; view.setUint32(__o, __e, true); } }
+	{ for (let i = 0, __o = offset + 19628; i < 288; i++, __o += 4) { const __e = val.bandIds[i]!; view.setUint32(__o, __e, true); } }
+	{ for (let i = 0, __o = offset + 20780; i < 2304; i++, __o += 4) { const __e = val.runtimeRefs[i]!; view.setUint32(__o, __e, true); } }
+	{ for (let i = 0, __o = offset + 29996; i < 288; i++, __o += 4) { const __e = val.recordFlags[i]!; view.setUint32(__o, __e, true); } }
+	{ for (let i = 0, __o = offset + 31148; i < 288; i++, __o += 4) { const __e = val.activeRecordIndices[i]!; view.setUint32(__o, __e, true); } }
 }
 
 export function deserializeHomeostasisSignal(view: DataView, offset: number, outObj?: any): HomeostasisSignal {

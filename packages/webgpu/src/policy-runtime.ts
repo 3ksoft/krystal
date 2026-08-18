@@ -8,7 +8,7 @@ import { FIXTURE_ACTION_INTENTS } from "../../krystal/src/fixtures/action-intent
 import { fixtureTokenId } from "../../krystal/src/fixtures/vocabulary.ts";
 import { ACTION_INTENT_SCHEMA_ID } from "../../krystal/src/fixtures/frame.ts";
 import { emitIntentSet } from "../../krystal/src/forward/intentset.ts";
-import { argMaskFor, compileActiveFrame, compileIntentMask, type ActiveFrame } from "../../krystal/src/forward/masks.ts";
+import { argMaskFor, compileActiveFrame, compileIntentMask, type ActiveFrame, type WordBias } from "../../krystal/src/forward/masks.ts";
 import type { PolicyAction, PolicyRawFrame } from "../../krystal/src/bridge/policy.ts";
 import type { SelectionSlotResult } from "../../krystal/src/forward/oracle.ts";
 import type { v1_0_0 } from "../../schema/generated/krystal.types.ts";
@@ -28,6 +28,13 @@ export const ROUTE_KIND: Readonly<Record<PolicyAction, number>> = {
   MOVE_TOWARDS: 3,
   LOOK: 4,
   WAIT: 5,
+  // The typed decision head is a weight shape ([routeKindCount, 3H]), so a
+  // seventh route would renumber every existing initialization. CHASE shares
+  // the postural approach route with MOVE_TOWARDS: the W2 assay
+  // (docs/word_attention_bias.md) trains a single-action catalog, so nothing
+  // in it has to tell the two routes apart. Promoting CHASE into the
+  // curriculum means giving it its own kind and raising routeKindCount.
+  CHASE: 3,
 };
 
 export const ACTION_TOKEN: Readonly<Record<PolicyAction, number>> = {
@@ -37,6 +44,7 @@ export const ACTION_TOKEN: Readonly<Record<PolicyAction, number>> = {
   WAIT: fixtureTokenId("WAIT"),
   CRY: fixtureTokenId("CRY"),
   LAUGH: fixtureTokenId("LAUGH"),
+  CHASE: fixtureTokenId("CHASE"),
 };
 
 export function catalogBankIndex(frame: v1_0_0.BrainFrameGpu, active: ActiveFrame, actionToken: number): number {
@@ -101,13 +109,14 @@ export async function productionSelection(
   runner: KrystalForward,
   frame: v1_0_0.BrainFrameGpu,
   catalog: CompiledActionCatalog,
+  wordBias?: WordBias,
 ): Promise<ProductionSelection | null> {
   const active = compileActiveFrame(frame);
   const q = active.queryRecords.length;
   const r = active.bankRecords.length;
   const intentMask = compileIntentMask(frame, active, ACTION_INTENT_SCHEMA_ID);
 
-  runner.forward(frame, { intentMask, argMask: intentMask });
+  runner.forward(frame, { intentMask, argMask: intentMask }, wordBias);
   await device.queue.onSubmittedWorkDone();
   const first = await runner.readSelection(q, r, POLICY_CONFIG.hiddenSize);
   const bankIdx = first.intent.index[0]!;
@@ -121,7 +130,7 @@ export async function productionSelection(
   runner.forward(frame, {
     intentMask,
     argMask: argMaskFor(frame, active, catalog, descriptor.intentId, 0),
-  });
+  }, wordBias);
   await device.queue.onSubmittedWorkDone();
   const second = await runner.readSelection(q, r, POLICY_CONFIG.hiddenSize);
   return { frame, active, intent: first.intent, argument: second.argument };

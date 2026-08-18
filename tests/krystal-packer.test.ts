@@ -5,6 +5,7 @@
 import { expect, test } from "bun:test";
 import {
   BRAIN_FIXED_RECORDS,
+  BRAIN_FRAME_BANDS,
   BRAIN_LIMITS,
   INVALID_U32,
   RECORD_FLAGS,
@@ -35,13 +36,21 @@ import {
 
 const { recordWidth, frameRecordSlots, maxReferencesPerRecord } = BRAIN_LIMITS;
 
+/** First slot of a band, so the tests follow the layout instead of literals. */
+const bandOffset = (kind: string): number =>
+  BRAIN_FRAME_BANDS.find((band) => band.kind === kind)!.recordOffset;
+
 test("packer: fixture frame packs to the expected SoA buffers", () => {
   const input = buildFixtureFrame();
   const { frame, activeRecordIndices } = packBrainFrame(input, BINARY_LAYOUT_PLAN);
 
-  // Active records in ascending slot order (incl. the ActionIntent catalog
-  // records at 116-118 and the query record at 122).
-  expect(activeRecordIndices).toEqual([4, 12, 24, 90, 116, 117, 118, 122]);
+  // Active records in ascending slot order: the fixture's occupied slots,
+  // including the three ActionIntent catalog records and the query record.
+  // Derived from the fixture specs so a band-layout change moves both together.
+  expect(activeRecordIndices).toEqual(
+    buildFixtureRecords().map((spec) => spec.slot).sort((a, b) => a - b),
+  );
+  expect(activeRecordIndices.length).toBe(8);
   // BrainFrameGpu header is the plan header.
   expect(frame.header.planVersion).toBe(BINARY_LAYOUT_PLAN.header.planVersion);
   expect(frame.header.bufferCount).toBe(BINARY_LAYOUT_PLAN.header.bufferCount);
@@ -72,16 +81,16 @@ test("packer: reference bindings pack tokenId + generation and stay consistent",
   const input = buildFixtureFrame();
   const { frame } = packBrainFrame(input);
 
-  // Apple record at slot 24, reference at local index 1.
-  const appleBase = 24 * maxReferencesPerRecord;
+  // Apple record at the first vision slot, reference at local index 1.
+  const appleBase = bandOffset("vision") * maxReferencesPerRecord;
   const applePacked = frame.runtimeRefs[appleBase]!;
   expect(applePacked).toBe((FIXTURE_APPLE_REF | (3 << 12)) >>> 0);
   const appleHandle = unpackRuntimeHandle(applePacked);
   expect(appleHandle.tokenId).toBe(FIXTURE_APPLE_REF);
   expect(appleHandle.generation).toBe(3);
 
-  // Memory record at slot 90, reference at local index 1.
-  const memoryBase = 90 * maxReferencesPerRecord;
+  // Memory record at the first memory slot, reference at local index 1.
+  const memoryBase = bandOffset("memory") * maxReferencesPerRecord;
   const memoryPacked = frame.runtimeRefs[memoryBase]!;
   expect(unpackRuntimeHandle(memoryPacked).tokenId).toBe(FIXTURE_MEMORY_REF);
 
@@ -116,9 +125,10 @@ test("packer: an empty frame packs with zero active records", () => {
 
 test("packer: rejects records outside their band's slot range", () => {
   const input = buildFixtureFrame();
-  // Move the Self record (body band, slots 12..23) into the vision band.
-  input.records[24]!.header = {
-    ...input.records[24]!.header,
+  // Claim the Apple record (first vision slot) is a body-band record.
+  const visionSlot = bandOffset("vision");
+  input.records[visionSlot]!.header = {
+    ...input.records[visionSlot]!.header,
     band: "body",
   };
   expect(() => packBrainFrame(input)).toThrow(FramePackerError);
@@ -126,21 +136,21 @@ test("packer: rejects records outside their band's slot range", () => {
 
 test("packer: rejects tokens outside the 12-bit token space", () => {
   const input = buildFixtureFrame();
-  input.records[24]!.tokens[5] = 0x1000;
+  input.records[bandOffset("vision")]!.tokens[5] = 0x1000;
   expect(() => packBrainFrame(input)).toThrow(FramePackerError);
 });
 
 test("packer: rejects padding-flagged positions that hold non-PAD tokens", () => {
   const input = buildFixtureFrame();
-  const meta = input.records[24]!.tokenMeta[5]!;
+  const meta = input.records[bandOffset("vision")]!.tokenMeta[5]!;
   meta.flags = TOKEN_FLAGS.padding;
-  input.records[24]!.tokens[5] = fixtureTokenId("RED");
+  input.records[bandOffset("vision")]!.tokens[5] = fixtureTokenId("RED");
   expect(() => packBrainFrame(input)).toThrow(FramePackerError);
 });
 
 test("packer: rejects reference bindings whose token position disagrees", () => {
   const input = buildFixtureFrame();
-  const binding = input.records[24]!.references[0]!;
+  const binding = input.records[bandOffset("vision")]!.references[0]!;
   binding.handle.tokenId = FIXTURE_MEMORY_REF; // token at index 1 is FIXTURE_APPLE_REF
   expect(() => packBrainFrame(input)).toThrow(FramePackerError);
 });

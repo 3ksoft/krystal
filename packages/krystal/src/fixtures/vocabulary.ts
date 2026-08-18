@@ -60,6 +60,12 @@ export const FIXTURE_TOKENS: readonly FixtureTokenSpec[] = [
   { id: 0x006, symbol: "BEGIN", tokenClass: "system", flags: TOKEN_FLAGS.structural },
   { id: 0x007, symbol: "END", tokenClass: "system", flags: TOKEN_FLAGS.structural },
 
+  // Grammatical structure markers (0x1xx). Case is carried by an explicit
+  // marker token, never by token order: the packed record has no word order to
+  // read a role off (W2 case binding, docs/word_attention_bias.md).
+  { id: 0x100, symbol: "NOMINATIVE", tokenClass: "structure", doc: "grammatical case marker: agent/subject of the predicate" },
+  { id: 0x101, symbol: "ACCUSATIVE", tokenClass: "structure", doc: "grammatical case marker: patient/direct object of the predicate" },
+
   // Basic object concepts (0x3xx)
   { id: 0x300, symbol: "APPLE", tokenClass: "object" },
   { id: 0x301, symbol: "SELF", tokenClass: "object" },
@@ -68,6 +74,8 @@ export const FIXTURE_TOKENS: readonly FixtureTokenSpec[] = [
   { id: 0x304, symbol: "MOTHER", tokenClass: "object" },
   { id: 0x305, symbol: "STONE", tokenClass: "object" },
   { id: 0x306, symbol: "FECES", tokenClass: "object" },
+  { id: 0x307, symbol: "DOG", tokenClass: "object", doc: "animate vision object; W2 case-binding assay" },
+  { id: 0x308, symbol: "CAT", tokenClass: "object", doc: "animate vision object; W2 case-binding assay" },
 
   // Properties / qualities (0x4xx)
   { id: 0x400, symbol: "RED", tokenClass: "property" },
@@ -81,12 +89,15 @@ export const FIXTURE_TOKENS: readonly FixtureTokenSpec[] = [
   { id: 0x408, symbol: "NEAR", tokenClass: "property", doc: "object is within reach (S5 spatial availability)" },
   { id: 0x409, symbol: "FAR", tokenClass: "property", doc: "object is out of reach (S5 spatial availability)" },
   { id: 0x40a, symbol: "POISONED", tokenClass: "property", doc: "consumable carries a negative consequence (S8)" },
+  { id: 0x40b, symbol: "YELLOW", tokenClass: "property", doc: "word-binding assay colour (docs/word_attention_bias.md)" },
 
   // Quantities / projected channels (0x5xx)
   { id: 0x500, symbol: "COMFORT", tokenClass: "quantity", doc: "homeostasis comfort channel token" },
   { id: 0x501, symbol: "MILD", tokenClass: "quantity", doc: "comfort magnitude band (0.25 < |c| <= 0.5)" },
   { id: 0x502, symbol: "MODERATE", tokenClass: "quantity", doc: "comfort magnitude band (0.5 < |c| <= 0.75)" },
   { id: 0x503, symbol: "SEVERE", tokenClass: "quantity", doc: "comfort magnitude band (0.75 < |c| <= 1)" },
+  { id: 0x504, symbol: "SOME", tokenClass: "quantity", doc: "word-binding assay quantifier (docs/word_attention_bias.md)" },
+  { id: 0x505, symbol: "MUCH", tokenClass: "quantity", doc: "word-binding assay quantifier (docs/word_attention_bias.md)" },
 
   // Actions / state changes (0x6xx)
   { id: 0x600, symbol: "LOOK", tokenClass: "action", arity: 1, doc: "perceptual LOOK(ref)" },
@@ -97,6 +108,7 @@ export const FIXTURE_TOKENS: readonly FixtureTokenSpec[] = [
   { id: 0x605, symbol: "CRY", tokenClass: "action", arity: 0, doc: "communicative CRY() — negative homeostasis valence" },
   { id: 0x606, symbol: "LAUGH", tokenClass: "action", arity: 0, doc: "communicative LAUGH() — positive homeostasis valence" },
   { id: 0x607, symbol: "MOVE_TOWARDS", tokenClass: "action", arity: 1, doc: "MOVE_TOWARDS(ref) — approach a spatially distant target (S5)" },
+  { id: 0x608, symbol: "CHASE", tokenClass: "action", arity: 1, doc: "CHASE(ref) — pursue the accusative-marked participant (W2 case-binding assay)" },
 
   // Relations (0x8xx)
   { id: 0x800, symbol: "STICK", tokenClass: "relation", doc: "persistent attachment relation" },

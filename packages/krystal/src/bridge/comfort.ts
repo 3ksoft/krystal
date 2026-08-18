@@ -158,7 +158,11 @@ export function comfortBandIndex(band: string): number {
 // ---------------------------------------------------------------------------
 
 export interface ComfortLowerOptions {
-  /** Max noise records per band (0 = no noise). Default: every slot. */
+  /**
+   * Max noise records per band (0 = no noise). Default: half the band's
+   * capacity, so enlarging a band adds room for real records rather than more
+   * distractors (see the same budget in bridge/policy.ts).
+   */
   readonly noisePerBand?: number;
   /**
    * Comfort ablation: drop the homeostasisSummary record and strip the query
@@ -213,7 +217,8 @@ interface ComfortRecordSpec {
 function buildComfortRecords(episode: ComfortEpisode, options: ComfortLowerOptions): ComfortRecordSpec[] {
   const specs: ComfortRecordSpec[] = [];
   const recordWidth = BRAIN_LIMITS.recordWidth;
-  const noisePerBand = options.noisePerBand ?? Number.POSITIVE_INFINITY;
+  const noiseBudget = (capacity: number): number =>
+    options.noisePerBand ?? Math.floor(capacity / 2);
   const bandSeeds = comfortBandSeeds(episode);
 
   const signalTokens = (ablate: boolean): readonly number[] =>
@@ -239,15 +244,15 @@ function buildComfortRecords(episode: ComfortEpisode, options: ComfortLowerOptio
     });
   }
 
-  // CRY / LAUGH ActionIntent catalog records (focus band fixed roles). The
+  // CRY / LAUGH ActionIntent catalog records (catalog band fixed roles). The
   // intent selector must choose between exactly these two.
   const catalog: readonly ComfortAction[] = ["CRY", "LAUGH"];
   for (let i = 0; i < catalog.length; i++) {
     const action = catalog[i]!;
     const token = fixtureTokenId(action);
     specs.push({
-      slot: BRAIN_FIXED_RECORDS.perceptualFocus + i,
-      band: "focus",
+      slot: BRAIN_FIXED_RECORDS.catalogBase + i,
+      band: "catalog",
       schemaId: ACTION_INTENT_SCHEMA_ID,
       tokens: [token, ...new Array<number>(recordWidth - 1).fill(PAD_TOKEN_ID)],
       roleTokens: [token, ...new Array<number>(recordWidth - 1).fill(0)],
@@ -273,9 +278,10 @@ function buildComfortRecords(episode: ComfortEpisode, options: ComfortLowerOptio
       const bandDef = BRAIN_FRAME_BANDS.find((candidate) => candidate.kind === band)!;
       const bandIndexValue = comfortBandIndex(band);
       const bandSeed = bandSeeds.get(band) ?? 0;
+      const budget = noiseBudget(bandDef.recordCapacity);
       let emitted = 0;
       for (let slot = bandDef.recordOffset; slot < bandDef.recordOffset + bandDef.recordCapacity; slot++) {
-        if (emitted >= noisePerBand) break;
+        if (emitted >= budget) break;
         const tokens = Array.from({ length: recordWidth }, (_, local) =>
           comfortNoiseToken(COMFORT_NOISE_ALPHABET, bandSeed, bandIndexValue, slot, local),
         );

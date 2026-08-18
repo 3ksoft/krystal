@@ -3,9 +3,22 @@
 // handles resolved from the record sidecars. Pure CPU — no GPU needed.
 import { expect, test } from "bun:test";
 import {
+  BRAIN_FIXED_RECORDS,
+  BRAIN_FRAME_BANDS,
   BRAIN_LIMITS,
   INVALID_U32,
 } from "../packages/schema/src/krystal-engine-schema.ts";
+
+// Fixture slots, taken from the layout rather than written as literals: the
+// canonical frame places its Apple in the first vision slot, its MemoryObject
+// in the first memory slot and LOOK/EAT/WAIT in the first catalog slots.
+const VISION_SLOT = BRAIN_FRAME_BANDS.find((band) => band.kind === "vision")!.recordOffset;
+const MEMORY_SLOT = BRAIN_FRAME_BANDS.find((band) => band.kind === "memory")!.recordOffset;
+const CATALOG = {
+  LOOK: BRAIN_FIXED_RECORDS.catalogBase,
+  EAT: BRAIN_FIXED_RECORDS.catalogBase + 1,
+  WAIT: BRAIN_FIXED_RECORDS.catalogBase + 2,
+} as const;
 import { packBrainFrame, unpackRuntimeHandle } from "../packages/krystal/src/frame/packer.ts";
 import { buildFixtureActionCatalog, fixtureIntent } from "../packages/krystal/src/fixtures/action-intents.ts";
 import { ACTION_INTENT_SCHEMA_ID, buildFixtureFrame, FIXTURE_APPLE_REF, FIXTURE_MEMORY_REF } from "../packages/krystal/src/fixtures/frame.ts";
@@ -56,10 +69,10 @@ function emit(
 
 test("IntentSet: EAT selected with Apple argument resolves exact handles", () => {
   const base = fixtureBase();
-  // Bank order (non-query active slots ascending): homeostasis(4), self(12),
-  // apple(24), memory(90), LOOK(116), EAT(117), WAIT(118). Query is slot 122.
-  const EAT_BANK = base.active.bankRecords.indexOf(117);
-  const APPLE_BANK = base.active.bankRecords.indexOf(24);
+  // Bank order is the non-query active slots ascending: homeostasis, self,
+  // apple, memory, then the LOOK/EAT/WAIT catalog records.
+  const EAT_BANK = base.active.bankRecords.indexOf(CATALOG.EAT);
+  const APPLE_BANK = base.active.bankRecords.indexOf(VISION_SLOT);
   const r = base.active.bankRecords.length;
 
   const intent = peakedSlot(EAT_BANK, r);
@@ -85,7 +98,7 @@ test("IntentSet: EAT selected with Apple argument resolves exact handles", () =>
   expect(arg.handle.tokenId).toBe(FIXTURE_APPLE_REF);
   expect(arg.handle.generation).toBe(3);
   expect(arg.selector.status).toBe("selected");
-  expect(arg.selector.selectedRecord).toBe(24);
+  expect(arg.selector.selectedRecord).toBe(VISION_SLOT);
   expect(arg.selector.probability).toBe(1);
 
   // Unused argument slots stay empty/invalid.
@@ -100,8 +113,8 @@ test("IntentSet: LOOK selected with Apple resolves (Apple is observable)", () =>
   // LOOK.target requires the "observable" capability (S7 contract); the Apple
   // schema carries it, so the argument resolves even though Apple is not the
   // VisionObject identity the descriptor names.
-  const LOOK_BANK = base.active.bankRecords.indexOf(116);
-  const APPLE_BANK = base.active.bankRecords.indexOf(24);
+  const LOOK_BANK = base.active.bankRecords.indexOf(CATALOG.LOOK);
+  const APPLE_BANK = base.active.bankRecords.indexOf(VISION_SLOT);
   const r = base.active.bankRecords.length;
 
   const set = emit({
@@ -125,8 +138,8 @@ test("IntentSet: incompatible required argument row yields no executable proposa
   // LOOK.target is a required reference argument. Pointing it at the
   // homeostasis record (schema 3, no "observable" capability) must produce no
   // fabricated handle and no executable proposal: the slot stays empty.
-  const LOOK_BANK = base.active.bankRecords.indexOf(116);
-  const HOMEOSTASIS_BANK = base.active.bankRecords.indexOf(4);
+  const LOOK_BANK = base.active.bankRecords.indexOf(CATALOG.LOOK);
+  const HOMEOSTASIS_BANK = base.active.bankRecords.indexOf(BRAIN_FIXED_RECORDS.homeostasisSummary);
   const r = base.active.bankRecords.length;
 
   const set = emit({
@@ -146,7 +159,7 @@ test("IntentSet: incompatible required argument row yields no executable proposa
 
 test("IntentSet: WAIT emits a proposal with no typed arguments", () => {
   const base = fixtureBase();
-  const WAIT_BANK = base.active.bankRecords.indexOf(118);
+  const WAIT_BANK = base.active.bankRecords.indexOf(CATALOG.WAIT);
   const r = base.active.bankRecords.length;
 
   const set = emit({
@@ -171,8 +184,8 @@ test("IntentSet: required-arg resolution error yields masked record, not fabrica
   // EAT.target requires "edible"; the memory record carries no edible
   // capability. The argmax landing there yields a masked argument and — since
   // EAT's argument is required — no executable proposal.
-  const EAT_BANK = base.active.bankRecords.indexOf(117);
-  const MEMORY_BANK = base.active.bankRecords.indexOf(90);
+  const EAT_BANK = base.active.bankRecords.indexOf(CATALOG.EAT);
+  const MEMORY_BANK = base.active.bankRecords.indexOf(MEMORY_SLOT);
   const r = base.active.bankRecords.length;
 
   const set = emit({
@@ -235,8 +248,8 @@ test("IntentSet: count 0 preserves transport capacity and empty slots", () => {
 
 test("IntentSet: emitted handles round-trip through the packer's sidecar", () => {
   const base = fixtureBase();
-  const EAT_BANK = base.active.bankRecords.indexOf(117);
-  const APPLE_BANK = base.active.bankRecords.indexOf(24);
+  const EAT_BANK = base.active.bankRecords.indexOf(CATALOG.EAT);
+  const APPLE_BANK = base.active.bankRecords.indexOf(VISION_SLOT);
   const r = base.active.bankRecords.length;
 
   const set = emit({
@@ -247,8 +260,8 @@ test("IntentSet: emitted handles round-trip through the packer's sidecar", () =>
     argument: peakedSlot(APPLE_BANK, r),
   });
   const arg = set.proposals[0]!.arguments[0]!;
-  // The packed sidecar for Apple (slot 24) is the same handle the packer stored.
-  const packed = base.frame.runtimeRefs[24 * BRAIN_LIMITS.maxReferencesPerRecord]!;
+  // The packed sidecar for Apple is the same handle the packer stored.
+  const packed = base.frame.runtimeRefs[VISION_SLOT * BRAIN_LIMITS.maxReferencesPerRecord]!;
   const unpacked = unpackRuntimeHandle(packed);
   expect(arg.handle.tokenId).toBe(unpacked.tokenId);
   expect(arg.handle.generation).toBe(unpacked.generation);
@@ -257,21 +270,21 @@ test("IntentSet: emitted handles round-trip through the packer's sidecar", () =>
 
 test("IntentSet: selector distributions with entropy/candidate counts", () => {
   const base = fixtureBase();
-  const LOOK_BANK = base.active.bankRecords.indexOf(116);
-  const APPLE_BANK = base.active.bankRecords.indexOf(24);
+  const LOOK_BANK = base.active.bankRecords.indexOf(CATALOG.LOOK);
+  const APPLE_BANK = base.active.bankRecords.indexOf(VISION_SLOT);
   const r = base.active.bankRecords.length;
 
   // A soft distribution over the three catalog records (others masked).
   const scores = new Float32Array(r).fill(-1e30);
   scores[LOOK_BANK] = 2;
-  scores[base.active.bankRecords.indexOf(117)] = 1;
-  scores[base.active.bankRecords.indexOf(118)] = 0.5;
+  scores[base.active.bankRecords.indexOf(CATALOG.EAT)] = 1;
+  scores[base.active.bankRecords.indexOf(CATALOG.WAIT)] = 0.5;
   const p = new Float32Array(r).fill(-1e30);
   softmaxRow(p, 0, r);
   p[LOOK_BANK] = Math.exp(2 - 2);
-  p[base.active.bankRecords.indexOf(117)] = Math.exp(1 - 2);
-  p[base.active.bankRecords.indexOf(118)] = Math.exp(0.5 - 2);
-  const norm = p[LOOK_BANK]! + p[base.active.bankRecords.indexOf(117)]! + p[base.active.bankRecords.indexOf(118)]!;
+  p[base.active.bankRecords.indexOf(CATALOG.EAT)] = Math.exp(1 - 2);
+  p[base.active.bankRecords.indexOf(CATALOG.WAIT)] = Math.exp(0.5 - 2);
+  const norm = p[LOOK_BANK]! + p[base.active.bankRecords.indexOf(CATALOG.EAT)]! + p[base.active.bankRecords.indexOf(CATALOG.WAIT)]!;
   for (let j = 0; j < r; j++) p[j] = p[j]! / norm;
   const index = new Uint32Array([LOOK_BANK]);
   const intent = { p, gather: new Float32Array(H), index };
@@ -298,9 +311,9 @@ test("IntentSet: selector distributions with entropy/candidate counts", () => {
 
 test("IntentSet: intensity reflects peakedness and argument support", () => {
   const base = fixtureBase();
-  const EAT_BANK = base.active.bankRecords.indexOf(117);
-  const APPLE_BANK = base.active.bankRecords.indexOf(24);
-  const WAIT_BANK = base.active.bankRecords.indexOf(118);
+  const EAT_BANK = base.active.bankRecords.indexOf(CATALOG.EAT);
+  const APPLE_BANK = base.active.bankRecords.indexOf(VISION_SLOT);
+  const WAIT_BANK = base.active.bankRecords.indexOf(CATALOG.WAIT);
   const r = base.active.bankRecords.length;
 
   // Case 1: peaked intent + peaked argument -> intensity 1 (already covered by
@@ -325,7 +338,7 @@ test("IntentSet: intensity reflects peakedness and argument support", () => {
   // Case 3: peaked intent, argument selector split 50/50 -> intensity = 0.5.
   const softArg = new Float32Array(r);
   softArg[APPLE_BANK] = 0.5;
-  softArg[base.active.bankRecords.indexOf(90)] = 0.5;
+  softArg[base.active.bankRecords.indexOf(MEMORY_SLOT)] = 0.5;
   set = emit({
     frame: base.frame, active: base.active, catalog: base.catalog,
     intent: peakedSlot(EAT_BANK, r),

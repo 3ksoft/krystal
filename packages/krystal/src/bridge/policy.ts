@@ -63,7 +63,13 @@ export type PolicyStage =
   | "S9" // working memory (vision leaves, ref stays)
   | "S10"; // full randomized policy
 
-export type PolicyAction = "CRY" | "LAUGH" | "EAT" | "MOVE_TOWARDS" | "LOOK" | "WAIT";
+/**
+ * Actions the training harness can label. S1-S10 use the first six;
+ * `CHASE` belongs to the isolated W2 case-binding assay
+ * (docs/word_attention_bias.md) and never enters POLICY_CATALOG_ACTIONS, so
+ * curriculum frames are unchanged by its presence.
+ */
+export type PolicyAction = "CRY" | "LAUGH" | "EAT" | "MOVE_TOWARDS" | "LOOK" | "WAIT" | "CHASE";
 
 export type ResourceKind =
   | "apple"
@@ -399,17 +405,41 @@ interface PolicyRecordSpec {
 }
 
 export interface PolicyLowerOptions {
-  /** Noise per band (0 = none). Default: every leftover slot. */
+  /**
+   * Noise records per band (0 = none). Default: half the band's capacity.
+   *
+   * The kaleidoscope noise supplies distractor pressure, so its budget is a
+   * fraction of the band rather than "every leftover slot" — otherwise
+   * enlarging a band to make room for real records silently buys more
+   * distractors and quadratically more encoder attention instead.
+   */
   readonly noisePerBand?: number;
   /** Skip the kaleidoscope noise entirely. */
   readonly ablateNoise?: boolean;
   /** Deterministic slot-order permutation seed (default: the episode seed). */
   readonly shuffleSeed?: number;
+  /**
+   * ActionIntent catalog lowered into the catalog band. Defaults to the
+   * fixture catalog; a game-derived catalog passes its own list. The order is
+   * the band's slot order, so it must stay stable for a trained creature.
+   */
+  readonly catalogActions?: readonly PolicyAction[];
 }
+
+/** The fixture ActionIntent catalog, in stable band-slot order. */
+export const POLICY_CATALOG_ACTIONS: readonly PolicyAction[] = [
+  "LOOK",
+  "EAT",
+  "MOVE_TOWARDS",
+  "WAIT",
+  "CRY",
+  "LAUGH",
+];
 
 /** Band capacity of the vision/memory bands (where real records live). */
 const VISION_BAND = BRAIN_FRAME_BANDS.find((band) => band.kind === "vision")!;
 const MEMORY_BAND = BRAIN_FRAME_BANDS.find((band) => band.kind === "memory")!;
+const CATALOG_BAND = BRAIN_FRAME_BANDS.find((band) => band.kind === "catalog")!;
 
 /** Deterministically permute `count` slots inside [start, start+capacity). */
 function shuffledSlots(start: number, capacity: number, count: number, seed: number): number[] {
@@ -433,7 +463,8 @@ function shuffledSlots(start: number, capacity: number, count: number, seed: num
 export function buildPolicyRecords(frame: PolicyRawFrame, episode: PolicyEpisode, options: PolicyLowerOptions): PolicyRecordSpec[] {
   const specs: PolicyRecordSpec[] = [];
   const recordWidth = BRAIN_LIMITS.recordWidth;
-  const noisePerBand = options.noisePerBand ?? Number.POSITIVE_INFINITY;
+  const noiseBudget = (band: (typeof BRAIN_FRAME_BANDS)[number]): number =>
+    options.noisePerBand ?? Math.floor(band.recordCapacity / 2);
   const shuffleSeed = options.shuffleSeed ?? episode.seed;
 
   // Homeostasis signal (identical machinery to the Step-1 lowerer).
@@ -452,13 +483,19 @@ export function buildPolicyRecords(frame: PolicyRawFrame, episode: PolicyEpisode
     flags: RECORD_FLAGS.occupied | RECORD_FLAGS.fixed,
   });
 
-  // The full 6-intent ActionIntent catalog (focus band, fixed roles).
-  const catalogActions: readonly PolicyAction[] = ["LOOK", "EAT", "MOVE_TOWARDS", "WAIT", "CRY", "LAUGH"];
+  // The ActionIntent catalog (catalog band, fixed roles). One record per
+  // declared action; the band's capacity is the ceiling on catalog size.
+  const catalogActions: readonly PolicyAction[] = options.catalogActions ?? POLICY_CATALOG_ACTIONS;
+  if (catalogActions.length > CATALOG_BAND.recordCapacity) {
+    throw new Error(
+      `ActionIntent catalog has ${catalogActions.length} entries but the catalog band holds ${CATALOG_BAND.recordCapacity}`,
+    );
+  }
   for (let i = 0; i < catalogActions.length; i++) {
     const token = fixtureTokenId(catalogActions[i]!);
     specs.push({
-      slot: BRAIN_FIXED_RECORDS.perceptualFocus + i,
-      band: "focus",
+      slot: BRAIN_FIXED_RECORDS.catalogBase + i,
+      band: "catalog",
       schemaId: ACTION_INTENT_SCHEMA_ID,
       tokens: [token, ...new Array<number>(recordWidth - 1).fill(PAD_TOKEN_ID)],
       roleTokens: [token, ...new Array<number>(recordWidth - 1).fill(0)],
@@ -479,18 +516,26 @@ export function buildPolicyRecords(frame: PolicyRawFrame, episode: PolicyEpisode
     specs.push(resourceRecord(memoryResources[i]!, memorySlots[i]!, "memory"));
   }
 
-  // Kaleidoscope noise in every leftover sensory band slot (incl. leftover
-  // vision/memory slots after the real records), deterministic per band seed.
+  // Kaleidoscope noise in leftover sensory band slots (incl. leftover
+  // vision/memory slots after the real records), deterministic per band seed
+  // and bounded by the band's noise budget.
   if (!options.ablateNoise) {
     const occupied = new Set(specs.map((spec) => spec.slot));
     for (const band of BRAIN_FRAME_BANDS) {
-      if (band.kind === "system" || band.kind === "focus" || band.kind === "query" || band.kind === "homeostasis") continue;
+      if (
+        band.kind === "system" ||
+        band.kind === "focus" ||
+        band.kind === "catalog" ||
+        band.kind === "query" ||
+        band.kind === "homeostasis"
+      ) continue;
       const bandIndexValue = comfortBandIndex(band.kind);
       const bandSeed = mix32((episode.seed >>> 0) ^ (bandIndexValue + 1) * 0x9e3779b1) >>> 0;
+      const budget = noiseBudget(band);
       let emitted = 0;
       for (let slot = band.recordOffset; slot < band.recordOffset + band.recordCapacity; slot++) {
         if (occupied.has(slot)) continue;
-        if (emitted >= noisePerBand) break;
+        if (emitted >= budget) break;
         // Noise is observable background, never edible: VisionObject for the
         // sensory bands and MemoryObject for the memory band, so an EAT
         // argument mask can never resolve to a noise record.

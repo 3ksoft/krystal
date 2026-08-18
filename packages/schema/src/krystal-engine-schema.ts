@@ -92,9 +92,9 @@ export const BINARY_LAYOUT_PLAN_VERSION = 1;
 
 export const BRAIN_LIMITS = {
   recordWidth: 8,
-  frameRecordSlots: 128,
-  frameTokens: 128 * 8,
-  frameBands: 11,
+  frameRecordSlots: 288,
+  frameTokens: 288 * 8,
+  frameBands: 12,
   fixedRecordBindings: 32,
 
   maxRecordSchemas: 0x100,
@@ -142,17 +142,26 @@ export const KRYSTAL_TOKEN_RANGES = {
  *   stable_resident    a record keeps its slot until eviction/replacement.
  */
 export const BRAIN_FRAME_BANDS = [
-  { kind: "system", recordOffset: 0, recordCapacity: 4, tokenOffset: 0, tokenCapacity: 32, placement: "fixed", overflow: "error" },
-  { kind: "homeostasis", recordOffset: 4, recordCapacity: 8, tokenOffset: 32, tokenCapacity: 64, placement: "fixed", overflow: "error" },
-  { kind: "body", recordOffset: 12, recordCapacity: 12, tokenOffset: 96, tokenCapacity: 96, placement: "fixed", overflow: "error" },
-  { kind: "vision", recordOffset: 24, recordCapacity: 32, tokenOffset: 192, tokenCapacity: 256, placement: "shuffled_records", overflow: "truncate_low_salience" },
-  { kind: "audio", recordOffset: 56, recordCapacity: 12, tokenOffset: 448, tokenCapacity: 96, placement: "shuffled_records", overflow: "truncate_low_salience" },
-  { kind: "olfaction", recordOffset: 68, recordCapacity: 6, tokenOffset: 544, tokenCapacity: 48, placement: "shuffled_records", overflow: "truncate_low_salience" },
-  { kind: "taste", recordOffset: 74, recordCapacity: 4, tokenOffset: 592, tokenCapacity: 32, placement: "shuffled_records", overflow: "truncate_low_salience" },
-  { kind: "touch", recordOffset: 78, recordCapacity: 12, tokenOffset: 624, tokenCapacity: 96, placement: "shuffled_records", overflow: "truncate_low_salience" },
-  { kind: "memory", recordOffset: 90, recordCapacity: 26, tokenOffset: 720, tokenCapacity: 208, placement: "stable_resident", overflow: "evict_low_priority" },
-  { kind: "focus", recordOffset: 116, recordCapacity: 6, tokenOffset: 928, tokenCapacity: 48, placement: "stable_resident", overflow: "drop_oldest" },
-  { kind: "query", recordOffset: 122, recordCapacity: 6, tokenOffset: 976, tokenCapacity: 48, placement: "stable_resident", overflow: "drop_oldest" },
+  { kind: "system", recordOffset: 0, recordCapacity: 8, tokenOffset: 0, tokenCapacity: 64, placement: "fixed", overflow: "error" },
+  { kind: "homeostasis", recordOffset: 8, recordCapacity: 16, tokenOffset: 64, tokenCapacity: 128, placement: "fixed", overflow: "error" },
+  { kind: "body", recordOffset: 24, recordCapacity: 24, tokenOffset: 192, tokenCapacity: 192, placement: "fixed", overflow: "error" },
+  { kind: "vision", recordOffset: 48, recordCapacity: 64, tokenOffset: 384, tokenCapacity: 512, placement: "shuffled_records", overflow: "truncate_low_salience" },
+  { kind: "audio", recordOffset: 112, recordCapacity: 24, tokenOffset: 896, tokenCapacity: 192, placement: "shuffled_records", overflow: "truncate_low_salience" },
+  { kind: "olfaction", recordOffset: 136, recordCapacity: 12, tokenOffset: 1088, tokenCapacity: 96, placement: "shuffled_records", overflow: "truncate_low_salience" },
+  { kind: "taste", recordOffset: 148, recordCapacity: 8, tokenOffset: 1184, tokenCapacity: 64, placement: "shuffled_records", overflow: "truncate_low_salience" },
+  { kind: "touch", recordOffset: 156, recordCapacity: 24, tokenOffset: 1248, tokenCapacity: 192, placement: "shuffled_records", overflow: "truncate_low_salience" },
+  { kind: "memory", recordOffset: 180, recordCapacity: 52, tokenOffset: 1440, tokenCapacity: 416, placement: "stable_resident", overflow: "evict_low_priority" },
+  { kind: "focus", recordOffset: 232, recordCapacity: 12, tokenOffset: 1856, tokenCapacity: 96, placement: "stable_resident", overflow: "drop_oldest" },
+  { kind: "query", recordOffset: 244, recordCapacity: 12, tokenOffset: 1952, tokenCapacity: 96, placement: "stable_resident", overflow: "drop_oldest" },
+  // The ActionIntent catalog is creator-authored, not perceived: the intent
+  // selector scores these records, so their count is the ceiling on how many
+  // actions a game may declare. It owns a band rather than squatting `focus`
+  // slots, which capped the catalog at six without saying so.
+  //
+  // Appended LAST on purpose. A band's array index is its embedding row and its
+  // `candidateBandMask` bit, so inserting one anywhere else renumbers the bands
+  // after it and silently changes the meaning of every stored mask.
+  { kind: "catalog", recordOffset: 256, recordCapacity: 32, tokenOffset: 2048, tokenCapacity: 256, placement: "fixed", overflow: "error" },
 ] as const;
 
 /**
@@ -167,24 +176,27 @@ export const BRAIN_FIXED_RECORDS = {
   actor: 2,
   runtimeFeedback: 3,
 
-  homeostasisSummary: 4,
-  primaryNeed: 5,
+  homeostasisSummary: 8,
+  primaryNeed: 9,
 
-  self: 12,
-  head: 13,
-  leftHand: 14,
-  rightHand: 15,
-  mouth: 16,
-  locomotion: 17,
-  torsoBalance: 18,
-  internalFocus: 19,
-  vocalizer: 20,
+  self: 24,
+  head: 25,
+  leftHand: 26,
+  rightHand: 27,
+  mouth: 28,
+  locomotion: 29,
+  torsoBalance: 30,
+  internalFocus: 31,
+  vocalizer: 32,
 
-  perceptualFocus: 116,
-  thoughtFocus: 117,
-  speechTopic: 118,
+  perceptualFocus: 232,
+  thoughtFocus: 233,
+  speechTopic: 234,
 
-  primaryQuery: 122,
+  primaryQuery: 244,
+
+  /** First slot of the ActionIntent catalog band; entry i lives at +i. */
+  catalogBase: 256,
 } as const;
 
 export const INVALID_U32 = 0xffff_ffff;
@@ -285,7 +297,7 @@ export const schema = scope({
     "'system' | 'structure' | 'operation' | 'object' | 'property' | 'quantity' | 'action' | 'reference' | 'relation' | 'logic' | 'domain' | 'context' | 'experimental'",
 
   BrainBandKind:
-    "'system' | 'homeostasis' | 'body' | 'vision' | 'audio' | 'olfaction' | 'taste' | 'touch' | 'memory' | 'focus' | 'query'",
+    "'system' | 'homeostasis' | 'body' | 'vision' | 'audio' | 'olfaction' | 'taste' | 'touch' | 'memory' | 'focus' | 'query' | 'catalog'",
 
   BandPlacementPolicy: "'fixed' | 'shuffled_records' | 'stable_resident'",
   BandOverflowPolicy: "'error' | 'truncate_low_salience' | 'evict_low_priority' | 'drop_oldest'",
