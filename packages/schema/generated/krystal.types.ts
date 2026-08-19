@@ -53,9 +53,16 @@ export namespace v1_0_0 {
 		focus: 9,
 		query: 10,
 		catalog: 11,
-		temporal: 12,
 	} as const;
-	export type BrainBandKind = "system" | "homeostasis" | "body" | "vision" | "audio" | "olfaction" | "taste" | "touch" | "memory" | "focus" | "query" | "catalog" | "temporal";
+	export type BrainBandKind = "system" | "homeostasis" | "body" | "vision" | "audio" | "olfaction" | "taste" | "touch" | "memory" | "focus" | "query" | "catalog";
+	
+	export const PropositionModality = {
+		declarative: 0,
+		imperative: 1,
+		interrogative: 2,
+		implicative: 3,
+	} as const;
+	export type PropositionModality = "declarative" | "imperative" | "interrogative" | "implicative";
 	
 	export const BandPlacementPolicy = {
 		fixed: 0,
@@ -281,6 +288,7 @@ export namespace v1_0_0 {
 		schemaId: BandMask;
 		band: BrainBandKind;
 		source: RecordSource;
+		modality: PropositionModality;
 		flags: BandMask;
 		tokenCount: BandMask;
 		referenceCount: BandMask;
@@ -409,6 +417,7 @@ export namespace v1_0_0 {
 	export interface BrainQueryState {
 		queryRef: RuntimeRefHandle;
 		kind: BrainQueryKind;
+		modality: PropositionModality;
 		routeToken: BandMask;
 		predicateToken: BandMask;
 		subject: ConceptRef;
@@ -433,10 +442,11 @@ export namespace v1_0_0 {
 		event: 2,
 		goal: 3,
 		intent: 4,
-		topic: 5,
-		observation: 6,
+		rule: 5,
+		topic: 6,
+		observation: 7,
 	} as const;
-	export type MemoryTraceKind = "none" | "entity" | "event" | "goal" | "intent" | "topic" | "observation";
+	export type MemoryTraceKind = "none" | "entity" | "event" | "goal" | "intent" | "rule" | "topic" | "observation";
 	
 	export const MemorySlotState = {
 		empty: 0,
@@ -474,6 +484,7 @@ export namespace v1_0_0 {
 		memoryRef: RuntimeRefHandle;
 		subject: RuntimeRefHandle;
 		kind: MemoryTraceKind;
+		modality: PropositionModality;
 		state: MemorySlotState;
 		flags: BandMask;
 		createdAt: BandMask;
@@ -626,6 +637,7 @@ export namespace v1_0_0 {
 	export interface IntentProposal {
 		proposalSlot: BandMask;
 		lifecycle: IntentLifecycle;
+		modality: PropositionModality;
 		intentId: BandMask;
 		flags: BandMask;
 		intentRef: RuntimeRefHandle;

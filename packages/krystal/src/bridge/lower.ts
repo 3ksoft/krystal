@@ -1,27 +1,3 @@
-/**
- * `pira-raw-sensory@2` -> `BrainFrame`.
- *
- * This is where perception becomes the model's input, and the whole job is
- * fitting an unbounded scene into a fixed geometry: a record is eight token
- * slots, a band is a fixed number of records, and a snapshot may describe far
- * more than either. Everything here is therefore about what to keep.
- *
- * Three rules govern that, and each exists because the obvious alternative
- * fails quietly rather than loudly:
- *
- *   Overflow is reported, never silently truncated. A band that drops its tail
- *   without saying so looks identical to a scene that was simply emptier than
- *   expected.
- *
- *   Unoccupied slots are masked out, not padded and attended. A PAD the network
- *   still attends to is white noise it must spend capacity learning to ignore,
- *   and sensory bands are mostly empty in a typical frame.
- *
- *   Identity comes from the sidecar, never from a token. A reference token is a
- *   local symbol whose meaning is the binding beside it; the model reads that
- *   two things are the same reference, and the runtime resolves what it points
- *   at.
- */
 import {
   BRAIN_FRAME_BANDS,
   BRAIN_LIMITS,
@@ -37,34 +13,15 @@ import { CATALOG_SCHEMA_ID, schemaIdOf, type CompiledGrammar } from "./agent.ts"
 import type { ConceptOperandV2, RawRecordV2, RawSnapshotV2, SensoryBand } from "./contract.ts";
 import { BAND_SYMBOLS, quantize } from "./quantize.ts";
 
-/**
- * An action the engine emitted last tick, fed back so the creature can see what
- * it did. Not an outcome: it says an action was taken, never what came of it.
- */
 export interface PerformedAction {
   readonly relation: string;
   readonly object?: string;
   readonly intensity?: number;
 }
 
-/**
- * A record on its way into the frame.
- *
- * Widens `RawRecordV2`'s band, because the two have different rights: a
- * simulation may only write the sensory bands, while the engine also authors
- * the query row and its own derivatives. Keeping the contract narrow is what
- * stops a world from writing into the brain's own workings; keeping this one
- * wide is what lets the engine do so.
- */
 type LoweredRecord = Omit<RawRecordV2, "band"> & {
   band: v1_0_0.BrainBandKind;
-  /** Set on catalog records; its position is the intent id. */
   catalogIndex?: number;
-  /**
-   * Pre-resolved participants for a relation record. Tokens rather than
-   * instance ids, because a participant may be a sentinel — an unidentified
-   * thing has no instance to name.
-   */
   subjectToken?: number;
   objectToken?: number;
 };
@@ -76,7 +33,6 @@ export class LoweringError extends Error {
   }
 }
 
-/** Per-band accounting, so a frame that lost information says which band. */
 export interface BandOverflow {
   readonly band: v1_0_0.BrainBandKind;
   readonly offered: number;
@@ -85,27 +41,12 @@ export interface BandOverflow {
 
 export interface LoweredFrame {
   readonly frame: v1_0_0.BrainFrame;
-  /**
-   * Change in valence since the previous frame, signed, and the engine's own
-   * learning signal. Undefined on the first frame, where there is nothing to
-   * difference against — which is honest: a creature that has just started
-   * cannot yet know whether anything got better.
-   */
   readonly valenceDelta: number | undefined;
-  /** Runtime reference token -> the instance it denotes, for reading intents back. */
   readonly instanceByToken: ReadonlyMap<number, string>;
   readonly overflow: readonly BandOverflow[];
-  /** Records whose token bag did not fit in eight slots. */
   readonly truncatedRecords: number;
 }
 
-/**
- * Mints and remembers a reference token per world instance.
- *
- * The mapping must outlive a frame: a handle identifies an entity ACROSS ticks,
- * so re-minting would make the same object read as a new one every frame and
- * leave the memory band nothing to hold on to.
- */
 export class ReferenceTable {
   private readonly tokenByInstance = new Map<string, number>();
   private readonly instanceByToken = new Map<number, string>();
@@ -175,15 +116,6 @@ function emptyRecord(): v1_0_0.BrainRecordSlot {
   };
 }
 
-/**
- * Token bag for one observed record, in priority order.
- *
- * Order is the truncation policy, because eight slots will not always be
- * enough. Identity first, then the reference that lets the record be pointed
- * at, then declared measurements, then loose category tokens — so what survives
- * a crowded record is what makes it addressable and distinguishable, and what
- * is lost is descriptive detail.
- */
 function recordTokens(
   record: LoweredRecord,
   grammar: CompiledGrammar,
@@ -201,15 +133,9 @@ function recordTokens(
 
   push(record.schema);
   if (refToken !== undefined) {
-    // Only a reference-half token names a runtime binding. A sentinel occupies
-    // the slot as an ordinary symbol, so recording it as a reference would
-    // promise the runtime an identity that does not exist.
     if (refToken >= KRYSTAL_ABI.refSpaceStart) refIndex = tokens.length;
     tokens.push(refToken);
   }
-  // A relation record carries both participants: subject, then object. The
-  // object slot is always filled — a reflexive event repeats the subject — so
-  // the record has the same shape whether the relation was unary or not.
   if (objectRefToken !== undefined) tokens.push(objectRefToken);
   if (record.emptiness) {
     tokens.push(
@@ -221,11 +147,6 @@ function recordTokens(
   if (record.count !== undefined) {
     for (const symbol of quantize(record.count, "count").tokens) push(symbol);
   }
-  // Categories before quantity bands, because a record holds eight tokens and
-  // the tail is what truncation takes. A lost band costs detail — the thing is
-  // still there, merely less finely described. A lost category costs the record
-  // its class, and with it every role that admits the class rather than the
-  // individual: the apple stops being edible. Order by what cannot be spared.
   for (const symbol of record.tokens) push(symbol);
   for (const quantity of record.quantities ?? []) {
     const declared = grammar.quantities.get(quantity.field);
@@ -238,15 +159,6 @@ function recordTokens(
   return { tokens, refIndex };
 }
 
-/**
- * Lower a validated snapshot into a BrainFrame.
- *
- * `previous` supplies the derivatives the engine computes for itself: how long
- * since a record was last seen and how much it changed. Those need only a
- * stable instance id and the last frame, which is why they are not asked of the
- * simulation — unlike radial motion, which cannot be recovered from banded
- * distances and must be sent.
- */
 export function lowerSnapshot(
   snapshot: RawSnapshotV2,
   grammar: CompiledGrammar,
@@ -267,13 +179,6 @@ export function lowerSnapshot(
     byBand.set(record.band, list);
   }
 
-  // The temporal band is not read off the snapshot's records like the senses
-  // are: its contents are relations, some sent and some derived. Build them
-  // first so they compete for the band's slots on the same terms.
-  // Valence arrives as a level and is trained on as a change, so the engine
-  // differences it here rather than asking the simulation for both. Same
-  // pattern as every other cross-frame derivative: what needs only memory is
-  // the engine's to compute.
   const valenceDelta =
     previousValence === undefined ? undefined : snapshot.valence - previousValence;
   if (valenceDelta !== undefined) {
@@ -283,28 +188,8 @@ export function lowerSnapshot(
     ]);
   }
 
-  // Every frame needs a query row. It is the position the selectors score
-  // against — "given all this, what now" — so a frame without one produces no
-  // proposal and no gradient at all. Nothing errors in that case, the model
-  // simply has nothing to be asked, which is a failure that looks exactly like
-  // a quiet tick.
-  //
-  // The valence delta rides here when there is one: the standing question a
-  // creature carries is about its own condition, and the direction that
-  // condition just moved is the most relevant thing to ask from.
   byBand.set("query", [queryRecord(snapshot, valenceDelta)]);
 
-  // The catalog: what the creature could do, in the frame where it can see it.
-  //
-  // Not an optimisation — the intent selector scores exactly these records, so
-  // a frame without them yields no proposal, hence no action, hence no
-  // experience to learn from. An agent that cannot perceive its own options is
-  // inert in a way nothing reports.
-  //
-  // Every option is present every tick, including ones that will fail. The
-  // schema is explicit that capability and precondition are descriptive rather
-  // than exclusive, and that is what makes failure learnable: mask away what
-  // cannot work and the creature never discovers why it cannot.
   if (grammar.actions.length > 0) {
     byBand.set("catalog", grammar.actions.map((action, index) => ({
       band: "catalog" as const,
@@ -329,8 +214,6 @@ export function lowerSnapshot(
     const layout = BRAIN_FRAME_BANDS.find((candidate) => candidate.kind === band);
     if (!layout) throw new LoweringError(`no layout for band '${band}'`);
 
-    // Salience decides what survives a full band. Ties break on observation
-    // order so the same scene lowers identically twice.
     const ranked = [...offered].sort((a, b) => (b.salience ?? 0) - (a.salience ?? 0));
     const admitted = Math.min(ranked.length, layout.recordCapacity);
     if (admitted < ranked.length) {
@@ -341,9 +224,6 @@ export function lowerSnapshot(
       const raw = ranked[i]!;
       const slot = layout.recordOffset + i;
       const target = records[slot]!;
-      // A relation record arrives with its participants already resolved,
-      // because one of them may be a sentinel rather than a thing: an
-      // unidentified participant has no instance to mint a reference for.
       const refToken =
         raw.subjectToken ??
         (raw.instanceId === undefined ? undefined : references.tokenFor(raw.instanceId));
@@ -368,10 +248,6 @@ export function lowerSnapshot(
       const prior = raw.instanceId === undefined ? undefined : previous?.get(raw.instanceId);
       target.header = {
         ...target.header,
-        // Catalog records carry a fixed schema id so the intent mask can find
-        // them; everything else carries its symbol's token class, which is the
-        // coarse family the embedding wants. Identity is not here — it is the
-        // record's first token, which is also where acceptance reads it.
         schemaId:
           raw.catalogIndex === undefined
             ? schemaIdOf(grammar, raw.schema)
@@ -389,8 +265,6 @@ export function lowerSnapshot(
         salience: raw.salience ?? 0,
         freshness: 1,
         previousObservedAt: prior?.observedAt ?? INVALID_U32,
-        // Engine-derived: how much of this record's content is new. Cheap, and
-        // available to every band without a sense dedicated to change.
         changeMagnitude: prior ? changeBetween(prior.tokens, tokens.slice(0, width)) : 0,
       };
 
@@ -472,9 +346,9 @@ function queryRecord(snapshot: RawSnapshotV2, valenceDelta: number | undefined):
     valenceDelta === undefined
       ? []
       : quantize(Math.max(-1, Math.min(1, valenceDelta)), "signed", {
-          negative: BAND_SYMBOLS.worse,
-          positive: BAND_SYMBOLS.better,
-        }).tokens;
+        negative: BAND_SYMBOLS.worse,
+        positive: BAND_SYMBOLS.better,
+      }).tokens;
   return {
     band: "query",
     modality: "query",
@@ -485,14 +359,6 @@ function queryRecord(snapshot: RawSnapshotV2, valenceDelta: number | undefined):
   };
 }
 
-/**
- * The engine-derived valence change, as an ordinary homeostasis record.
- *
- * It is a percept, not merely a training target: a creature should be able to
- * notice that things have just got worse, independently of learning from it.
- * The level itself is already perceived through whatever channels the world
- * declares; this is the derivative the world does not send.
- */
 function valenceRecord(snapshot: RawSnapshotV2, delta: number): LoweredRecord {
   const banded = quantize(Math.max(-1, Math.min(1, delta)), "signed", {
     negative: BAND_SYMBOLS.worse,
@@ -503,28 +369,11 @@ function valenceRecord(snapshot: RawSnapshotV2, delta: number): LoweredRecord {
     modality: "derived",
     schema: banded.tokens[0]!,
     tokens: banded.tokens.slice(1),
-    // A change for the worse should compete well for a slot.
     salience: Math.abs(delta),
     observedAt: snapshot.tick,
   };
 }
 
-/**
- * Relations for the temporal band: motion the simulation sent, and
- * disappearance the engine derives.
- *
- * The asymmetry between the two is the point. Motion cannot be recovered here —
- * distance bands are coarse enough that an animal can cross the whole of `near`
- * without changing one — so it must be sent. Disappearance is the opposite: it
- * needs only a stable instance id and the previous frame, and it CANNOT be sent,
- * because the simulation reports what is perceived and a vanished thing is
- * precisely what is not.
- *
- * Disappearance is also the one member of the change family that needs its own
- * record. An appearance is already visible in a record whose `previousObservedAt`
- * is invalid, and a change in content is a magnitude that bands like any other
- * quantity; only an absence has nothing left to carry it.
- */
 function temporalRecords(
   snapshot: RawSnapshotV2,
   grammar: CompiledGrammar,
@@ -532,21 +381,6 @@ function temporalRecords(
   previous?: ReadonlyMap<string, { observedAt: number; tokens: readonly number[] }>,
   selfActions?: readonly PerformedAction[],
 ): LoweredRecord[] {
-  /**
-   * An event is a relation between two participants, so it does not fit the
-   * entity-shaped record the senses produce: `instanceId` carries the subject
-   * and `objectInstanceId` the object. A reflexive event repeats the subject,
-   * which is the same default that makes unary relations work everywhere else.
-   */
-  /**
-   * Token for one side of an observed event.
-   *
-   * An operand rather than an instance id, because a participant may be seen
-   * without being identified — the point of the `unknown` sentinel. A relation
-   * with an unidentifiable side is still a relation worth recording; refusing
-   * it would leave the creature able to learn only from what happens close
-   * enough to make out.
-   */
   const operandToken = (operand: ConceptOperandV2): number => {
     switch (operand.kind) {
       case "instance":
@@ -594,20 +428,13 @@ function temporalRecords(
     }
     const polarity = grammar.motion.radial;
     const banded = quantize(motion.radial, "signed", polarity);
-    // Inside the deadzone nothing moved, and the temporal band carries change.
-    // A record saying "this is still where it was" would spend a slot to report
-    // the absence of news, and the band is small on the assumption it never has
-    // to. This is also the deadzone's better justification: it is the test for
-    // whether movement happened at all, not merely where the sign gets unclear.
     if (banded.tokens[0] === BAND_SYMBOLS.neither) continue;
     records.push({
       band: "temporal",
       modality: "motion",
-      // The relation itself is the record's identity: APPROACHING(x, self).
       schema: banded.tokens[0]!,
       instanceId: motion.instanceId,
       tokens: banded.tokens.slice(1),
-      // Something closing on the actor outranks something drifting away.
       salience: Math.abs(motion.radial),
       observedAt: snapshot.tick,
     });
@@ -623,10 +450,6 @@ function temporalRecords(
     );
   }
 
-  // The actor's own last actions, written by the engine rather than reported by
-  // the simulation: the engine emitted them and so already knows. They take the
-  // same shape as an observed action, with `self` as the subject, which is what
-  // lets a creature relate what it did to what it has seen others do.
   for (const action of selfActions ?? []) {
     records.push(
       eventRecord(
@@ -636,9 +459,6 @@ function temporalRecords(
         action.intensity,
         {
           modality: "self",
-          // One's own action is worth attending to: without it in the frame the
-          // creature cannot condition on what it did, and its own agency becomes
-          // invisible — the world would merely seem to vary.
           salience: 1,
           observedAt: snapshot.tick,
         },
@@ -649,8 +469,6 @@ function temporalRecords(
   if (previous) {
     for (const instanceId of previous.keys()) {
       if (presentNow.has(instanceId)) continue;
-      // The reference survives the thing leaving perception; that is what lets
-      // working memory keep pointing at it.
       references.tokenFor(instanceId);
       records.push({
         band: "temporal",
@@ -658,8 +476,6 @@ function temporalRecords(
         schema: "VANISHED",
         instanceId,
         tokens: [],
-        // A disappearance is worth attending to: it is the last chance to
-        // notice, and there will be no record of it next frame either.
         salience: 1,
         observedAt: snapshot.tick,
       });
