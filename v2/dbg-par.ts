@@ -4,7 +4,7 @@ import { KRYSTAL_FORWARD_ARENA, KRYSTAL_FORWARD_ARENA_BASE } from "../packages/w
 import { packBrainFrame } from "../packages/krystal/src/frame/packer.ts";
 import { compileActiveFrame, compileMixerMask } from "../packages/krystal/src/forward/masks.ts";
 import { BRAIN_FORWARD_CONFIG, createBrainForwardWeights } from "../packages/krystal/src/forward/model.ts";
-import { generatePolicyEpisode, lowerPolicyFrame } from "../packages/krystal/src/bridge/policy.ts";
+import { generatePolicyEpisode, lowerPolicyFrame } from "../packages/krystal/src/training/policy.ts";
 
 const POLICY_CONFIG = { ...BRAIN_FORWARD_CONFIG, routeKindCount: 6 };
 const maskOffset = KRYSTAL_FORWARD_ARENA_BASE + KRYSTAL_FORWARD_ARENA.mixerMask;

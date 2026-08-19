@@ -13,8 +13,8 @@
 // three initialization seeds. Expected: 100% discrimination on this
 // deterministic fixture.
 import { expect, test } from "bun:test";
-import type { PolicyEpisode } from "../../packages/krystal/src/bridge/policy.ts";
-import { policyRefToken } from "../../packages/krystal/src/bridge/policy.ts";
+import type { PolicyEpisode } from "../../packages/krystal/src/training/policy.ts";
+import { policyRefToken } from "../../packages/krystal/src/training/policy.ts";
 import { compileActiveFrame } from "../../packages/krystal/src/forward/masks.ts";
 import { buildFixtureActionCatalog } from "../../packages/krystal/src/fixtures/action-intents.ts";
 import { ACTION_INTENT_SCHEMA_ID } from "../../packages/krystal/src/fixtures/frame.ts";
@@ -31,7 +31,7 @@ import {
   createBrainForwardWeights,
   catalogBankIndex,
 } from "./policy-harness.ts";
-import { lowerPolicyFrame } from "../../packages/krystal/src/bridge/policy.ts";
+import { lowerPolicyFrame } from "../../packages/krystal/src/training/policy.ts";
 
 /** Paired EAT/CRY episodes from one seed (identical noise, apple vs none). */
 function pairedEpisodes(seed: number): { eat: PolicyEpisode; cry: PolicyEpisode } {

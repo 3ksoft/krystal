@@ -52,6 +52,11 @@ function buildTarget(
     plainTypesPath: string;
     /** Where the DataView codec lands. */
     codecPath: string;
+    /**
+     * Optional SoA buffer table: the struct whose array fields ARE the GPU
+     * buffer set, and where to write the derived table.
+     */
+    soaBuffers?: { structName: string; destPath: string } | undefined;
   },
 ): void {
   const popSchema = fromModule(scopeModule.export()).schema;
@@ -74,10 +79,77 @@ function buildTarget(
     `import type { v1_0_0 } from "./${path.basename(options.plainTypesPath)}";\n\n${codecAliases}\n\n` +
       exportPlan(ir, "ts:codec"),
   );
+  if (options.soaBuffers) {
+    save(options.soaBuffers.destPath, exportSoaBufferTable(ir, options.soaBuffers.structName));
+  }
   if (options.wgslPath) {
     save(options.wgslPath, "// THIS FILE IS FOR REFERENCE ONLY!! DO NOT INCLUDE IT DIRECTLY!!\n" + exportPlan(ir, "wgsl"));
   }
   console.log(`🐏 ${name} plan complete (${ir.types.length} types).`);
+}
+
+/**
+ * Derive the SoA buffer table from the analyzed plan.
+ *
+ * The struct's array fields ARE the buffer set, in declaration order, and the
+ * analyzer already knows each one's exact length and byte size. Emitting the
+ * table from the IR is what keeps it honest: a buffer added to, removed from or
+ * resized in the schema shows up here automatically, so there is no hand-kept
+ * parallel list that can quietly disagree with the struct it describes.
+ *
+ * Non-array fields (the plan header) are not buffers and are skipped.
+ */
+function exportSoaBufferTable(ir: any, structName: string): string {
+  const struct = ir.types.find((entry: any) => entry.name === structName);
+  if (!struct) {
+    console.error(`SoA buffer table: struct ${structName} not found in plan`);
+    process.exit(1);
+  }
+  const buffers = struct.fields
+    .filter((field: any) => field.type?.kind === "array")
+    .map((field: any, bufferId: number) => {
+      const elementCount = field.type.exactLength;
+      if (typeof elementCount !== "number") {
+        console.error(`SoA buffer table: ${structName}.${field.name} has no exact length`);
+        process.exit(1);
+      }
+      return { bufferId, name: field.name, elementCount, byteSize: field.size };
+    });
+
+  const ids = buffers.map((b: any) => `  ${b.name}: ${b.bufferId},`).join("\n");
+  const rows = buffers
+    .map(
+      (b: any) =>
+        `  { bufferId: ${b.bufferId}, name: "${b.name}", elementCount: ${b.elementCount}, byteSize: ${b.byteSize} },`,
+    )
+    .join("\n");
+  const constName = structName.replace(/([a-z0-9])([A-Z])/g, "$1_$2").toUpperCase();
+
+  return [
+    "/**",
+    ` * SoA buffer table for \`${structName}\`, derived from the analyzed schema.`,
+    " *",
+    " * Do not hand-edit and do not keep a parallel copy: add, remove or resize a",
+    ` * buffer by changing \`${structName}\` in the schema and rebuilding.`,
+    " */",
+    "export interface SoaBufferDescriptor {",
+    "  readonly bufferId: number;",
+    "  readonly name: string;",
+    "  readonly elementCount: number;",
+    "  readonly byteSize: number;",
+    "}",
+    "",
+    `export const ${constName}_BUFFERS: readonly SoaBufferDescriptor[] = [`,
+    rows,
+    "];",
+    "",
+    "export const BINARY_LAYOUT_BUFFER_IDS = {",
+    ids,
+    "} as const;",
+    "",
+    `export const BINARY_LAYOUT_BUFFER_COUNT = ${buffers.length};`,
+    "",
+  ].join("\n");
 }
 
 // ---------------------------------------------------------------------------
@@ -89,6 +161,7 @@ buildTarget("krystal", krystalSchema, {
   hostTypesPath: "./../webgpu/src/krystal-types.ts",
   plainTypesPath: "./generated/krystal.types.ts",
   codecPath: "./generated/krystal.codec.ts",
+  soaBuffers: { structName: "BrainFrameGpu", destPath: "./generated/krystal.buffers.ts" },
 });
 
 console.log("🐏 Schema build complete.");

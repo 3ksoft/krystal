@@ -298,6 +298,9 @@ export function buildFixtureRecordManifest(): CompiledRecordManifest {
         schemaId,
         fieldId,
         localTokenIndex: field.localTokenIndex,
+        // Fixture default: no fixture field is a scalar projection yet, so the
+        // discretization law is unused. A real grammar declares it per field.
+        quantityKind: "unipolar",
         tokenWidth: 1,
         roleToken: field.roleToken,
         valueKind: field.valueKind,

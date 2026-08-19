@@ -16,9 +16,15 @@ export * from "./forward/masks.ts";
 export * from "./forward/oracle.ts";
 export * from "./forward/backward.ts";
 export * from "./forward/intentset.ts";
-export * from "./bridge/comfort.ts";
-export * from "./bridge/policy.ts";
-export * from "./bridge/transition.ts";
-export * from "./bridge/curriculum.ts";
-export * from "./bridge/pira.ts";
+// The versioned simulation API. Everything a simulation talks to is here.
+export * from "./bridge/index.ts";
+
+// Training harness: the S1-S10 curriculum, its episode generator and its
+// transition oracle. Deliberately NOT part of the simulation boundary — these
+// synthesize training data and know the fixture vocabulary, which is exactly
+// what `bridge/` must not.
+export * from "./training/comfort.ts";
+export * from "./training/policy.ts";
+export * from "./training/transition.ts";
+export * from "./training/curriculum.ts";
 export * from "./fixtures/capabilities.ts";

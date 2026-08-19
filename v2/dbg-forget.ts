@@ -2,12 +2,12 @@
 // checkpoint and measure the identical prior-stage frames again. Repeated over
 // seeds so the spread and the forgetting delta come from one set of runs.
 import { buildFixtureActionCatalog } from "../packages/krystal/src/fixtures/action-intents.ts";
-import { buildCurriculum } from "../packages/krystal/src/bridge/curriculum.ts";
-import { mix32 } from "../packages/krystal/src/bridge/comfort.ts";
+import { buildCurriculum } from "../packages/krystal/src/training/curriculum.ts";
+import { mix32 } from "../packages/krystal/src/training/comfort.ts";
 import {
   generatePolicyEpisode, lowerPolicyFrame,
   type PolicyEpisode, type PolicyStage,
-} from "../packages/krystal/src/bridge/policy.ts";
+} from "../packages/krystal/src/training/policy.ts";
 import { KrystalBackward } from "../packages/webgpu/src/krystal-backward.ts";
 import { KrystalForward } from "../packages/webgpu/src/krystal-forward.ts";
 import {

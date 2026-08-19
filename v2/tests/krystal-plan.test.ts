@@ -21,6 +21,8 @@ import {
   validatePlan,
   PlanMismatchError,
 } from "../../packages/krystal/src/binary-layout-plan.ts";
+import { BRAIN_FRAME_GPU_BUFFERS } from "../../packages/schema/generated/krystal.buffers.ts";
+import * as codec from "../../packages/schema/generated/krystal.codec.ts";
 
 test("plan version and geometry match the frozen ABI", () => {
   const plan = buildBinaryLayoutPlan();
@@ -32,16 +34,36 @@ test("plan version and geometry match the frozen ABI", () => {
   expect(plan.header.maxReferencesPerRecord).toBe(BRAIN_LIMITS.maxReferencesPerRecord);
 });
 
-test("buffer descriptors cover the BrainFrameGpu SoA shape exactly", () => {
+test("the buffer table covers every BrainFrameGpu array field, by derivation", () => {
+  // The old version of this test named the buffers it expected, which meant a
+  // buffer MISSING from the table was invisible to it — the failure mode that
+  // actually happened when `attentionMask` was added to the struct. Cross-check
+  // the two independently generated artifacts instead: the codec emits one
+  // `BRAIN_FRAME_GPU_<FIELD>_LEN` per array field, the buffer table emits one
+  // descriptor per array field, and neither is written by hand.
+  const codecLengths: [string, number][] = Object.entries(codec)
+    .filter(([name]) => name.startsWith("BRAIN_FRAME_GPU_") && name.endsWith("_LEN"))
+    .map(([name, value]) => [name.slice("BRAIN_FRAME_GPU_".length, -"_LEN".length), value as number]);
+
+  expect(codecLengths).toHaveLength(BINARY_LAYOUT_BUFFER_COUNT);
+
+  for (const buffer of BRAIN_FRAME_GPU_BUFFERS) {
+    const key = buffer.name.toUpperCase();
+    const match = codecLengths.find(([name]) => name === key);
+    if (!match) throw new Error(`no codec length for buffer ${buffer.name}`);
+    expect(match[1]).toBe(buffer.elementCount);
+    const declaredId: number =
+      BINARY_LAYOUT_BUFFER_IDS[buffer.name as keyof typeof BINARY_LAYOUT_BUFFER_IDS];
+    expect(declaredId).toBe(buffer.bufferId);
+  }
+
+  // Geometry the ABI fixes, spot-checked through the derived table.
   const counts = brainFrameGpuElementCounts();
   expect(counts[BINARY_LAYOUT_BUFFER_IDS.tokenIds]).toBe(BRAIN_LIMITS.frameTokens);
-  expect(counts[BINARY_LAYOUT_BUFFER_IDS.fieldRoles]).toBe(BRAIN_LIMITS.frameTokens);
-  expect(counts[BINARY_LAYOUT_BUFFER_IDS.schemaIds]).toBe(BRAIN_LIMITS.frameRecordSlots);
-  expect(counts[BINARY_LAYOUT_BUFFER_IDS.bandIds]).toBe(BRAIN_LIMITS.frameRecordSlots);
+  expect(counts[BINARY_LAYOUT_BUFFER_IDS.attentionMask]).toBe(BRAIN_LIMITS.frameTokens);
   expect(counts[BINARY_LAYOUT_BUFFER_IDS.runtimeRefs]).toBe(
     BRAIN_LIMITS.frameRecordSlots * BRAIN_LIMITS.maxReferencesPerRecord,
   );
-  expect(counts[BINARY_LAYOUT_BUFFER_IDS.recordFlags]).toBe(BRAIN_LIMITS.frameRecordSlots);
   expect(counts[BINARY_LAYOUT_BUFFER_IDS.activeRecordIndices]).toBe(BRAIN_LIMITS.frameRecordSlots);
 
   const buffers = brainFrameGpuBuffers();

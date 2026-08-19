@@ -83,7 +83,7 @@ export type ResourceKind =
 /** One physical resource in a raw snapshot (Pira-side truth, minimal form). */
 export interface RawResource {
   readonly kind: ResourceKind;
-  /** Exact runtime reference token (0xE00..0xEFF), unique per episode. */
+  /** Exact runtime reference token (the reference half), unique per episode. */
   readonly refToken: number;
   readonly generation: number;
   readonly band: "vision" | "memory";
@@ -115,14 +115,14 @@ export interface PolicyEpisode {
 // ---------------------------------------------------------------------------
 
 /**
- * Deterministic ref-token stream in the dynamic-context band (0xE00..0xEFF).
+ * Deterministic ref-token stream in the dynamic-context band (the reference half).
  * Train and eval use disjoint sub-bands by construction, so a held-out eval
  * episode can never reuse a train resource id (FOLLOW_UP.md §1): train refs
- * live in 0xE00..0xE9F and eval refs in 0xEA0..0xEDF.
+ * live in 0x8000..0x809f and eval refs in 0x80a0..0x80df.
  */
 export type RefBand = "train" | "eval";
 export function policyRefToken(seed: number, offset: number, band: RefBand = "train"): number {
-  const base = band === "eval" ? 0xea0 : 0xe00;
+  const base = band === "eval" ? 0x80a0 : 0x8000;
   const span = band === "eval" ? 0x40 : 0xa0;
   return base + ((mix32((seed >>> 0) + offset * 0x9e3779b1) % span) >>> 0);
 }
@@ -467,6 +467,23 @@ export function buildPolicyRecords(frame: PolicyRawFrame, episode: PolicyEpisode
     options.noisePerBand ?? Math.floor(band.recordCapacity / 2);
   const shuffleSeed = options.shuffleSeed ?? episode.seed;
 
+  // The actor's own record.
+  //
+  // These frames used to carry none: every body slot was distractor noise, so
+  // "who is acting" had no filler at all. Nothing complained, because the
+  // subject of an intent was resolved optimistically — a subject that matched
+  // nothing still reported itself resolved. Under a binary relation the actor
+  // is half of every proposal, so a frame without one is incomplete.
+  specs.push({
+    slot: BRAIN_FIXED_RECORDS.self,
+    band: "body",
+    schemaId: 0, // Self
+    tokens: [fixtureTokenId("SELF"), ...new Array<number>(recordWidth - 1).fill(PAD_TOKEN_ID)],
+    roleTokens: [fixtureTokenId("SELF"), ...new Array<number>(recordWidth - 1).fill(0)],
+    source: "body",
+    flags: RECORD_FLAGS.occupied | RECORD_FLAGS.fixed,
+  });
+
   // Homeostasis signal (identical machinery to the Step-1 lowerer).
   const signalTokens: readonly number[] = [
     fixtureTokenId("COMFORT"),
@@ -616,6 +633,7 @@ export function lowerPolicyFrame(
         tokenCount: 0, referenceCount: 0, observedAt: 0, revision: 0,
         primaryReference: INVALID_U32, continuationRecord: INVALID_U32,
         salience: 0, freshness: 0,
+        previousObservedAt: INVALID_U32, changeMagnitude: 0, reserved0: 0, reserved1: 0,
       },
       tokens: new Array<number>(recordWidth).fill(PAD_TOKEN_ID),
       tokenMeta: new Array<v1_0_0.BrainTokenMeta>(recordWidth).fill(tokenMeta(0, TOKEN_FLAGS.padding)),
@@ -641,6 +659,10 @@ export function lowerPolicyFrame(
       continuationRecord: INVALID_U32,
       salience: 0.5,
       freshness: 1.0,
+      previousObservedAt: INVALID_U32,
+      changeMagnitude: 0,
+      reserved0: 0,
+      reserved1: 0,
     };
     record.tokens = spec.tokens.slice();
     record.tokenMeta = spec.tokens.map((token, localToken) =>
@@ -674,6 +696,7 @@ export function lowerPolicyFrame(
       layoutVersion: 1,
       tick: frame.tick,
       snapshot: 1,
+      deltaMillis: 0,
       activeRecordCount,
       activeTokenCount,
       activeQueryRecord: BRAIN_FIXED_RECORDS.primaryQuery,

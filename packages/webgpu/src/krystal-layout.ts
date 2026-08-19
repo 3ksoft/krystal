@@ -14,6 +14,7 @@
 // so the DSL, `$` and arktype never enter a scriptc-compiled graph.
 import type { AnyComputeHandle } from "@sandblaster/core";
 import { BRAIN_LIMITS } from "../../schema/src/krystal-engine-schema.ts";
+import { EMBEDDING_TABLES } from "../../krystal/src/forward/model.ts";
 
 export const CONTEXT_CAPACITY = 1024;
 // Capacity guard for the schema-derived decode budget. The parameter itself is
@@ -141,7 +142,7 @@ export const TRAINING_READBACK_ELEMENTS = TRAINING_MAX_V * TRAINING_MAX_H;
 //
 // A frame whose occupancy exceeds this budget fails loudly in prepare() with
 // "active tokens exceed capacity"; the kaleidoscope noise budget in
-// bridge/policy.ts is what keeps occupancy well inside it.
+// training/policy.ts is what keeps occupancy well inside it.
 export const KRYSTAL_MAX_TOKENS = 1536; // ≈192 occupied records of 8 tokens
 export const KRYSTAL_MAX_RECORDS = BRAIN_LIMITS.frameRecordSlots;
 
@@ -398,8 +399,12 @@ function createKrystalBackwardArenaLayout(): KrystalBackwardArenaLayout {
   const tf = KRYSTAL_MAX_TOKENS * KRYSTAL_MAX_FFN;
   const fh = KRYSTAL_MAX_FFN * KRYSTAL_MAX_H;
   const hf = KRYSTAL_MAX_H * KRYSTAL_MAX_FFN;
-  const emb =
-    (0x1000 + 0x1000 + 0x100 + 11 + 2 + 8) * KRYSTAL_MAX_H; // EMBEDDING_TABLES rows
+  // Summed from EMBEDDING_TABLES, not restated. The literal that used to stand
+  // here (0x1000 + 0x1000 + 0x100 + 11 + 2 + 8) was a copy of those row counts
+  // and had already drifted: it still assumed 12-bit token/field tables and 11
+  // bands. Nothing related the two, so `dEmbedding` was simply reserved too
+  // small and the scatter-add wrote past it into the next region.
+  const emb = EMBEDDING_TABLES.reduce((sum, table) => sum + table.rows, 0) * KRYSTAL_MAX_H;
   return {
     dEmbedding: take(emb),
     dFieldStates: take(th),

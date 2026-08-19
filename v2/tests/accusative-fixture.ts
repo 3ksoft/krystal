@@ -1,4 +1,6 @@
 import {
+  KRYSTAL_ABI,
+  INVALID_U32,
   BRAIN_FIXED_RECORDS,
   BRAIN_FRAME_BANDS,
   BRAIN_LIMITS,
@@ -10,7 +12,7 @@ import { PAD_TOKEN_ID } from "../../packages/krystal/src/frame/packer.ts";
 import { fixtureTokenId } from "../../packages/krystal/src/fixtures/vocabulary.ts";
 import { ACTION_INTENT_SCHEMA_ID } from "../../packages/krystal/src/fixtures/frame.ts";
 import { mulberry32 } from "../../packages/krystal/src/forward/model.ts";
-import { policyRefToken } from "../../packages/krystal/src/bridge/policy.ts";
+import { policyRefToken } from "../../packages/krystal/src/training/policy.ts";
 
 export interface CaseBindExample {
   readonly seed: number;
@@ -59,6 +61,7 @@ export function createCaseBindFrame(seed: number, options: CaseBindOptions = {})
       tokenCount: 0, referenceCount: 0, observedAt: 0, revision: 0,
       primaryReference: 0xffffffff, continuationRecord: 0xffffffff,
       salience: 0, freshness: 0,
+      previousObservedAt: INVALID_U32, changeMagnitude: 0, reserved0: 0, reserved1: 0,
     },
     tokens: new Array<number>(recordWidth).fill(PAD_TOKEN_ID),
     tokenMeta: new Array<v1_0_0.BrainTokenMeta>(recordWidth).fill({
@@ -76,6 +79,7 @@ export function createCaseBindFrame(seed: number, options: CaseBindOptions = {})
         tokenCount: tokens.length, referenceCount: refToken !== undefined ? 1 : 0,
         observedAt: 1, revision: 1, primaryReference: refToken ?? 0xffffffff,
         continuationRecord: 0xffffffff, salience: 1.0, freshness: 1.0,
+        previousObservedAt: INVALID_U32, changeMagnitude: 0, reserved0: 0, reserved1: 0,
       },
       tokens: padded,
       tokenMeta: padded.map((t) => ({
@@ -122,7 +126,8 @@ export function createCaseBindFrame(seed: number, options: CaseBindOptions = {})
 
   const frame: v1_0_0.BrainFrame = {
     header: {
-      tokenAbiVersion: 0, architectureVersion: 2, layoutVersion: 1, tick: 1, snapshot: 1,
+      tokenAbiVersion: KRYSTAL_ABI.tokenAbiVersion, architectureVersion: KRYSTAL_ABI.architectureVersion,
+      layoutVersion: KRYSTAL_ABI.frameLayoutVersion, tick: 1, snapshot: 1, deltaMillis: 0,
       activeRecordCount: 4, activeTokenCount: 10, activeQueryRecord: querySlot,
       actorRecord: BRAIN_FIXED_RECORDS.actor, frameRevision: 1, memoryRevision: 0,
       intentRevision: 0, flags: 0,

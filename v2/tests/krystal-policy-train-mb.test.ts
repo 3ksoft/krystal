@@ -2,8 +2,8 @@
 // perception, with S1-S4 replay and held-out seeds/resource ids/layouts.
 import { expect, test } from "bun:test";
 import { buildFixtureActionCatalog } from "../../packages/krystal/src/fixtures/action-intents.ts";
-import { buildCurriculum } from "../../packages/krystal/src/bridge/curriculum.ts";
-import { lowerPolicyFrame, type PolicyEpisode } from "../../packages/krystal/src/bridge/policy.ts";
+import { buildCurriculum } from "../../packages/krystal/src/training/curriculum.ts";
+import { lowerPolicyFrame, type PolicyEpisode } from "../../packages/krystal/src/training/policy.ts";
 import { KrystalBackward } from "../../packages/webgpu/src/krystal-backward.ts";
 import { KrystalForward } from "../../packages/webgpu/src/krystal-forward.ts";
 import {

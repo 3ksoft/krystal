@@ -59,30 +59,40 @@ export function argumentRequiredCapability(intentName: string, argName: string):
 }
 
 /**
- * Schema ids (indexes into FIXTURE_RECORD_SCHEMAS) whose traits include
- * `capability`. Used by the arg-mask lowering to compile candidate lists from
- * the capability rather than a fixed identity list.
+ * Family tokens of the schemas whose traits include `capability`.
+ *
+ * TOKENS rather than schema ids, because that is what acceptance now matches:
+ * a record carries its family token in its first position, so a capability
+ * compiles to "any record whose family is one of these" without the mask ever
+ * needing to know what a schema id means in this particular vocabulary.
+ * Duplicates collapse — several fixture schemas legitimately share a family.
  */
-export function schemaIdsWithCapability(capability: string): number[] {
-  const ids: number[] = [];
-  for (let schemaId = 0; schemaId < FIXTURE_RECORD_SCHEMAS.length; schemaId++) {
-    const name = FIXTURE_RECORD_SCHEMAS[schemaId]!.name;
-    if (FIXTURE_SCHEMA_CAPABILITIES[name]?.includes(capability)) ids.push(schemaId);
+export function schemaTokensWithCapability(capability: string): number[] {
+  const tokens = new Set<number>();
+  for (const schema of FIXTURE_RECORD_SCHEMAS) {
+    if (FIXTURE_SCHEMA_CAPABILITIES[schema.name]?.includes(capability)) {
+      tokens.add(schema.familyToken);
+    }
   }
-  return ids;
+  return [...tokens];
+}
+
+/** Family token of one fixture schema, by name. */
+export function schemaFamilyToken(schemaName: string): number | undefined {
+  return FIXTURE_RECORD_SCHEMAS.find((schema) => schema.name === schemaName)?.familyToken;
 }
 
 /**
- * Accepted schema ids for one intent argument: the capability-derived set when
- * the argument declares a required capability, else the single acceptedSchema
+ * Accepted tokens for one intent argument: the capability-derived set when the
+ * argument declares a required capability, else the single acceptedSchema
  * identity. Mirrors how the arg mask treats the argument descriptor.
  */
-export function argumentAcceptedSchemaIds(intentName: string, argName: string, acceptedSchemaName: string | undefined): number[] {
+export function argumentAcceptedTokens(intentName: string, argName: string, acceptedSchemaName: string | undefined): number[] {
   const capability = argumentRequiredCapability(intentName, argName);
-  if (capability) return schemaIdsWithCapability(capability);
+  if (capability) return schemaTokensWithCapability(capability);
   if (!acceptedSchemaName) return [];
-  const schemaId = FIXTURE_RECORD_SCHEMAS.findIndex((schema) => schema.name === acceptedSchemaName);
-  return schemaId >= 0 ? [schemaId] : [];
+  const token = schemaFamilyToken(acceptedSchemaName);
+  return token === undefined ? [] : [token];
 }
 
 /**
@@ -102,9 +112,17 @@ export function intentNameById(intentId: number): string {
   return intent.name;
 }
 
-/** Argument name by (intentId, argumentIndex) in the authoring spec. */
-export function argumentNameById(intentId: number, argumentIndex: number): string {
-  const argument = FIXTURE_ACTION_INTENTS[intentId]?.arguments[argumentIndex];
-  if (!argument) throw new Error(`Unknown fixture argument (intent ${intentId}, arg ${argumentIndex})`);
-  return argument.name;
+/** Which side of a binary relation a lookup refers to. */
+export type RelationRole = "subject" | "object";
+
+/**
+ * Role name by (intentId, role) in the authoring spec. A unary intent has no
+ * authored object, so its object name is its subject name — the same mirroring
+ * the catalog compiler applies to the descriptor.
+ */
+export function roleNameById(intentId: number, role: RelationRole): string {
+  const intent = FIXTURE_ACTION_INTENTS[intentId];
+  if (!intent) throw new Error(`Unknown fixture intent id: ${intentId}`);
+  const spec = role === "subject" ? intent.subject : (intent.object ?? intent.subject);
+  return spec.name;
 }

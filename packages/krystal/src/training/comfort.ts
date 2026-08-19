@@ -75,7 +75,7 @@ export interface ComfortEpisodesArtifact {
 
 /** Step-1 legal noise alphabet: context/experimental tokens (never PAD). */
 export const COMFORT_NOISE_ALPHABET: readonly number[] = [
-  0xe01, 0xe02, 0xe03, 0xe04, 0xe05, 0xe06, 0xe07, 0xe08,
+  0x8001, 0x8002, 0x8003, 0x8004, 0x8005, 0x8006, 0x8007, 0x8008,
   0xf01, 0xf02, 0xf03, 0xf04, 0xf05, 0xf06, 0xf07, 0xf08,
 ];
 
@@ -161,7 +161,7 @@ export interface ComfortLowerOptions {
   /**
    * Max noise records per band (0 = no noise). Default: half the band's
    * capacity, so enlarging a band adds room for real records rather than more
-   * distractors (see the same budget in bridge/policy.ts).
+   * distractors (see the same budget in training/policy.ts).
    */
   readonly noisePerBand?: number;
   /**
@@ -329,6 +329,10 @@ export function lowerComfortEpisode(
         continuationRecord: INVALID_U32,
         salience: 0,
         freshness: 0,
+        previousObservedAt: INVALID_U32,
+        changeMagnitude: 0,
+        reserved0: 0,
+        reserved1: 0,
       },
       tokens: new Array<number>(recordWidth).fill(PAD_TOKEN_ID),
       tokenMeta: new Array<v1_0_0.BrainTokenMeta>(recordWidth).fill(
@@ -357,6 +361,10 @@ export function lowerComfortEpisode(
       continuationRecord: INVALID_U32,
       salience: 0.5,
       freshness: 1.0,
+      previousObservedAt: INVALID_U32,
+      changeMagnitude: 0,
+      reserved0: 0,
+      reserved1: 0,
     };
     record.tokens = spec.tokens.slice();
     record.tokenMeta = spec.tokens.map((token, localToken) =>
@@ -392,6 +400,7 @@ export function lowerComfortEpisode(
       layoutVersion: 1,
       tick: 10,
       snapshot: 1,
+      deltaMillis: 0,
       activeRecordCount,
       activeTokenCount,
       activeQueryRecord: BRAIN_FIXED_RECORDS.primaryQuery,

@@ -86,10 +86,10 @@ export function generateAdversarialEpisode(kind: AdversarialKind, seed: number):
         frames: [{
           tick: 10, comfort: -1,
           resources: [
-            { kind: "apple", refToken: 0xe10, generation: 1, band: "vision", properties: ["RED", "SMALL"] },
-            { kind: "apple", refToken: 0xe11, generation: 1, band: "vision", properties: ["RED", "SMALL"] },
+            { kind: "apple", refToken: 0x8010, generation: 1, band: "vision", properties: ["RED", "SMALL"] },
+            { kind: "apple", refToken: 0x8011, generation: 1, band: "vision", properties: ["RED", "SMALL"] },
           ],
-          gold: { action: "EAT", refToken: 0xe10 },
+          gold: { action: "EAT", refToken: 0x8010 },
         }],
       };
     case "reorderedRecords":
@@ -100,11 +100,11 @@ export function generateAdversarialEpisode(kind: AdversarialKind, seed: number):
         frames: [{
           tick: 10, comfort: -1,
           resources: [
-            { kind: "stone", refToken: 0xe12, generation: 1, band: "vision", properties: [] },
-            { kind: "mother", refToken: 0xe13, generation: 1, band: "vision", properties: [] },
-            { kind: "apple", refToken: 0xe14, generation: 1, band: "vision", properties: ["RED", "SMALL"] },
+            { kind: "stone", refToken: 0x8012, generation: 1, band: "vision", properties: [] },
+            { kind: "mother", refToken: 0x8013, generation: 1, band: "vision", properties: [] },
+            { kind: "apple", refToken: 0x8014, generation: 1, band: "vision", properties: ["RED", "SMALL"] },
           ],
-          gold: { action: "EAT", refToken: 0xe14 },
+          gold: { action: "EAT", refToken: 0x8014 },
         }],
       };
     case "salientDistractor":
@@ -115,10 +115,10 @@ export function generateAdversarialEpisode(kind: AdversarialKind, seed: number):
         frames: [{
           tick: 10, comfort: -1,
           resources: [
-            { kind: "mother", refToken: 0xe15, generation: 1, band: "vision", properties: [] },
-            { kind: "apple", refToken: 0xe16, generation: 1, band: "vision", properties: ["RED", "SMALL"] },
+            { kind: "mother", refToken: 0x8015, generation: 1, band: "vision", properties: [] },
+            { kind: "apple", refToken: 0x8016, generation: 1, band: "vision", properties: ["RED", "SMALL"] },
           ],
-          gold: { action: "EAT", refToken: 0xe16 },
+          gold: { action: "EAT", refToken: 0x8016 },
         }],
       };
     case "inaccessibleTarget":
@@ -127,8 +127,8 @@ export function generateAdversarialEpisode(kind: AdversarialKind, seed: number):
         stage: "S5", seed, adversarialKind: kind,
         frames: [{
           tick: 10, comfort: -1,
-          resources: [{ kind: "apple", refToken: 0xe17, generation: 1, band: "vision", properties: ["RED", "SMALL", "FAR"] }],
-          gold: { action: "MOVE_TOWARDS", refToken: 0xe17 },
+          resources: [{ kind: "apple", refToken: 0x8017, generation: 1, band: "vision", properties: ["RED", "SMALL", "FAR"] }],
+          gold: { action: "MOVE_TOWARDS", refToken: 0x8017 },
         }],
       };
     case "incompatibleTarget":
@@ -139,8 +139,8 @@ export function generateAdversarialEpisode(kind: AdversarialKind, seed: number):
         frames: [{
           tick: 10, comfort: -1,
           resources: [
-            { kind: "stone", refToken: 0xe18, generation: 1, band: "vision", properties: [] },
-            { kind: "mother", refToken: 0xe19, generation: 1, band: "vision", properties: [] },
+            { kind: "stone", refToken: 0x8018, generation: 1, band: "vision", properties: [] },
+            { kind: "mother", refToken: 0x8019, generation: 1, band: "vision", properties: [] },
           ],
           gold: { action: "CRY" },
         }],
@@ -151,7 +151,7 @@ export function generateAdversarialEpisode(kind: AdversarialKind, seed: number):
         stage: "S8", seed, adversarialKind: kind,
         frames: [{
           tick: 10, comfort: -1,
-          resources: [{ kind: "apple", refToken: 0xe1a, generation: 1, band: "vision", properties: ["RED", "SMALL", "POISONED"] }],
+          resources: [{ kind: "apple", refToken: 0x801a, generation: 1, band: "vision", properties: ["RED", "SMALL", "POISONED"] }],
           gold: { action: "CRY" },
         }],
       };

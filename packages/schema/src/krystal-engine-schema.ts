@@ -11,13 +11,15 @@ import { wgsl } from "@schema-pop/schema";
  *   - stable BrainFrame geometry,
  *   - runtime reference sidecars,
  *   - homeostatic queries, working memory and focus,
- *   - ActionIntent catalog, soft-gather results and concurrent IntentSet,
+ *   - ActionIntent catalog as binary relations, soft-gather results and the
+ *     concurrent IntentSet,
  *   - generic tutorial orchestration,
  *   - engine/runtime state and telemetry.
  *
  * Explicitly out of scope:
  *   - world/entity/component schemas,
- *   - sensory simulation and feature extraction,
+ *   - sensory simulation and feature extraction (including how the temporal
+ *     band's motion relations are actually derived),
  *   - body physics and motor lowering,
  *   - comfort dynamics,
  *   - exact world mutation/history implementation,
@@ -28,11 +30,11 @@ import { wgsl } from "@schema-pop/schema";
  *
  * 1. TokenLayoutPlan (defined below)
  *
- *    The model sees 128 fixed record slots, eight logical token positions per
- *    record, for a 1024-token BrainFrame. Band and selected structural record
- *    positions are stable. Dynamic records may be shuffled only inside their
- *    band's fixed slot range. Record-local token positions are interpreted by
- *    schema metadata rather than by a universal flat grammar.
+ *    The model sees `frameRecordSlots` fixed record slots, eight logical token
+ *    positions per record. Band and selected structural record positions are
+ *    stable. Dynamic records may be shuffled only inside their band's fixed
+ *    slot range. Record-local token positions are interpreted by schema
+ *    metadata rather than by a universal flat grammar.
  *
  * 2. BinaryLayoutPlan (intentionally not frozen yet)
  *
@@ -40,6 +42,7 @@ import { wgsl } from "@schema-pop/schema";
  *    SoA buffers resembling:
  *
  *      tokenIds[recordSlot][localToken]
+ *      attentionMask[recordSlot][localToken]
  *      schemaIds[recordSlot]
  *      bandIds[recordSlot]
  *      fieldRoles[recordSlot][localToken]
@@ -57,19 +60,141 @@ import { wgsl } from "@schema-pop/schema";
 // ---------------------------------------------------------------------------
 
 export const KRYSTAL_ABI = {
-  /** Frozen semantic/token ABI from KRYSTAL_ABI_V0.md. */
-  tokenAbiVersion: 0,
+  /**
+   * Semantic/token ABI. v1 widens tokens from 12 to 16 bits and splits the
+   * space into an embedded semantic half and a bound reference half.
+   */
+  tokenAbiVersion: 1,
   /** Neural/frame architecture described by KRYSTAL_BRAIN_ARCHITECTURE_V2. */
   architectureVersion: 2,
-  /** First concrete geometry in this file; independent from both above. */
-  frameLayoutVersion: 1,
-  tokenBits: 12,
-  vocabSize: 0x1000,
+  /** Frame geometry in this file; independent from both above. v2 adds the
+   *  temporal band and binary-relation intents. */
+  frameLayoutVersion: 2,
+
+  /**
+   * Token IDs are 16 bits. 16 is chosen over 13/14 because it is the machine
+   * boundary the eventual two-u16-per-word packing wants anyway, and it costs
+   * nothing while IDs are still stored as u32.
+   *
+   * The space has two halves that are NOT interchangeable:
+   *
+   *   semantic  [semanticStart, semanticEnd]
+   *     Concept vocabulary. Every ID owns a learned embedding row, so this
+   *     half is the one that costs parameters and must stay bounded.
+   *
+   *   reference [refSpaceStart, refSpaceEnd]
+   *     Dynamic runtime symbols (the old 0xExx context class). These are
+   *     POINTERS: their meaning comes entirely from the matching
+   *     `BrainReferenceBinding` and from the record they denote, never from a
+   *     per-ID learned row. Reference #37 has no stable semantics across
+   *     frames, so a dense embedding table over this half would be both waste
+   *     and noise. A reference token's input vector is composed from a small
+   *     shared pool of `refEmbeddingRows` role rows plus the content of its
+   *     referent. That is what makes 32k references affordable.
+   */
+  tokenBits: 16,
+  tokenSpaceSize: 0x10000,
+
+  semanticStart: 0x0000,
+  semanticEnd: 0x7fff,
+  /** Embedded rows. This is the number that sizes the embedding matrix. */
+  semanticVocabSize: 0x8000,
+
+  refSpaceStart: 0x8000,
+  /**
+   * 0xffff is deliberately NOT allocatable. It is the reserved empty-state
+   * sentinel of the sibling GPU guide schema (GPU_SCHEMA_SENTINELS), which
+   * relies on no token id ever reaching it so fixed-size tables can mark an
+   * empty slot without a parallel validity bitmap. Under the old 12-bit space
+   * that was free; at 16 bits the two spaces meet, so one reference out of
+   * 32768 is given up to keep the invariant.
+   */
+  refSpaceEnd: 0xfffe,
+  refSpaceSize: 0x7fff,
+  reservedEmptyToken: 0xffff,
+  /** Shared role rows backing every reference token; NOT one row per ref. */
+  refEmbeddingRows: 0x100,
+
+  /**
+   * Capacity of the learned semantic embedding table, in rows.
+   *
+   * A token's row is its MANIFEST INDEX, not its token id. The id space is a
+   * sparse class grid (objects at 0x1800, properties at 0x2000, ...), so a
+   * table indexed by id would have to span all 0x8000 ids — 4.2M parameters at
+   * h=128 to carry a few hundred live symbols. Indexing by manifest position
+   * makes the table proportional to the vocabulary that actually exists.
+   *
+   * This is a fixed CAPACITY, deliberately not `activeTokenCount`. Sizing the
+   * table to the current vocabulary would make every content addition a change
+   * of tensor shape. 4096 rows is ~16x the pirapitinga grammar's present 248
+   * symbols and costs 524K parameters at h=128 — cheap enough that growing the
+   * world never becomes a model-architecture decision.
+   *
+   * Two invariants the compiler must enforce, because violating either
+   * silently destroys trained weights rather than failing:
+   *   1. activeTokenCount <= semanticEmbeddingRows.
+   *   2. Manifest indices are APPEND-ONLY. A row is a learned vector; if index
+   *      assignment is re-derived (say, by sorting symbol names) then adding
+   *      one symbol renumbers every later row and every embedding it trained.
+   */
+  semanticEmbeddingRows: 0x1000,
+
+  /**
+   * The semantic half is a uniform grid: 16 class slots of 0x800 each,
+   * exactly filling 0x8000. Class index of a semantic token is `id >> 11`.
+   * `domain` deliberately spans four slots because game-authored vocabulary is
+   * the part that actually grows.
+   */
   tokenClassBits: 4,
-  tokenClassSize: 0x100,
-  dynamicRefStart: 0xe00,
-  dynamicRefEnd: 0xeff,
-  dynamicRefCount: 0x100,
+  tokenClassSize: 0x800,
+} as const;
+
+/**
+ * Reserved system tokens with runtime mechanics attached. These are not merely
+ * conventional IDs: the compiler and runtime branch on them, so they are frozen
+ * here rather than left to a vocabulary fixture.
+ *
+ * The three "nothing" tokens are deliberately distinct, because collapsing them
+ * destroys information a creature needs:
+ *
+ *   pad          Structural absence. Nothing was sampled into this position.
+ *                Carries zero information and MUST be hard-masked out of
+ *                attention rather than learned-around; a PAD the network still
+ *                attends to is white noise that costs capacity.
+ *
+ *   void         Sensed emptiness. The sense looked and there is genuinely
+ *                nothing there — empty space, silence. This is a PERCEPT and
+ *                must reach the model as an ordinary token.
+ *
+ *   unavailable  The sense itself is not reporting: eyes closed, darkness, ear
+ *                blocked. Also a percept, and a different one — "silence"
+ *                should settle a creature while "I cannot hear" should not.
+ *
+ * Separate from all three is the epistemic pair:
+ *
+ *   unknown      A referent exists but its identity is not known. Licenses a
+ *                query; a calibrated model is right to emit it.
+ *   something    Existential quantifier / bound variable, for goals and query
+ *                objects. Does not license a query — it IS the query's target.
+ *
+ * And separate again from every token above is `RuntimeRefStatus.invalid`:
+ * "the handle broke" is a runtime fault, not a belief. Never project a fault
+ * into a sentinel token, or a broken binding becomes indistinguishable from
+ * honest ignorance and the model learns to report ignorance when the engine
+ * is at fault.
+ */
+export const KRYSTAL_SENTINEL_TOKENS = {
+  pad: 0x0000,
+  bos: 0x0001,
+  eos: 0x0002,
+  boolTrue: 0x0003,
+  boolFalse: 0x0004,
+  unknown: 0x0005,
+  begin: 0x0006,
+  end: 0x0007,
+  void: 0x0008,
+  unavailable: 0x0009,
+  something: 0x000a,
 } as const;
 
 /**
@@ -88,22 +213,41 @@ export const KRYSTAL_ABI = {
  * changes; a compiled frame then fails the compatibility check instead of
  * being misread by an older runtime.
  */
-export const BINARY_LAYOUT_PLAN_VERSION = 1;
+export const BINARY_LAYOUT_PLAN_VERSION = 2;
 
 export const BRAIN_LIMITS = {
   recordWidth: 8,
-  frameRecordSlots: 288,
-  frameTokens: 288 * 8,
-  frameBands: 12,
+  frameRecordSlots: 304,
+  frameTokens: 304 * 8,
+  frameBands: 13,
   fixedRecordBindings: 32,
 
   maxRecordSchemas: 0x100,
   maxRecordFields: 0x800,
+  /**
+   * How many token ids one relation role may admit.
+   *
+   * Small on purpose. A role that needs a long list is a role whose world has
+   * no word for what it means — the fix there is a category symbol the records
+   * carry, not more slots here, and a hard ceiling is what forces that
+   * question to be asked instead of quietly answered with enumeration.
+   */
+  maxRoleAcceptedTokens: 16,
   // A record can legally contain a reference in every logical token position.
   maxReferencesPerRecord: 8,
 
   maxActionIntents: 0x100,
-  maxActionArguments: 4,
+  /**
+   * Every relation is binary. Not a cap that happens to be two — a structural
+   * commitment. Unary predicates take object = subject (`LAUGH` becomes "I
+   * rejoice myself", the construction Polish spells with the reflexive
+   * "cieszę SIĘ"), so there is no void-argument case at all: the object
+   * selection head always predicts something and training never sees a masked
+   * argument slot. Higher-arity verbs reify instead — an emitted relation owns
+   * a `RuntimeRefHandle`, so `GIVE(self, apple)` plus `RECIPIENT(that, mother)`
+   * expresses the ditransitive as two binary facts.
+   */
+  relationArity: 2,
   maxIntentProposals: 8,
   maxActiveIntents: 16,
 
@@ -115,21 +259,51 @@ export const BRAIN_LIMITS = {
   maxTutorialTokens: 0x1000,
 } as const;
 
+/**
+ * Class grid over the semantic half, plus `context` which is the whole
+ * reference half. Every semantic class is one 0x800 slot except `domain`,
+ * which spans four.
+ */
 export const KRYSTAL_TOKEN_RANGES = {
-  system: [0x000, 0x0ff],
-  structure: [0x100, 0x1ff],
-  operation: [0x200, 0x2ff],
-  object: [0x300, 0x3ff],
-  property: [0x400, 0x4ff],
-  quantity: [0x500, 0x5ff],
-  action: [0x600, 0x6ff],
-  reference: [0x700, 0x7ff],
-  relation: [0x800, 0x8ff],
-  logic: [0x900, 0x9ff],
-  domain: [0xa00, 0xdff],
-  context: [0xe00, 0xeff],
-  experimental: [0xf00, 0xfff],
+  system: [0x0000, 0x07ff],
+  structure: [0x0800, 0x0fff],
+  operation: [0x1000, 0x17ff],
+  object: [0x1800, 0x1fff],
+  property: [0x2000, 0x27ff],
+  quantity: [0x2800, 0x2fff],
+  action: [0x3000, 0x37ff],
+  reference: [0x3800, 0x3fff],
+  relation: [0x4000, 0x47ff],
+  logic: [0x4800, 0x4fff],
+  /** Motion, change, rate and duration concepts fed by the temporal sense. */
+  temporal: [0x5000, 0x57ff],
+  domain: [0x5800, 0x77ff],
+  experimental: [0x7800, 0x7fff],
+  /**
+   * The reference half: dynamic runtime symbols, bound and not embedded.
+   * Stops at 0xfffe — see KRYSTAL_ABI.reservedEmptyToken.
+   */
+  context: [0x8000, 0xfffe],
 } as const;
+
+/** Token classes in range order; the index is the class id. */
+export const KRYSTAL_TOKEN_CLASS_ORDER = Object.keys(
+  KRYSTAL_TOKEN_RANGES,
+) as readonly (keyof typeof KRYSTAL_TOKEN_RANGES)[];
+
+/**
+ * Which class a token id falls in, -1 if none does.
+ *
+ * The classes are contiguous and disjoint by construction, so this is the
+ * inverse of the grid rather than a second table that could disagree with it.
+ */
+export function tokenClassIndex(tokenId: number): number {
+  for (let index = 0; index < KRYSTAL_TOKEN_CLASS_ORDER.length; index++) {
+    const [lo, hi] = KRYSTAL_TOKEN_RANGES[KRYSTAL_TOKEN_CLASS_ORDER[index]!];
+    if (tokenId >= lo && tokenId <= hi) return index;
+  }
+  return -1;
+}
 
 /**
  * Logical frame geometry. Every band owns whole record slots; every record is
@@ -162,6 +336,20 @@ export const BRAIN_FRAME_BANDS = [
   // `candidateBandMask` bit, so inserting one anywhere else renumbers the bands
   // after it and silently changes the meaning of every stored mask.
   { kind: "catalog", recordOffset: 256, recordCapacity: 32, tokenOffset: 2048, tokenCapacity: 256, placement: "fixed", overflow: "error" },
+  // Temporal sense. A BrainFrame is a snapshot, so without this band the model
+  // has no access to derivatives at all — only `observedAt` and `freshness`,
+  // from which it would have to infer motion. The band is its own sense rather
+  // than extra fields on `vision` because motion is cross-modal (something can
+  // be heard approaching) and because self-motion hangs off no exterior sense.
+  //
+  // Its records are ordinary binary relations, which is why this falls out of
+  // the relation rework for free: APPROACHING(ball, self) carries speed in
+  // `intensity`, and because the relation is reified it can itself become the
+  // object of an intent — AVOID(self, <that approaching>).
+  //
+  // Appended after `catalog` for the same reason `catalog` was appended last:
+  // a band's array index is its embedding row and its `candidateBandMask` bit.
+  { kind: "temporal", recordOffset: 288, recordCapacity: 16, tokenOffset: 2304, tokenCapacity: 128, placement: "shuffled_records", overflow: "truncate_low_salience" },
 ] as const;
 
 /**
@@ -243,6 +431,116 @@ export const ACTION_INTENT_FLAGS = {
   mayFail: 1 << 5,
   allowsOverlap: 1 << 6,
   creatorOnly: 1 << 7,
+  /**
+   * The relation is authored as unary: the compiler fills `object` from
+   * `subject`. Purely diagnostic — the emitted proposal is indistinguishable
+   * from a genuinely reflexive one by its argument pair alone, and this bit is
+   * what lets the runtime tell `HURT(self, self)` meaning "I am in pain" from
+   * the same pair meaning "I hurt myself".
+   */
+  canonicallyReflexive: 1 << 8,
+} as const;
+
+/**
+ * Algebraic properties of a relation token, stored in the HIGH bits of
+ * `VocabManifestEntry.flags` (TOKEN_FLAGS owns bits 0..7).
+ *
+ * These are properties of the relation TYPE, not of an instance, which is why
+ * they live in the vocabulary manifest. They buy the runtime cheap deduction
+ * that the network then never has to learn:
+ *
+ *   transitive     INSIDE(apple, basket) + INSIDE(basket, room)
+ *                  yields INSIDE(apple, room) as a materialized record.
+ *                  Closure MUST skip self-loops R(x, x), which are now the
+ *                  normal form of every unary predicate and would otherwise
+ *                  flood working memory with derived garbage.
+ *   symmetric      NEXT_TO, SIMILAR_TO. Pairs with `inverseToken`.
+ *   antisymmetric  Contradiction detection for orderings.
+ *   functional     Single-valued: HAS_COLOR, IS_AT. A new instance invalidates
+ *                  the previous one without the model learning to overwrite.
+ *
+ * There is deliberately no `reflexive` flag. Under object-defaults-to-subject
+ * every unary predicate is reflexive, so the bit would be true almost
+ * everywhere and carry no signal.
+ */
+export const RELATION_FLAGS = {
+  transitive: 1 << 8,
+  symmetric: 1 << 9,
+  antisymmetric: 1 << 10,
+  functional: 1 << 11,
+} as const;
+
+/**
+ * Monotonicity of a quantifier, in the HIGH bits of `VocabManifestEntry.flags`
+ * above RELATION_FLAGS. Entailment direction differs per argument position, so
+ * both are recorded: `all` is downward-entailing on its restrictor (all dogs
+ * bark => all brown dogs bark) and upward on its scope; `some` is upward on
+ * both. This is the quantifier counterpart of the relation algebra — inference
+ * the runtime can perform without the network learning it.
+ */
+export const QUANTIFIER_FLAGS = {
+  restrictorUpward: 1 << 12,
+  restrictorDownward: 1 << 13,
+  scopeUpward: 1 << 14,
+  scopeDownward: 1 << 15,
+} as const;
+
+/**
+ * Discretization thresholds. These live here, in the engine, and not in the
+ * simulation that produces the numbers.
+ *
+ * A band is a token; a token owns an embedding row; the row is trained. If a
+ * simulation owned the threshold, moving "near" from 4 to 5 units would keep
+ * every symbol and every row identical while silently changing what the trained
+ * NEAR vector denotes — training would continue and loss would fall, against a
+ * shifted meaning. It is the same failure class as renumbering the manifest.
+ * Thresholds belong next to the tokens they define, under the same hash.
+ *
+ * The second reason is cross-modal consistency: if sight and hearing each
+ * banded distance their own way, DIST_NEAR would name two different things and
+ * stop being learnable.
+ *
+ * Note `proportion` has no entry. Quantifier boundaries are logic, not
+ * perception — `none` is exactly 0, `all` exactly 1, `most` exactly above a
+ * half — so there is nothing to calibrate and approximating them would destroy
+ * the operators' inferential force.
+ */
+export const QUANTITY_BANDS = {
+  /** |v| at or below this reads as the zero CATEGORY, not as a small value. */
+  signedDeadzone: 0.05,
+  /** Magnitude cuts for signed values; matches the comfort encoding. */
+  signedMagnitude: [0.25, 0.5, 0.75],
+  /** Monotone cuts for 0..1 values. */
+  unipolar: [0.25, 0.5, 0.75],
+  /**
+   * Count cuts. Bottom-heavy on purpose: 1 against 2 against 3 is a large
+   * perceptual difference and 47 against 52 is none. The upper cut sits at the
+   * subitizing limit, past which a glance yields "many" rather than a number.
+   */
+  count: [1, 3],
+} as const;
+
+/**
+ * Flags on `RelationRoleDescriptor.flags`.
+ *
+ * `acceptsAny` exists because an empty acceptance bitset is ambiguous on its
+ * own: it reads identically as "nothing may fill this" and "nothing was
+ * narrowed". A world that declines to restrict a role has not thereby
+ * forbidden it, and the flag is what carries that difference.
+ */
+export const RELATION_ROLE_FLAGS = {
+  acceptsAny: 1 << 0,
+  required: 1 << 1,
+} as const;
+
+/** Per-proposal flags on `IntentProposal.flags`. */
+export const INTENT_PROPOSAL_FLAGS = {
+  /** `object` was filled from `subject` by the unary rule, not selected. */
+  objectFromSubject: 1 << 0,
+  /** The object head resolved to the `unknown` sentinel; emit a query. */
+  objectUnknown: 1 << 1,
+  /** The object head resolved to the `something` sentinel (open goal). */
+  objectExistential: 1 << 2,
 } as const;
 
 export const MEMORY_FLAGS = {
@@ -294,10 +592,10 @@ export const schema = scope({
   BandMask: "u32",
 
   KrystalTokenClass:
-    "'system' | 'structure' | 'operation' | 'object' | 'property' | 'quantity' | 'action' | 'reference' | 'relation' | 'logic' | 'domain' | 'context' | 'experimental'",
+    "'system' | 'structure' | 'operation' | 'object' | 'property' | 'quantity' | 'action' | 'reference' | 'relation' | 'logic' | 'temporal' | 'domain' | 'experimental' | 'context'",
 
   BrainBandKind:
-    "'system' | 'homeostasis' | 'body' | 'vision' | 'audio' | 'olfaction' | 'taste' | 'touch' | 'memory' | 'focus' | 'query' | 'catalog'",
+    "'system' | 'homeostasis' | 'body' | 'vision' | 'audio' | 'olfaction' | 'taste' | 'touch' | 'memory' | 'focus' | 'query' | 'catalog' | 'temporal'",
 
   BandPlacementPolicy: "'fixed' | 'shuffled_records' | 'stable_resident'",
   BandOverflowPolicy: "'error' | 'truncate_low_salience' | 'evict_low_priority' | 'drop_oldest'",
@@ -332,15 +630,31 @@ export const schema = scope({
   VocabManifestHeader: {
     tokenAbiVersion: `u32 = ${KRYSTAL_ABI.tokenAbiVersion}`,
     manifestVersion: "u32 = 0",
-    vocabSize: `u32 = ${KRYSTAL_ABI.vocabSize}`,
+    /** Id space of the embedded half. Not the table size — see below. */
+    vocabSize: `u32 = ${KRYSTAL_ABI.semanticVocabSize}`,
+    /**
+     * Live symbols in this manifest. Each owns one embedding row at its
+     * manifest index, so this must not exceed `embeddingRows`, and indices
+     * must be append-only across manifest versions.
+     */
     activeTokenCount: "u32 = 0",
+    /** Row capacity of the semantic embedding table. */
+    embeddingRows: `u32 = ${KRYSTAL_ABI.semanticEmbeddingRows}`,
     manifestHashLo: "u32 = 0",
     manifestHashHi: "u32 = 0",
     reserved0: "u32 = 0",
     reserved1: "u32 = 0",
   },
 
-  /** Device/compiler representation; human symbol strings stay host-only. */
+  /**
+   * Device/compiler representation; human symbol strings stay host-only.
+   *
+   * `flags` carries TOKEN_FLAGS in bits 0..7 and RELATION_FLAGS above them.
+   * `inverseToken` is the argument-swapped relation and is only meaningful now
+   * that every relation is binary. `arity` survives as an authoring assertion
+   * (0 or 1 means "unary, expect object == subject"); it is no longer a
+   * variable shape the runtime has to honour.
+   */
   VocabManifestEntry: {
     tokenId: "KrystalTokenId",
     tokenClass: "KrystalTokenClass",
@@ -354,6 +668,36 @@ export const schema = scope({
 
   BrainValueKind:
     "'none' | 'token' | 'context_ref' | 'record_ref' | 'boolean_class' | 'scalar_band' | 'quantity_projection' | 'opaque_payload'",
+
+  /**
+   * How a numeric field becomes tokens. The simulation sends exact numbers; the
+   * engine discretizes them (see QUANTITY_BANDS for why that direction).
+   *
+   *   signed      -1..1. Structure sits around zero, and zero is a CATEGORY:
+   *               "not moving" is a different percept from "barely approaching"
+   *               and "barely receding". Emits TWO tokens, sign then magnitude,
+   *               so such a field declares tokenWidth 2. Comfort already uses
+   *               this shape: FEEL_BAD/FEEL_GOOD plus MILD/MODERATE/SEVERE.
+   *   unipolar    0..1. No zero crossing; zero is an extreme, not a neutral.
+   *               Distance normalized by a sense's own range lands here, which
+   *               is also the perceptually right framing — what matters is "far
+   *               for my eyes", not an absolute length.
+   *   count       0..inf, discrete. Subitizing bands.
+   *   proportion  0..1, but a fraction OF a reference set, so it is inherently
+   *               relational — `MOST(white, sheep)` names both the subset and
+   *               the set. Its boundaries are logical rather than perceptual
+   *               and its endpoints are exact tests: 0.99 is not `all`.
+   *
+   * There is deliberately no absolute-scale kind. A unit is a concept, not a
+   * value kind: "four kilometres" is a count plus the KILOMETRE symbol, and a
+   * creature without that symbol cannot perceive kilometres. Comparative
+   * magnitude ("the apple's distance is four times the tree's") is likewise a
+   * relation between two quantities, not a scalar. Both are symbolic operations
+   * built on percepts rather than percepts themselves — which is also why an
+   * exact count is not a sensory value: a glance at a flock yields "many", and
+   * producing "47" is counting, not seeing.
+   */
+  QuantityKind: "'signed' | 'unipolar' | 'count' | 'proportion'",
 
   RecordSchemaManifestHeader: {
     version: "u32 = 0",
@@ -390,9 +734,12 @@ export const schema = scope({
     schemaId: "SchemaId",
     fieldId: "FieldId",
     localTokenIndex: "LocalTokenIndex",
+    /** 2 for a `signed` quantity (sign + magnitude), 1 otherwise. */
     tokenWidth: "u32 = 1",
     roleToken: "KrystalTokenId",
     valueKind: "BrainValueKind",
+    /** How to discretize, when valueKind is a scalar/quantity projection. */
+    quantityKind: "QuantityKind = 'unipolar'",
     acceptedSchemaId: "SchemaId = 0",
     allowedBandMask: "BandMask = 0",
     flags: "u32 = 0",
@@ -430,23 +777,6 @@ export const schema = scope({
     fields: "RecordFieldAuthoringSpec[]",
     "doc?": "string",
   },
-
-  /**
-   * Illustrative lowering; these are examples, not frozen domain schemas:
-   *
-   *   VisionObject:
-   *     [APPLE, #17, RED, ROUND, SHINY, SMALL, PAD, PAD]
-   *
-   *   HomeostasisQuery:
-   *     [FEEL_BAD, NEED, SATIATED, PAD, PAD, PAD, PAD, PAD]
-   *
-   *   MemoryObject:
-   *     [REMEMBER, #43, STICK, LAST_ACTION, HOLD, PAD, PAD, PAD]
-   *
-   * APPLE/#17/etc. all consume ordinary logical token positions. In contrast,
-   * schemaId, fieldId, field roles and exact reference generations are sidecar
-   * structure and do not consume the eight-token payload.
-   */
 
   // -----------------------------------------------------------------------
   // BrainFrame geometry and logical record slots
@@ -527,6 +857,15 @@ export const schema = scope({
     continuationRecord: `RecordIndex = ${INVALID_U32}`,
     salience: "f32 = 0",
     freshness: "f32 = 0",
+
+    // Cheap first derivative, available to every band without a dedicated
+    // sense: when this record was previously observed, and how much it changed
+    // since. "This thing moved" costs two words here; "what moved, relative to
+    // what, how fast" is the temporal band's job.
+    previousObservedAt: `u32 = ${INVALID_U32}`,
+    changeMagnitude: "f32 = 0",
+    reserved0: "u32 = 0",
+    reserved1: "u32 = 0",
   },
 
   /**
@@ -558,6 +897,10 @@ export const schema = scope({
     layoutVersion: `u32 = ${KRYSTAL_ABI.frameLayoutVersion}`,
     tick: "u32 = 0",
     snapshot: "u32 = 0",
+    // Elapsed time since the previous frame, stated rather than inferred.
+    // Every rate the temporal sense reports is divided by this, and without it
+    // the model would have to recover the timebase from `observedAt` deltas.
+    deltaMillis: "f32 = 0",
 
     activeRecordCount: "u32 = 0",
     activeTokenCount: "u32 = 0",
@@ -632,12 +975,26 @@ export const schema = scope({
    * schemaIds/bandIds/recordFlags are indexed `[recordSlot]`; runtimeRefs is
    * indexed `[recordSlot * maxReferencesPerRecord + localReference]`;
    * activeRecordIndices lists occupied record slots in ascending order up to
-   * activeRecordCount. Every unused token position is PAD and masked.
+   * activeRecordCount.
+   *
+   * `attentionMask` is 1 for a token the model may attend to and 0 otherwise,
+   * and consuming it is mandatory, not advisory. A PAD token that still enters
+   * the attention softmax is not neutral — it is white noise the network has
+   * to spend capacity learning to ignore, and sensory bands are mostly empty
+   * in a typical frame (a vision band of 64 slots holding six visible objects
+   * is 58 slots of nothing). Masking at the kernel is free; learning around it
+   * is not. It is a separate buffer rather than a flags bit so a kernel cannot
+   * silently forget to apply it.
+   *
+   * Note this masks only structural absence. Sensed emptiness and an
+   * unavailable sense are real percepts carrying the `void` and `unavailable`
+   * sentinel tokens, and their positions stay unmasked.
    */
   BrainFrameGpu: {
     header: "BinaryLayoutPlanHeader",
     tokenIds: `u32[] == ${BRAIN_LIMITS.frameTokens}`,
     fieldRoles: `u32[] == ${BRAIN_LIMITS.frameTokens}`,
+    attentionMask: `u32[] == ${BRAIN_LIMITS.frameTokens}`,
     schemaIds: `u32[] == ${BRAIN_LIMITS.frameRecordSlots}`,
     bandIds: `u32[] == ${BRAIN_LIMITS.frameRecordSlots}`,
     runtimeRefs: `u32[] == ${BRAIN_LIMITS.frameRecordSlots * BRAIN_LIMITS.maxReferencesPerRecord}`,
@@ -674,9 +1031,11 @@ export const schema = scope({
     kind: "BrainQueryKind",
     routeToken: "KrystalTokenId",
     predicateToken: "KrystalTokenId",
-    subject: "RuntimeRefHandle",
-    objectToken: "KrystalTokenId = 0",
-    objectRef: "RuntimeRefHandle",
+    // Same binary shape as an intent: a query is the relation whose object the
+    // model does not yet know, so its object usually carries the `unknown` or
+    // `something` sentinel.
+    subject: "ConceptRef",
+    object: "ConceptRef",
     urgency: "f32 = 0",
     createdAt: "u32 = 0",
     expiresAt: `u32 = ${INVALID_U32}`,
@@ -764,7 +1123,7 @@ export const schema = scope({
   ActionIntentCatalogHeader: {
     version: "u32 = 0",
     intentCount: "u32 = 0",
-    argumentCount: "u32 = 0",
+    relationArity: `u32 = ${BRAIN_LIMITS.relationArity}`,
     flags: "u32 = 0",
     catalogHashLo: "u32 = 0",
     catalogHashHi: "u32 = 0",
@@ -778,50 +1137,85 @@ export const schema = scope({
    * types and inaccessible handles; physical overload, awkwardness and likely
    * failure remain attemptable and are resolved by the simulation.
    */
+  /**
+   * Type constraint on one side of a relation. Inlined into the intent
+   * descriptor rather than kept in a side table: with arity frozen at two
+   * there is nothing left for `argumentOffset`/`argumentCount` to vary, and
+   * the indirection only bought a chance to read the wrong row.
+   */
+  RelationRoleDescriptor: {
+    roleToken: "KrystalTokenId = 0",
+    valueKind: "BrainValueKind",
+    /**
+     * Token ids this role admits, unused entries zero (PAD is never accepted).
+     *
+     * A SET rather than a single id, because acceptance is genuinely plural:
+     * EAT admits anything edible, not one exemplar. Carrying the set here is
+     * also what makes the catalog self-contained — the previous single id had
+     * to be widened at mask time by looking a capability up by NAME in a
+     * host-side table, which tied the forward pass to one particular
+     * vocabulary and made any other world's catalog unusable.
+     *
+     * TOKENS, not record schema ids, and the difference is the whole point.
+     * A record has exactly one schema and many tokens, so a schema-keyed
+     * acceptance can only ever name individuals: `Apple`, `Berry`, `Bread`,
+     * one bit each. What a role usually means is a CLASS — "anything edible" —
+     * and a class lives in the record's tokens beside its identity. Matching
+     * on tokens is therefore what makes the generalization work at all: a
+     * berry the creature has never seen is edible because it carries the
+     * category, without anyone extending the catalog. It also removes a
+     * silent failure: schema ids are 8 bits, so projecting a 16-bit token
+     * into one collided (in a 163-symbol grammar, 30 times), and a collision
+     * does not merely fail to match — it matches the WRONG record, emits the
+     * intent, and trains on it.
+     */
+    acceptedTokens: `u32[] == ${BRAIN_LIMITS.maxRoleAcceptedTokens}`,
+    candidateBandMask: "BandMask = 0",
+    flags: "u32 = 0",
+    reserved0: "u32 = 0",
+  },
+
   ActionIntentDescriptor: {
     intentId: "IntentId",
     actionToken: "KrystalTokenId",
     semanticIntentToken: "KrystalTokenId",
     domain: "ActionIntentDomain",
 
-    actorSchemaId: "SchemaId",
-    argumentOffset: "u32",
-    argumentCount: "u32",
+    /** Type expected of the subject; was `actorSchemaId`. */
+    subjectSchemaId: "SchemaId",
     flags: "u32 = 0",
-
     effectClassToken: "KrystalTokenId = 0",
     capabilityClassToken: "KrystalTokenId = 0",
+
     preconditionClassToken: "KrystalTokenId = 0",
     preferredControllerRole: "KrystalTokenId = 0",
-  },
-
-  ActionArgumentDescriptor: {
-    intentId: "IntentId",
-    argumentIndex: "u32",
-    roleToken: "KrystalTokenId",
-    valueKind: "BrainValueKind",
-    acceptedSchemaId: "SchemaId = 0",
-    candidateBandMask: "BandMask = 0",
-    flags: "u32 = 0",
     reserved0: "u32 = 0",
+    reserved1: "u32 = 0",
+
+    subjectRole: "RelationRoleDescriptor",
+    objectRole: "RelationRoleDescriptor",
   },
 
-  ActionArgumentAuthoringSpec: {
+  RelationRoleAuthoringSpec: {
     name: "string",
     roleToken: "number",
     valueKind: "BrainValueKind",
     "acceptedSchema?": "string",
     "candidateBands?": "BrainBandKind[]",
-    "required?": "boolean",
     "doc?": "string",
   },
 
+  /**
+   * `object` omitted means the relation is unary: the compiler sets
+   * ACTION_INTENT_FLAGS.canonicallyReflexive and mirrors the subject role.
+   */
   ActionIntentAuthoringSpec: {
     name: "string",
     actionToken: "number",
     semanticIntentToken: "number",
     domain: "ActionIntentDomain",
-    arguments: "ActionArgumentAuthoringSpec[]",
+    subject: "RelationRoleAuthoringSpec",
+    "object?": "RelationRoleAuthoringSpec",
     "effectClassToken?": "number",
     "capabilityClassToken?": "number",
     "preconditionClassToken?": "number",
@@ -852,12 +1246,31 @@ export const schema = scope({
     reserved0: "u32 = 0",
   },
 
-  TypedArgumentValue: {
+  /**
+   * The universal argument: one concept, addressed at both levels at once.
+   *
+   * `token` is what the model can reason about symbolically; `handle` is the
+   * exact runtime identity the simulation acts on. Queries, relations and
+   * intents all take their participants as this single type, so there is one
+   * notion of "a thing that can stand in a relation" instead of a different
+   * argument shape per subsystem.
+   */
+  ConceptRef: {
     kind: "BrainValueKind",
     token: "KrystalTokenId = 0",
     flags: "u32 = 0",
     reserved0: "u32 = 0",
     handle: "RuntimeRefHandle",
+  },
+
+  /**
+   * A ConceptRef plus the diagnostics of how the selection heads arrived at
+   * it. Kept separate from `ConceptRef` because identity and provenance have
+   * different lifetimes and very different sizes: a query stores participants
+   * it was handed, and has no gather distribution to record.
+   */
+  SelectedConceptRef: {
+    concept: "ConceptRef",
     selector: "SoftGatherResult",
   },
 
@@ -866,9 +1279,15 @@ export const schema = scope({
     "'empty' | 'proposed' | 'accepted' | 'active' | 'succeeded' | 'partial' | 'failed' | 'cancelled' | 'forgotten'",
 
   /**
-   * One desired effect, not a guaranteed exclusive controller command.
-   * Multiple proposals may overlap in body/controller preferences. The motor
-   * layer combines them into soft goals and physics decides the outcome.
+   * One desired effect, expressed as a binary relation between two concepts.
+   * Not a guaranteed exclusive controller command: multiple proposals may
+   * overlap in body/controller preferences, and the motor layer combines them
+   * into soft goals that physics resolves.
+   *
+   * `subject` and `object` are always both populated. For a relation authored
+   * as unary the compiler copies `subject` into `object` and sets
+   * `INTENT_PROPOSAL_FLAGS.objectFromSubject`, so the object head never faces
+   * an absent-argument case and training sees one uniform shape.
    */
   IntentProposal: {
     proposalSlot: "u32",
@@ -883,15 +1302,22 @@ export const schema = scope({
 
     activation: "f32 = 0",
     priority: "f32 = 0",
-    // Commitment strength from the selection heads: intent top-1 probability ×
-    // distribution peakedness × argument support. 0.5 is the ABI default for
-    // empty slots (no selection exists); emitted proposals carry a computed
-    // value (intentset.ts).
-    intensity: "f32 = 0.5",
+    // How firmly the network chose, from the selection heads: intent top-1
+    // probability × distribution peakedness × argument support. 0.5 is the ABI
+    // default for empty slots (no selection exists). This used to be called
+    // `intensity`, which was a misnomer — it never measured magnitude.
+    commitment: "f32 = 0.5",
+    // How much of the relation: how hard to push, how fast to move, how
+    // strongly it holds. A learned magnitude head, and the same field the
+    // temporal band uses to carry speed on APPROACHING/RECEDING. Deliberately
+    // NOT merged with `commitment`: one float cannot carry two gradients
+    // without the two objectives fighting each other.
+    intensity: "f32 = 0",
     persistence: "f32 = 0",
     confidence: "f32 = 0",
 
-    arguments: `TypedArgumentValue[] == ${BRAIN_LIMITS.maxActionArguments}`,
+    subject: "SelectedConceptRef",
+    object: "SelectedConceptRef",
   },
 
   /**
@@ -1043,7 +1469,8 @@ export const schema = scope({
   BrainRuntimeStatus: "'idle' | 'assembling_frame' | 'running' | 'executing' | 'done' | 'error'",
 
   BrainModelConfig: {
-    vocabSize: `u32 = ${KRYSTAL_ABI.vocabSize}`,
+    vocabSize: `u32 = ${KRYSTAL_ABI.semanticEmbeddingRows}`,
+    refEmbeddingRows: `u32 = ${KRYSTAL_ABI.refEmbeddingRows}`,
     contextTokens: `u32 = ${BRAIN_LIMITS.frameTokens}`,
     recordWidth: `u32 = ${BRAIN_LIMITS.recordWidth}`,
     recordSlots: `u32 = ${BRAIN_LIMITS.frameRecordSlots}`,

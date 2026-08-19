@@ -9,7 +9,7 @@ import { fixtureTokenId } from "../../krystal/src/fixtures/vocabulary.ts";
 import { ACTION_INTENT_SCHEMA_ID } from "../../krystal/src/fixtures/frame.ts";
 import { emitIntentSet } from "../../krystal/src/forward/intentset.ts";
 import { argMaskFor, compileActiveFrame, compileIntentMask, type ActiveFrame, type WordBias } from "../../krystal/src/forward/masks.ts";
-import type { PolicyAction, PolicyRawFrame } from "../../krystal/src/bridge/policy.ts";
+import type { PolicyAction, PolicyRawFrame } from "../../krystal/src/training/policy.ts";
 import type { SelectionSlotResult } from "../../krystal/src/forward/oracle.ts";
 import type { v1_0_0 } from "../../schema/generated/krystal.types.ts";
 
@@ -83,7 +83,7 @@ export function prepareTrainFrame(
     frame,
     selection: {
       intentMask: compileIntentMask(frame, active, ACTION_INTENT_SCHEMA_ID),
-      argMask: argMaskFor(frame, active, catalog, goldIntentId, 0),
+      argMask: argMaskFor(frame, active, catalog, goldIntentId),
     },
     routeKinds: Uint32Array.of(ROUTE_KIND[gold.action]),
     intentGold: Uint32Array.of(catalogBankIndex(frame, active, ACTION_TOKEN[gold.action])),
@@ -129,7 +129,7 @@ export async function productionSelection(
 
   runner.forward(frame, {
     intentMask,
-    argMask: argMaskFor(frame, active, catalog, descriptor.intentId, 0),
+    argMask: argMaskFor(frame, active, catalog, descriptor.intentId),
   }, wordBias);
   await device.queue.onSubmittedWorkDone();
   const second = await runner.readSelection(q, r, POLICY_CONFIG.hiddenSize);
@@ -148,7 +148,7 @@ export function emitPrediction(selection: ProductionSelection, catalog: Compiled
   });
   if (intentSet.count === 0) return null;
   const proposal = intentSet.proposals[0]!;
-  const refToken = proposal.arguments[0]!.handle.tokenId;
+  const refToken = proposal.object.concept.handle.tokenId;
   return {
     intentId: proposal.intentId,
     action: FIXTURE_ACTION_INTENTS[proposal.intentId]!.name,

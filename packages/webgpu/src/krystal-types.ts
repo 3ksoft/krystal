@@ -21,6 +21,7 @@ export const {
 	VocabManifestHeader,
 	VocabManifestEntry,
 	BrainValueKind,
+	QuantityKind,
 	RecordSchemaManifestHeader,
 	RecordSchemaEntry,
 	RecordFieldEntry,
@@ -44,6 +45,7 @@ export const {
 	BrainFrameGpu,
 	HomeostasisSignal,
 	BrainQueryKind,
+	ConceptRef,
 	BrainQueryState,
 	BrainQuerySet,
 	MemoryTraceKind,
@@ -55,13 +57,13 @@ export const {
 	WorkingMemoryState,
 	ActionIntentDomain,
 	ActionIntentCatalogHeader,
+	RelationRoleDescriptor,
 	ActionIntentDescriptor,
-	ActionArgumentDescriptor,
-	ActionArgumentAuthoringSpec,
+	RelationRoleAuthoringSpec,
 	ActionIntentAuthoringSpec,
 	SoftGatherStatus,
 	SoftGatherResult,
-	TypedArgumentValue,
+	SelectedConceptRef,
 	IntentLifecycle,
 	IntentExecutionStatus,
 	IntentProposal,
@@ -105,6 +107,7 @@ export type RuntimeRefHandle = typeof RuntimeRefHandle.infer;
 export type VocabManifestHeader = typeof VocabManifestHeader.infer;
 export type VocabManifestEntry = typeof VocabManifestEntry.infer;
 export type BrainValueKind = typeof BrainValueKind.infer;
+export type QuantityKind = typeof QuantityKind.infer;
 export type RecordSchemaManifestHeader = typeof RecordSchemaManifestHeader.infer;
 export type RecordSchemaEntry = typeof RecordSchemaEntry.infer;
 export type RecordFieldEntry = typeof RecordFieldEntry.infer;
@@ -128,6 +131,7 @@ export type BinaryLayoutPlan = typeof BinaryLayoutPlan.infer;
 export type BrainFrameGpu = typeof BrainFrameGpu.infer;
 export type HomeostasisSignal = typeof HomeostasisSignal.infer;
 export type BrainQueryKind = typeof BrainQueryKind.infer;
+export type ConceptRef = typeof ConceptRef.infer;
 export type BrainQueryState = typeof BrainQueryState.infer;
 export type BrainQuerySet = typeof BrainQuerySet.infer;
 export type MemoryTraceKind = typeof MemoryTraceKind.infer;
@@ -139,13 +143,13 @@ export type MemoryUpdate = typeof MemoryUpdate.infer;
 export type WorkingMemoryState = typeof WorkingMemoryState.infer;
 export type ActionIntentDomain = typeof ActionIntentDomain.infer;
 export type ActionIntentCatalogHeader = typeof ActionIntentCatalogHeader.infer;
+export type RelationRoleDescriptor = typeof RelationRoleDescriptor.infer;
 export type ActionIntentDescriptor = typeof ActionIntentDescriptor.infer;
-export type ActionArgumentDescriptor = typeof ActionArgumentDescriptor.infer;
-export type ActionArgumentAuthoringSpec = typeof ActionArgumentAuthoringSpec.infer;
+export type RelationRoleAuthoringSpec = typeof RelationRoleAuthoringSpec.infer;
 export type ActionIntentAuthoringSpec = typeof ActionIntentAuthoringSpec.infer;
 export type SoftGatherStatus = typeof SoftGatherStatus.infer;
 export type SoftGatherResult = typeof SoftGatherResult.infer;
-export type TypedArgumentValue = typeof TypedArgumentValue.infer;
+export type SelectedConceptRef = typeof SelectedConceptRef.infer;
 export type IntentLifecycle = typeof IntentLifecycle.infer;
 export type IntentExecutionStatus = typeof IntentExecutionStatus.infer;
 export type IntentProposal = typeof IntentProposal.infer;

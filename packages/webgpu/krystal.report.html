@@ -132,7 +132,7 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 				<span class="dot buffer"></span>krystal.probe-weight32</a></div></nav>
 </aside>
 <main class="content" id="top">
-<dl class="kv"><div><dt>format</dt><dd><code>sandblaster</code> v1</dd></div><div><dt>programs</dt><dd>30 <span class="muted">(30 compute, 0 render)</span></dd></div><div><dt>buffers</dt><dd>7</dd></div><div><dt>generated WGSL</dt><dd>4157 lines</dd></div><div><dt>reported at</dt><dd>2026-08-17T20:22:22.976Z</dd></div></dl>
+<dl class="kv"><div><dt>format</dt><dd><code>sandblaster</code> v1</dd></div><div><dt>programs</dt><dd>30 <span class="muted">(30 compute, 0 render)</span></dd></div><div><dt>buffers</dt><dd>7</dd></div><div><dt>generated WGSL</dt><dd>4157 lines</dd></div><div><dt>reported at</dt><dd>2026-08-18T18:54:59.229Z</dd></div></dl>
 
 <h2 id="bindings">Bindings</h2><table class="grid matrix">
 		<thead><tr><th></th><th><a href="#program-compute-0">matmul_f32</a></th><th><a href="#program-compute-1">residual_add</a></th><th><a href="#program-compute-2">arena_copy</a></th><th><a href="#program-compute-3">embedding_f32</a></th><th><a href="#program-compute-4">zero_f32</a></th><th><a href="#program-compute-5">cross_entropy_forward_backward</a></th><th><a href="#program-compute-6">loss_reduce</a></th><th><a href="#program-compute-7">matmul_backward_input</a></th><th><a href="#program-compute-8">matmul_backward_weight</a></th><th><a href="#program-compute-9">embedding_backward</a></th><th><a href="#program-compute-10">sgd_step</a></th><th><a href="#program-compute-11">attention_forward</a></th><th><a href="#program-compute-12">attention_backward_scores</a></th><th><a href="#program-compute-13">attention_backward_qkv</a></th><th><a href="#program-compute-14">krystal_field_embed</a></th><th><a href="#program-compute-15">krystal_attention_forward</a></th><th><a href="#program-compute-16">relu</a></th><th><a href="#program-compute-17">krystal_pool</a></th><th><a href="#program-compute-18">krystal_selector</a></th><th><a href="#program-compute-19">krystal_decision_head</a></th><th><a href="#program-compute-20">relu_backward</a></th><th><a href="#program-compute-21">krystal_attention_backward_scores</a></th><th><a href="#program-compute-22">krystal_attention_backward_qkv</a></th><th><a href="#program-compute-23">krystal_field_embed_backward</a></th><th><a href="#program-compute-24">krystal_field_embed_sgd</a></th><th><a href="#program-compute-25">krystal_pool_backward</a></th><th><a href="#program-compute-26">krystal_pool_dpool</a></th><th><a href="#program-compute-27">krystal_selector_backward_scores</a></th><th><a href="#program-compute-28">krystal_selector_backward_qkv</a></th><th><a href="#program-compute-29">krystal_decision_head_backward</a></th></tr></thead>
@@ -446,9 +446,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln"> 39</span>};
 <span class="ln"> 40</span>
 <span class="ln"> 41</span>
-<span class="ln"> 42</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;_buffer_6, <span class="n">50653737</span>&gt;;
+<span class="ln"> 42</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;_buffer_6, <span class="n">50752905</span>&gt;;
 <span class="ln"> 43</span>
-<span class="ln"> 44</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50653737u</span>;
+<span class="ln"> 44</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50752905u</span>;
 <span class="ln"> 45</span>
 <span class="ln"> 46</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln"> 47</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
@@ -592,9 +592,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln">37</span>};
 <span class="ln">38</span>
 <span class="ln">39</span>
-<span class="ln">40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">50653737</span>&gt;;
+<span class="ln">40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">50752905</span>&gt;;
 <span class="ln">41</span>
-<span class="ln">42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50653737u</span>;
+<span class="ln">42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50752905u</span>;
 <span class="ln">43</span>
 <span class="ln">44</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln">45</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
@@ -694,9 +694,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln">37</span>};
 <span class="ln">38</span>
 <span class="ln">39</span>
-<span class="ln">40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">50653737</span>&gt;;
+<span class="ln">40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">50752905</span>&gt;;
 <span class="ln">41</span>
-<span class="ln">42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50653737u</span>;
+<span class="ln">42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50752905u</span>;
 <span class="ln">43</span>
 <span class="ln">44</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln">45</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
@@ -820,9 +820,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln"> 43</span>
 <span class="ln"> 44</span><span class="k">const</span> _BUFFER_1_LEN: <span class="t">u32</span> = <span class="n">2048u</span>;
 <span class="ln"> 45</span>
-<span class="ln"> 46</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;_buffer_6, <span class="n">50653737</span>&gt;;
+<span class="ln"> 46</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;_buffer_6, <span class="n">50752905</span>&gt;;
 <span class="ln"> 47</span>
-<span class="ln"> 48</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50653737u</span>;
+<span class="ln"> 48</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50752905u</span>;
 <span class="ln"> 49</span>
 <span class="ln"> 50</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln"> 51</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; tokens: _buffer_1;
@@ -961,9 +961,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln">37</span>};
 <span class="ln">38</span>
 <span class="ln">39</span>
-<span class="ln">40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">50653737</span>&gt;;
+<span class="ln">40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">50752905</span>&gt;;
 <span class="ln">41</span>
-<span class="ln">42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50653737u</span>;
+<span class="ln">42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50752905u</span>;
 <span class="ln">43</span>
 <span class="ln">44</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln">45</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
@@ -1098,9 +1098,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln"> 41</span>
 <span class="ln"> 42</span><span class="k">const</span> _BUFFER_2_LEN: <span class="t">u32</span> = <span class="n">2048u</span>;
 <span class="ln"> 43</span>
-<span class="ln"> 44</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">50653737</span>&gt;;
+<span class="ln"> 44</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">50752905</span>&gt;;
 <span class="ln"> 45</span>
-<span class="ln"> 46</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50653737u</span>;
+<span class="ln"> 46</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50752905u</span>;
 <span class="ln"> 47</span>
 <span class="ln"> 48</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln"> 49</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; targets: _buffer_2;
@@ -1310,9 +1310,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln"> 37</span>};
 <span class="ln"> 38</span>
 <span class="ln"> 39</span>
-<span class="ln"> 40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">50653737</span>&gt;;
+<span class="ln"> 40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">50752905</span>&gt;;
 <span class="ln"> 41</span>
-<span class="ln"> 42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50653737u</span>;
+<span class="ln"> 42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50752905u</span>;
 <span class="ln"> 43</span>
 <span class="ln"> 44</span><span class="k">alias</span> _buffer_3 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">1</span>&gt;;
 <span class="ln"> 45</span>
@@ -1478,9 +1478,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln"> 39</span>};
 <span class="ln"> 40</span>
 <span class="ln"> 41</span>
-<span class="ln"> 42</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;_buffer_6, <span class="n">50653737</span>&gt;;
+<span class="ln"> 42</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;_buffer_6, <span class="n">50752905</span>&gt;;
 <span class="ln"> 43</span>
-<span class="ln"> 44</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50653737u</span>;
+<span class="ln"> 44</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50752905u</span>;
 <span class="ln"> 45</span>
 <span class="ln"> 46</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln"> 47</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
@@ -1616,9 +1616,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln"> 37</span>};
 <span class="ln"> 38</span>
 <span class="ln"> 39</span>
-<span class="ln"> 40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">50653737</span>&gt;;
+<span class="ln"> 40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">50752905</span>&gt;;
 <span class="ln"> 41</span>
-<span class="ln"> 42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50653737u</span>;
+<span class="ln"> 42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50752905u</span>;
 <span class="ln"> 43</span>
 <span class="ln"> 44</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln"> 45</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
@@ -1768,9 +1768,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln"> 41</span>
 <span class="ln"> 42</span><span class="k">const</span> _BUFFER_1_LEN: <span class="t">u32</span> = <span class="n">2048u</span>;
 <span class="ln"> 43</span>
-<span class="ln"> 44</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">50653737</span>&gt;;
+<span class="ln"> 44</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">50752905</span>&gt;;
 <span class="ln"> 45</span>
-<span class="ln"> 46</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50653737u</span>;
+<span class="ln"> 46</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50752905u</span>;
 <span class="ln"> 47</span>
 <span class="ln"> 48</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln"> 49</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; tokens: _buffer_1;
@@ -1921,9 +1921,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln">39</span>};
 <span class="ln">40</span>
 <span class="ln">41</span>
-<span class="ln">42</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;_buffer_6, <span class="n">50653737</span>&gt;;
+<span class="ln">42</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;_buffer_6, <span class="n">50752905</span>&gt;;
 <span class="ln">43</span>
-<span class="ln">44</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50653737u</span>;
+<span class="ln">44</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50752905u</span>;
 <span class="ln">45</span>
 <span class="ln">46</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln">47</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
@@ -2053,9 +2053,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln"> 37</span>};
 <span class="ln"> 38</span>
 <span class="ln"> 39</span>
-<span class="ln"> 40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">50653737</span>&gt;;
+<span class="ln"> 40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">50752905</span>&gt;;
 <span class="ln"> 41</span>
-<span class="ln"> 42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50653737u</span>;
+<span class="ln"> 42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50752905u</span>;
 <span class="ln"> 43</span>
 <span class="ln"> 44</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln"> 45</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
@@ -2256,9 +2256,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln"> 37</span>};
 <span class="ln"> 38</span>
 <span class="ln"> 39</span>
-<span class="ln"> 40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">50653737</span>&gt;;
+<span class="ln"> 40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">50752905</span>&gt;;
 <span class="ln"> 41</span>
-<span class="ln"> 42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50653737u</span>;
+<span class="ln"> 42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50752905u</span>;
 <span class="ln"> 43</span>
 <span class="ln"> 44</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln"> 45</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
@@ -2448,9 +2448,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln"> 37</span>};
 <span class="ln"> 38</span>
 <span class="ln"> 39</span>
-<span class="ln"> 40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">50653737</span>&gt;;
+<span class="ln"> 40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">50752905</span>&gt;;
 <span class="ln"> 41</span>
-<span class="ln"> 42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50653737u</span>;
+<span class="ln"> 42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50752905u</span>;
 <span class="ln"> 43</span>
 <span class="ln"> 44</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln"> 45</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
@@ -2644,9 +2644,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln"> 39</span>};
 <span class="ln"> 40</span>
 <span class="ln"> 41</span>
-<span class="ln"> 42</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;_buffer_6, <span class="n">50653737</span>&gt;;
+<span class="ln"> 42</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;_buffer_6, <span class="n">50752905</span>&gt;;
 <span class="ln"> 43</span>
-<span class="ln"> 44</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50653737u</span>;
+<span class="ln"> 44</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50752905u</span>;
 <span class="ln"> 45</span>
 <span class="ln"> 46</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln"> 47</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
@@ -2810,9 +2810,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln"> 37</span>};
 <span class="ln"> 38</span>
 <span class="ln"> 39</span>
-<span class="ln"> 40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">50653737</span>&gt;;
+<span class="ln"> 40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">50752905</span>&gt;;
 <span class="ln"> 41</span>
-<span class="ln"> 42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50653737u</span>;
+<span class="ln"> 42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50752905u</span>;
 <span class="ln"> 43</span>
 <span class="ln"> 44</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln"> 45</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
@@ -3034,9 +3034,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln">37</span>};
 <span class="ln">38</span>
 <span class="ln">39</span>
-<span class="ln">40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">50653737</span>&gt;;
+<span class="ln">40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">50752905</span>&gt;;
 <span class="ln">41</span>
-<span class="ln">42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50653737u</span>;
+<span class="ln">42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50752905u</span>;
 <span class="ln">43</span>
 <span class="ln">44</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln">45</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
@@ -3171,9 +3171,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln"> 39</span>};
 <span class="ln"> 40</span>
 <span class="ln"> 41</span>
-<span class="ln"> 42</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;_buffer_6, <span class="n">50653737</span>&gt;;
+<span class="ln"> 42</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;_buffer_6, <span class="n">50752905</span>&gt;;
 <span class="ln"> 43</span>
-<span class="ln"> 44</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50653737u</span>;
+<span class="ln"> 44</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50752905u</span>;
 <span class="ln"> 45</span>
 <span class="ln"> 46</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln"> 47</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
@@ -3391,9 +3391,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln"> 37</span>};
 <span class="ln"> 38</span>
 <span class="ln"> 39</span>
-<span class="ln"> 40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">50653737</span>&gt;;
+<span class="ln"> 40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">50752905</span>&gt;;
 <span class="ln"> 41</span>
-<span class="ln"> 42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50653737u</span>;
+<span class="ln"> 42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50752905u</span>;
 <span class="ln"> 43</span>
 <span class="ln"> 44</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln"> 45</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
@@ -3617,9 +3617,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln"> 39</span>};
 <span class="ln"> 40</span>
 <span class="ln"> 41</span>
-<span class="ln"> 42</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;_buffer_6, <span class="n">50653737</span>&gt;;
+<span class="ln"> 42</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;_buffer_6, <span class="n">50752905</span>&gt;;
 <span class="ln"> 43</span>
-<span class="ln"> 44</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50653737u</span>;
+<span class="ln"> 44</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50752905u</span>;
 <span class="ln"> 45</span>
 <span class="ln"> 46</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln"> 47</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
@@ -3775,9 +3775,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln">37</span>};
 <span class="ln">38</span>
 <span class="ln">39</span>
-<span class="ln">40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">50653737</span>&gt;;
+<span class="ln">40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">50752905</span>&gt;;
 <span class="ln">41</span>
-<span class="ln">42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50653737u</span>;
+<span class="ln">42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50752905u</span>;
 <span class="ln">43</span>
 <span class="ln">44</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln">45</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
@@ -3908,9 +3908,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln"> 37</span>};
 <span class="ln"> 38</span>
 <span class="ln"> 39</span>
-<span class="ln"> 40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">50653737</span>&gt;;
+<span class="ln"> 40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">50752905</span>&gt;;
 <span class="ln"> 41</span>
-<span class="ln"> 42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50653737u</span>;
+<span class="ln"> 42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50752905u</span>;
 <span class="ln"> 43</span>
 <span class="ln"> 44</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln"> 45</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
@@ -4116,9 +4116,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln"> 37</span>};
 <span class="ln"> 38</span>
 <span class="ln"> 39</span>
-<span class="ln"> 40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">50653737</span>&gt;;
+<span class="ln"> 40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">50752905</span>&gt;;
 <span class="ln"> 41</span>
-<span class="ln"> 42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50653737u</span>;
+<span class="ln"> 42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50752905u</span>;
 <span class="ln"> 43</span>
 <span class="ln"> 44</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln"> 45</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
@@ -4337,9 +4337,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln"> 37</span>};
 <span class="ln"> 38</span>
 <span class="ln"> 39</span>
-<span class="ln"> 40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">50653737</span>&gt;;
+<span class="ln"> 40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">50752905</span>&gt;;
 <span class="ln"> 41</span>
-<span class="ln"> 42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50653737u</span>;
+<span class="ln"> 42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50752905u</span>;
 <span class="ln"> 43</span>
 <span class="ln"> 44</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln"> 45</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
@@ -4541,9 +4541,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln"> 39</span>};
 <span class="ln"> 40</span>
 <span class="ln"> 41</span>
-<span class="ln"> 42</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;_buffer_6, <span class="n">50653737</span>&gt;;
+<span class="ln"> 42</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;_buffer_6, <span class="n">50752905</span>&gt;;
 <span class="ln"> 43</span>
-<span class="ln"> 44</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50653737u</span>;
+<span class="ln"> 44</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50752905u</span>;
 <span class="ln"> 45</span>
 <span class="ln"> 46</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln"> 47</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
@@ -4729,9 +4729,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln"> 39</span>};
 <span class="ln"> 40</span>
 <span class="ln"> 41</span>
-<span class="ln"> 42</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;_buffer_6, <span class="n">50653737</span>&gt;;
+<span class="ln"> 42</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;_buffer_6, <span class="n">50752905</span>&gt;;
 <span class="ln"> 43</span>
-<span class="ln"> 44</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50653737u</span>;
+<span class="ln"> 44</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50752905u</span>;
 <span class="ln"> 45</span>
 <span class="ln"> 46</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln"> 47</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
@@ -4987,9 +4987,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln"> 37</span>};
 <span class="ln"> 38</span>
 <span class="ln"> 39</span>
-<span class="ln"> 40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">50653737</span>&gt;;
+<span class="ln"> 40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">50752905</span>&gt;;
 <span class="ln"> 41</span>
-<span class="ln"> 42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50653737u</span>;
+<span class="ln"> 42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50752905u</span>;
 <span class="ln"> 43</span>
 <span class="ln"> 44</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln"> 45</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
@@ -5124,9 +5124,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln"> 37</span>};
 <span class="ln"> 38</span>
 <span class="ln"> 39</span>
-<span class="ln"> 40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">50653737</span>&gt;;
+<span class="ln"> 40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">50752905</span>&gt;;
 <span class="ln"> 41</span>
-<span class="ln"> 42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50653737u</span>;
+<span class="ln"> 42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50752905u</span>;
 <span class="ln"> 43</span>
 <span class="ln"> 44</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln"> 45</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
@@ -5328,9 +5328,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln"> 37</span>};
 <span class="ln"> 38</span>
 <span class="ln"> 39</span>
-<span class="ln"> 40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">50653737</span>&gt;;
+<span class="ln"> 40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">50752905</span>&gt;;
 <span class="ln"> 41</span>
-<span class="ln"> 42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50653737u</span>;
+<span class="ln"> 42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50752905u</span>;
 <span class="ln"> 43</span>
 <span class="ln"> 44</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln"> 45</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
@@ -5533,9 +5533,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln"> 39</span>};
 <span class="ln"> 40</span>
 <span class="ln"> 41</span>
-<span class="ln"> 42</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;_buffer_6, <span class="n">50653737</span>&gt;;
+<span class="ln"> 42</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;_buffer_6, <span class="n">50752905</span>&gt;;
 <span class="ln"> 43</span>
-<span class="ln"> 44</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50653737u</span>;
+<span class="ln"> 44</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">50752905u</span>;
 <span class="ln"> 45</span>
 <span class="ln"> 46</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln"> 47</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
@@ -6044,7 +6044,7 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 	</section><section class="card" id="buffer-5">
 		<h3><span class="tag buffer">buffer</span>
 			<code class="ident">krystal.arena</code></h3>
-		<dl class="kv"><div><dt>resource id</dt><dd><code>5</code></dd></div><div><dt>schema type</dt><dd><a href="#type-_buffer_5"><code>_buffer_5</code></a></dd></div><div><dt>representation</dt><dd><code>native</code></dd></div><div><dt>records</dt><dd><code>1</code></dd></div><div><dt>stride</dt><dd><code>202614948 B</code></dd></div><div><dt>total size</dt><dd><code>193.2 MiB</code> <span class="muted">202614948 B</span></dd></div><div><dt>layout</dt><dd><code>std430</code> ·
+		<dl class="kv"><div><dt>resource id</dt><dd><code>5</code></dd></div><div><dt>schema type</dt><dd><a href="#type-_buffer_5"><code>_buffer_5</code></a></dd></div><div><dt>representation</dt><dd><code>native</code></dd></div><div><dt>records</dt><dd><code>1</code></dd></div><div><dt>stride</dt><dd><code>203011620 B</code></dd></div><div><dt>total size</dt><dd><code>193.6 MiB</code> <span class="muted">203011620 B</span></dd></div><div><dt>layout</dt><dd><code>std430</code> ·
 			<code>le</code> ·
 			word <code>32</code></dd></div><div><dt>used by</dt><dd><a href="#program-compute-0">
 					<code>matmul_f32</code></a>
@@ -6112,8 +6112,8 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 		<div class="types"><section class="type" id="type-_buffer_5">
 		<h4><code class="ident">_buffer_5</code> <span class="tag">alias</span></h4>
 		
-		<p class="muted">size <b>202614948</b> · align <b>4</b> · padded <b>202614948</b></p>
-		<p>Alias for <code>f32</code><code>[50653737]</code>.</p>
+		<p class="muted">size <b>203011620</b> · align <b>4</b> · padded <b>203011620</b></p>
+		<p>Alias for <code>f32</code><code>[50752905]</code>.</p>
 	</section></div>
 	</section><section class="card" id="buffer-6">
 		<h3><span class="tag buffer">buffer</span>

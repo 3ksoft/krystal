@@ -1,22 +1,23 @@
 /**
- * Versioned SoA BinaryLayoutPlan — M2a freeze.
+ * Versioned SoA BinaryLayoutPlan.
  *
- * This module is the single implementation of the frozen plan: the canonical
- * `buildBinaryLayoutPlan()` output must not be hand-edited beside the schema
- * (concerns answer 18). The schema owns the *types* (`BinaryLayoutPlan`,
- * `BrainFrameGpu`); this module owns the concrete buffer IDs, geometry and
- * hash so the schema file stays declarative and the plan stays testable.
+ * The buffer set is NOT defined here. It is generated from `BrainFrameGpu` by
+ * the schema build (`generated/krystal.buffers.ts`): the struct's array fields
+ * are the buffers, in declaration order, and the analyzer already knows each
+ * one's exact length and byte size. This module only versions, hashes and
+ * validates that generated table.
  *
- * Buffer layout (all u32 in v1, byteSize = 4 * elementCount):
+ * That split is the point. A buffer set maintained by hand next to the struct
+ * it describes cannot be checked by anything — the type system does not relate
+ * the two, and a test that enumerates buffers by name cannot notice one that is
+ * missing. Deriving it means a buffer added, removed or resized in the schema
+ * propagates on rebuild and cannot silently disagree.
  *
- *   bufferId  name                  elementCount          index
- *   0         tokenIds              128 * 8 = 1024        [slot * 8 + localToken]
- *   1         fieldRoles            1024                  [slot * 8 + localToken]
- *   2         schemaIds             128                   [slot]
- *   3         bandIds               128                   [slot]
- *   4         runtimeRefs           128 * 8 = 1024        [slot * 8 + localRef]
- *   5         recordFlags           128                   [slot]
- *   6         activeRecordIndices   128                   [0..activeRecordCount)
+ * Indexing (all u32; byteSize = 4 * elementCount):
+ *   tokenIds / fieldRoles / attentionMask   [slot * recordWidth + localToken]
+ *   runtimeRefs                             [slot * maxReferencesPerRecord + localRef]
+ *   schemaIds / bandIds / recordFlags       [slot]
+ *   activeRecordIndices                     [0..activeRecordCount)
  */
 import {
   BINARY_LAYOUT_PLAN_VERSION,
@@ -25,22 +26,17 @@ import {
   KRYSTAL_ABI,
 } from "../../schema/src/krystal-engine-schema.ts";
 import type { v1_0_0 } from "../../schema/generated/krystal.types.ts";
+import {
+  BINARY_LAYOUT_BUFFER_COUNT,
+  BINARY_LAYOUT_BUFFER_IDS,
+  BRAIN_FRAME_GPU_BUFFERS,
+} from "../../schema/generated/krystal.buffers.ts";
 import { hashU32s } from "./hash.ts";
+
+export { BINARY_LAYOUT_BUFFER_COUNT, BINARY_LAYOUT_BUFFER_IDS };
 
 type BinaryLayoutBufferDesc = v1_0_0.BinaryLayoutBufferDesc;
 type BinaryLayoutPlan = v1_0_0.BinaryLayoutPlan;
-
-export const BINARY_LAYOUT_BUFFER_IDS = {
-  tokenIds: 0,
-  fieldRoles: 1,
-  schemaIds: 2,
-  bandIds: 3,
-  runtimeRefs: 4,
-  recordFlags: 5,
-  activeRecordIndices: 6,
-} as const;
-
-export const BINARY_LAYOUT_BUFFER_COUNT = Object.keys(BINARY_LAYOUT_BUFFER_IDS).length;
 
 /** BrainBandKind -> index in BRAIN_FRAME_BANDS (stable band id). */
 export function bandIndex(kind: (typeof BRAIN_FRAME_BANDS)[number]["kind"]): number {
@@ -56,26 +52,23 @@ export function bandMask(kinds: readonly (typeof BRAIN_FRAME_BANDS)[number]["kin
   return mask >>> 0;
 }
 
-/** Element counts of every SoA buffer, in buffer-id order. */
+/** Element counts of every SoA buffer, in buffer-id order (schema-derived). */
 export function brainFrameGpuElementCounts(): number[] {
-  const { recordWidth, frameRecordSlots, maxReferencesPerRecord } = BRAIN_LIMITS;
-  return [
-    frameRecordSlots * recordWidth, // tokenIds
-    frameRecordSlots * recordWidth, // fieldRoles
-    frameRecordSlots, // schemaIds
-    frameRecordSlots, // bandIds
-    frameRecordSlots * maxReferencesPerRecord, // runtimeRefs
-    frameRecordSlots, // recordFlags
-    frameRecordSlots, // activeRecordIndices
-  ];
+  return BRAIN_FRAME_GPU_BUFFERS.map((buffer) => buffer.elementCount);
 }
 
-/** Canonical SoA buffer descriptors, in buffer-id order. */
+/**
+ * Canonical SoA buffer descriptors, in buffer-id order.
+ *
+ * `byteSize` is taken from the generated table rather than recomputed as
+ * `4 * elementCount`, so that an element type that stops being u32 surfaces as
+ * a plan mismatch instead of being silently mis-sized here.
+ */
 export function brainFrameGpuBuffers(): BinaryLayoutBufferDesc[] {
-  return brainFrameGpuElementCounts().map((elementCount, bufferId) => ({
-    bufferId,
-    elementCount,
-    byteSize: elementCount * 4,
+  return BRAIN_FRAME_GPU_BUFFERS.map((buffer) => ({
+    bufferId: buffer.bufferId,
+    elementCount: buffer.elementCount,
+    byteSize: buffer.byteSize,
     flags: 0,
   }));
 }

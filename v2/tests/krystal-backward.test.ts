@@ -29,6 +29,7 @@ import { buildFixtureFrame } from "../../packages/krystal/src/fixtures/frame.ts"
 import { compileActiveFrame } from "../../packages/krystal/src/forward/masks.ts";
 import { BRAIN_FORWARD_CONFIG, type BrainForwardConfig } from "../../packages/krystal/src/forward/model.ts";
 import { packBrainFrame } from "../../packages/krystal/src/frame/packer.ts";
+import { FIXTURE_TOKEN_ROWS, toEmbeddingRows } from "../../packages/krystal/src/fixtures/vocabulary.ts";
 
 function fwdRegion(name: keyof typeof KRYSTAL_FORWARD_ARENA, elements: number): number {
   return KRYSTAL_FORWARD_ARENA_BASE + KRYSTAL_FORWARD_ARENA[name];
@@ -868,8 +869,10 @@ test("field_embed_backward: GPU scatter-add matches the CPU oracle", async () =>
   const streamOff = fwdRegion("streamIds", active.streamIds.length);
   const activeOff = fwdRegion("activeTokens", t);
   await uploadArena(h, dFsOff, dFieldStates);
-  await uploadU32(h, tokOff, Uint32Array.from(frame.tokenIds));
-  await uploadU32(h, roleOff, Uint32Array.from(frame.fieldRoles));
+  // The kernel indexes the embedding tables directly, so it takes rows, not
+  // token ids — the same projection the forward runner applies on upload.
+  await uploadU32(h, tokOff, toEmbeddingRows(frame.tokenIds));
+  await uploadU32(h, roleOff, toEmbeddingRows(frame.fieldRoles));
   await uploadU32(h, schemaOff, Uint32Array.from(frame.schemaIds));
   await uploadU32(h, bandOff, Uint32Array.from(frame.bandIds));
   await uploadU32(h, streamOff, active.streamIds);
@@ -899,8 +902,8 @@ test("field_embed_backward: GPU scatter-add matches the CPU oracle", async () =>
     const rowsSet = new Set<number>();
     for (let i = 0; i < t; i++) {
       const frameTok = active.activeTokens[i]!;
-      if (tableId === 0) rowsSet.add(frame.tokenIds[frameTok]!);
-      else if (tableId === 1) rowsSet.add(frame.fieldRoles[frameTok]!);
+      if (tableId === 0) rowsSet.add(FIXTURE_TOKEN_ROWS[frame.tokenIds[frameTok]!]!);
+      else if (tableId === 1) rowsSet.add(FIXTURE_TOKEN_ROWS[frame.fieldRoles[frameTok]!]!);
       else rowsSet.add(frame.schemaIds[frameTok! >> 3]!);
     }
     touched.push({ base: tableBases[tableId]!, rows: rowsSet });
@@ -953,7 +956,10 @@ test("field_embed_sgd: sparse fused update matches dense gradient + SGD", async 
   for (const frameTok of active.activeTokens) {
     const slot = frameTok >> 3;
     const indices = [
-      frame.tokenIds[frameTok]!, frame.fieldRoles[frameTok]!, frame.schemaIds[slot]!,
+      // Rows, not ids — matching what is uploaded to the kernel below.
+      FIXTURE_TOKEN_ROWS[frame.tokenIds[frameTok]!]!,
+      FIXTURE_TOKEN_ROWS[frame.fieldRoles[frameTok]!]!,
+      frame.schemaIds[slot]!,
       frame.bandIds[slot]!, active.streamIds[slot]!, frameTok & 7,
     ];
     for (let table = 0; table < indices.length; table++) touched.add(bases[table]! + indices[table]!);
@@ -970,8 +976,10 @@ test("field_embed_sgd: sparse fused update matches dense gradient + SGD", async 
   const activeOff = fwdRegion("activeTokens", t);
   await uploadArena(h, dFsOff, dFieldStates);
   await uploadU32(h, sparseOff, sparseRows);
-  await uploadU32(h, tokOff, Uint32Array.from(frame.tokenIds));
-  await uploadU32(h, roleOff, Uint32Array.from(frame.fieldRoles));
+  // The kernel indexes the embedding tables directly, so it takes rows, not
+  // token ids — the same projection the forward runner applies on upload.
+  await uploadU32(h, tokOff, toEmbeddingRows(frame.tokenIds));
+  await uploadU32(h, roleOff, toEmbeddingRows(frame.fieldRoles));
   await uploadU32(h, schemaOff, Uint32Array.from(frame.schemaIds));
   await uploadU32(h, bandOff, Uint32Array.from(frame.bandIds));
   await uploadU32(h, streamOff, active.streamIds);

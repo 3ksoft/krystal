@@ -22,7 +22,8 @@
  *   pool        [2, H] qk row 0, qv row 1
  *   mixer[b]    same block shape as enc[b]
  */
-import { BRAIN_LIMITS } from "../../../schema/src/krystal-engine-schema.ts";
+import { BRAIN_LIMITS, KRYSTAL_ABI } from "../../../schema/src/krystal-engine-schema.ts";
+import { FIXTURE_TOKEN_ROWS } from "../fixtures/vocabulary.ts";
 
 export interface BrainForwardConfig {
   readonly hiddenSize: number;
@@ -31,7 +32,7 @@ export interface BrainForwardConfig {
   readonly ffnSize: number;
   readonly encoderBlocks: number;
   readonly mixerBlocks: number;
-  /** Embedding table row spaces (12-bit token space, schema/band/stream/pos). */
+  /** Embedding table row counts (see BRAIN_FORWARD_CONFIG for the projection). */
   readonly tokenSpace: number;
   readonly fieldSpace: number;
   readonly schemaSpace: number;
@@ -40,6 +41,16 @@ export interface BrainForwardConfig {
   readonly posSpace: number;
   /** Typed decision head class count (route kinds, architecture v2 §9). */
   readonly routeKindCount: number;
+  /**
+   * Token id -> embedding row, for this profile's vocabulary.
+   *
+   * Carried here rather than reached for as a module-level constant, because
+   * the mapping is a property of the vocabulary an agent was compiled against.
+   * A global made the forward pass silently correct for exactly one world: any
+   * other grammar assigns different rows, so the same token would train a
+   * different vector with nothing to signal the mismatch.
+   */
+  readonly tokenRows: Uint32Array;
 }
 
 export const BRAIN_FORWARD_CONFIG: BrainForwardConfig = {
@@ -49,13 +60,23 @@ export const BRAIN_FORWARD_CONFIG: BrainForwardConfig = {
   ffnSize: 384,
   encoderBlocks: 2,
   mixerBlocks: 2,
-  tokenSpace: 0x1000, // 12-bit token space (KRYSTAL_ABI_V0.md section 3)
-  fieldSpace: 0x1000, // field roles are KrystalTokenIds in the fixture ABI
+  // Embedding rows, NOT the id space: semantic symbols occupy one row each at
+  // their manifest index, and the whole reference half folds into a shared pool
+  // of `refEmbeddingRows`. Indexing by id instead would cost 0x8000 rows to
+  // carry a few hundred live symbols.
+  tokenSpace: KRYSTAL_ABI.semanticEmbeddingRows + KRYSTAL_ABI.refEmbeddingRows,
+  // Field roles are ordinary semantic tokens, so they project through the same
+  // table and need the same capacity.
+  fieldSpace: KRYSTAL_ABI.semanticEmbeddingRows + KRYSTAL_ABI.refEmbeddingRows,
   schemaSpace: 0x100, // maxRecordSchemas
   bandSpace: BRAIN_LIMITS.frameBands, // one embedding row per frame band
   streamSpace: 2, // record / query
   posSpace: BRAIN_LIMITS.recordWidth, // learned record-local positions
   routeKindCount: 4, // DIRECT / ACTION / ALU / NONE (provisional fixture set)
+  // This constant is the FIXTURE profile, and naming its vocabulary here says
+  // so. An agent built from a simulation grammar passes its own
+  // `CompiledGrammar.tokenRows` instead.
+  tokenRows: FIXTURE_TOKEN_ROWS,
 };
 
 export interface EmbeddingTableLayout {
@@ -140,6 +161,25 @@ export interface BrainForwardWeights {
    * argument gather; architecture v2 §12.9). Row-major like matmul weights.
    */
   readonly decisionHeadWh: Float32Array;
+  /**
+   * Value head [1, 3H]: predicted change in valence for the next tick, from the
+   * same concatenated context the decision head reads.
+   *
+   * Structurally it is a decision head with a single class, so it reuses that
+   * forward and backward exactly; only the loss differs — squared error against
+   * an observed number rather than cross-entropy against a label.
+   *
+   * It reads the 3H context rather than the query output alone so that the
+   * prediction MAY condition on the intent and argument about to be chosen,
+   * without being forced to. Whether the creature actually learns to connect
+   * "eat that" with "things improve" is the question worth asking, and wiring
+   * the connection in by hand would answer it in advance.
+   *
+   * The target needs no labelling: next tick's valence is simply observed. That
+   * is what makes live play in the simulation trainable at all once the gold
+   * curriculum stops.
+   */
+  readonly valueHeadWv: Float32Array;
 }
 
 /** Deterministic mulberry32 PRNG (same helper as the training tests). */
@@ -220,6 +260,7 @@ export function createBrainForwardWeights(
     mixer,
     selector: { wq: xavierUniform(h, h, rand), wk: xavierUniform(h, h, rand) },
     decisionHeadWh: xavierUniform(config.routeKindCount, 3 * h, rand),
+    valueHeadWv: xavierUniform(1, 3 * h, rand),
   };
 }
 
@@ -270,6 +311,7 @@ export function validateBrainForwardWeights(
     weights.decisionHeadWh.length === config.routeKindCount * 3 * h,
     "decision head weight size",
   );
+  require(weights.valueHeadWv.length === 3 * h, "value head weight size");
 }
 
 /** Typed brain-stream id list per record slot (from band id). */

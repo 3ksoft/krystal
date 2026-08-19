@@ -13,17 +13,12 @@
  *   - streamIds: per-slot stream id (query band -> 1, else 0);
  *   - the block-diagonal record mask for the local encoder attention.
  */
-import { BRAIN_LIMITS, INVALID_U32 } from "../../../schema/src/krystal-engine-schema.ts";
+import { BRAIN_LIMITS, INVALID_U32, RELATION_ROLE_FLAGS } from "../../../schema/src/krystal-engine-schema.ts";
 import type { v1_0_0 } from "../../../schema/generated/krystal.types.ts";
 import { bandIndex } from "../binary-layout-plan.ts";
 import { PAD_TOKEN_ID } from "../frame/packer.ts";
 import { STREAM_QUERY } from "./model.ts";
-import {
-  argumentRequiredCapability,
-  argumentNameById,
-  intentNameById,
-  schemaIdsWithCapability,
-} from "../fixtures/capabilities.ts";
+import type { RelationRole } from "../fixtures/capabilities.ts";
 import type { CompiledActionCatalog } from "../fixtures/action-intents.ts";
 
 export const QUERY_BAND_INDEX = bandIndex("query");
@@ -204,28 +199,100 @@ export function compileIntentMask(
 }
 
 /**
+ * A role's constraints, resolved once so nobody re-derives them.
+ *
+ * `undefined` means unconstrained — and it is a distinct value rather than an
+ * empty set on purpose. An empty constraint reads identically to a total
+ * prohibition when the check is a bare `set.has(...)`, and that ambiguity has
+ * now cost four separate bugs in this file and the emitter: every role a world
+ * left open resolved to no candidate at all, silently. Making "no constraint"
+ * unrepresentable as an empty set is what stops the fifth.
+ */
+export interface RoleFilter {
+  readonly tokens: ReadonlySet<number> | undefined;
+  readonly bands: ReadonlySet<number> | undefined;
+  /**
+   * Whether a candidate must carry a live runtime reference.
+   *
+   * True for a role that names a world entity (`context_ref`), because such a
+   * role is filled by an exact handle read from the record's sidecar and a
+   * record without one cannot be acted upon. Leaving it out of the mask let
+   * the selector score candidates that could never become a proposal: the
+   * choice was made, the emitter then refused it, and the creature spent the
+   * tick doing nothing for a reason no one could see from the policy. A
+   * structural role (`record_ref` — Self, a body part) is addressed by slot
+   * and legitimately has no sidecar, so it is exempt.
+   */
+  readonly requiresReference: boolean;
+}
+
+export function roleFilter(
+  acceptedTokens: readonly number[],
+  candidateBandIds: readonly number[],
+  valueKind?: v1_0_0.BrainValueKind,
+): RoleFilter {
+  return {
+    tokens: acceptedTokens.length === 0 ? undefined : new Set(acceptedTokens),
+    bands: candidateBandIds.length === 0 ? undefined : new Set(candidateBandIds),
+    requiresReference: valueKind !== undefined && valueKind !== "record_ref",
+  };
+}
+
+/**
+ * Does this role admit the record in `slot`?
+ *
+ * The single definition of acceptance, shared by the mask compiler and the
+ * emitter. They used to decide it separately and had drifted: the mask opened
+ * every record for an unconstrained role while the emitter rejected every one,
+ * so the selector was trained on candidates whose selection could never be
+ * turned into a proposal.
+ *
+ * Acceptance is matched against the record's TOKENS, not its schema id. A
+ * record carries its identity in `tokens[0]` and its categories after it, so
+ * one rule covers both: `accepts: ["resource:Apple"]` names an individual,
+ * `accepts: ["category:Edible"]` names a class, and an unseen berry that
+ * carries the category is admitted without anyone touching the catalog.
+ */
+export function roleAdmitsRecord(
+  frame: v1_0_0.BrainFrameGpu,
+  slot: number,
+  filter: RoleFilter,
+): boolean {
+  if (filter.bands && !filter.bands.has(frame.bandIds[slot]!)) return false;
+  if (filter.requiresReference && frame.runtimeRefs[slot * BRAIN_LIMITS.maxReferencesPerRecord] === INVALID_U32) {
+    return false;
+  }
+  if (!filter.tokens) return true;
+  const base = slot * RECORD_WIDTH;
+  for (let local = 0; local < RECORD_WIDTH; local++) {
+    const token = frame.tokenIds[base + local]!;
+    if (token === PAD_TOKEN_ID) continue;
+    if (filter.tokens.has(token)) return true;
+  }
+  return false;
+}
+
+/**
  * Compile the argument-selector mask [Q, R] for a typed reference slot: 0.0
- * for bank records whose schemaId is accepted and whose band is a candidate
- * band, -1e30 otherwise. `acceptedSchemaIds`/`candidateBandIds` come from the
- * ActionIntent argument descriptor (host-compiled from ABI metadata).
+ * for bank records the role admits, -1e30 otherwise. `acceptedTokens` /
+ * `candidateBandIds` come from the relation role descriptor (host-compiled
+ * from ABI metadata).
  */
 export function compileArgumentMask(
   frame: v1_0_0.BrainFrameGpu,
   active: ActiveFrame,
-  acceptedSchemaIds: readonly number[],
+  acceptedTokens: readonly number[],
   candidateBandIds: readonly number[],
+  valueKind?: v1_0_0.BrainValueKind,
 ): Float32Array {
   const q = active.queryRecords.length;
   const r = active.bankRecords.length;
-  const accepted = new Set(acceptedSchemaIds);
-  const bands = new Set(candidateBandIds);
+  const filter = roleFilter(acceptedTokens, candidateBandIds, valueKind);
   const mask = new Float32Array(q * r);
   for (let i = 0; i < q; i++) {
     for (let j = 0; j < r; j++) {
       const slot = active.bankRecords[j]!;
-      if (!accepted.has(frame.schemaIds[slot]!) || !bands.has(frame.bandIds[slot]!)) {
-        mask[i * r + j] = -1e30;
-      }
+      if (!roleAdmitsRecord(frame, slot, filter)) mask[i * r + j] = -1e30;
     }
   }
   return mask;
@@ -248,7 +315,7 @@ export function compileArgumentMask(
 // its mask and loss target are nevertheless selected-intent conditional. The
 // public shape is `argMaskFor(intentId, argumentIndex)` (the equivalent of
 // argMask[q][intent][argument][record], flattened to the concrete lowering)
-// plus `argumentTarget[q][argument]` per query row. See bridge/policy.ts for
+// plus `argumentTarget[q][argument]` per query row. See training/policy.ts for
 // the curriculum wiring that feeds these host-compiled masks into the runner.
 
 function allBlocked(q: number, r: number): Float32Array {
@@ -265,48 +332,70 @@ export function bandIdsFromMask(candidateBandMask: number): number[] {
 }
 
 /**
- * Compile the [Q, R] argument mask for one (selectedIntent, argumentIndex)
- * pair from its compiled catalog argument descriptor: 0.0 for bank records
- * whose schema is accepted by the argument's capability/identity set and
- * whose band is a candidate band, -1e30 otherwise. Arity-0 intents and
- * out-of-range argument indexes produce an all-blocked row (the selector can
- * never fabricate a pointer for them).
+ * Compile the [Q, R] mask for one side of a relation: 0.0 for bank records
+ * whose schema is accepted by that role's capability/identity set and whose
+ * band is a candidate band, -1e30 otherwise.
+ *
+ * There is no longer an all-blocked case for "this intent has no such
+ * argument". A unary intent mirrors its subject into its object role, so CRY's
+ * object mask opens exactly the Self record instead of blocking everything —
+ * one legal candidate is a far better training signal for the gather head than
+ * a row with no legal answer at all.
  */
 export function argMaskFor(
   frame: v1_0_0.BrainFrameGpu,
   active: ActiveFrame,
   catalog: CompiledActionCatalog,
   intentId: number,
-  argumentIndex: number,
+  role: RelationRole = "object",
 ): Float32Array {
   const q = active.queryRecords.length;
   const r = active.bankRecords.length;
   const descriptor = catalog.descriptors.find((candidate) => candidate.intentId === intentId);
-  if (!descriptor || argumentIndex >= descriptor.argumentCount) return allBlocked(q, r);
-  const argDesc = catalog.arguments[descriptor.argumentOffset + argumentIndex]!;
-  const accepted = argAcceptedSchemaIds(catalog, intentId, argumentIndex, argDesc);
-  return compileArgumentMask(frame, active, accepted, bandIdsFromMask(argDesc.candidateBandMask));
+  if (!descriptor) return allBlocked(q, r);
+  const roleDesc = role === "subject" ? descriptor.subjectRole : descriptor.objectRole;
+  const accepted = roleAcceptedTokens(catalog, intentId, role, roleDesc);
+  return compileArgumentMask(
+    frame, active, accepted, bandIdsFromMask(roleDesc.candidateBandMask), roleDesc.valueKind,
+  );
 }
 
 /**
- * Accepted schema ids for one argument: capability-derived when the argument
- * declares a required capability (S7 `TARGET_OF(EAT)`), else the single
- * acceptedSchema identity from the compiled descriptor.
+ * The token ids one role admits, empty meaning "anything the frame offers".
+ *
+ * This used to be a name lookup into the fixture vocabulary, which meant the
+ * forward pass could only ever mask against one particular world's catalog. The
+ * set now travels inside the descriptor, so a catalog compiled from any grammar
+ * works unchanged.
  */
-export function argAcceptedSchemaIds(
+export function roleAcceptedTokens(
   catalog: CompiledActionCatalog,
   intentId: number,
-  argumentIndex: number,
-  argDesc?: v1_0_0.ActionArgumentDescriptor,
+  role: RelationRole = "object",
+  roleDesc?: v1_0_0.RelationRoleDescriptor,
 ): number[] {
   const descriptor = catalog.descriptors.find((candidate) => candidate.intentId === intentId);
-  if (!descriptor || argumentIndex >= descriptor.argumentCount) return [];
-  const desc = argDesc ?? catalog.arguments[descriptor.argumentOffset + argumentIndex]!;
-  const intentName = intentNameById(intentId);
-  const argName = argumentNameById(intentId, argumentIndex);
-  const capability = argumentRequiredCapability(intentName, argName);
-  if (capability) return schemaIdsWithCapability(capability);
-  return desc.acceptedSchemaId === 0 && desc.valueKind === "context_ref" ? [] : [desc.acceptedSchemaId];
+  if (!descriptor) return [];
+  const desc = roleDesc ?? (role === "subject" ? descriptor.subjectRole : descriptor.objectRole);
+  // An empty acceptance set is ambiguous on its own — it reads the same as
+  // "nothing is acceptable" — so a role that narrows nothing says so with a
+  // flag and every candidate is admitted.
+  if (desc.flags & RELATION_ROLE_FLAGS.acceptsAny) return [];
+  return desc.acceptedTokens.filter((token) => token !== PAD_TOKEN_ID);
+}
+
+/** The compiled filter for one side of a relation. */
+export function roleFilterFor(
+  catalog: CompiledActionCatalog,
+  intentId: number,
+  role: RelationRole,
+  roleDesc: v1_0_0.RelationRoleDescriptor,
+): RoleFilter {
+  return roleFilter(
+    roleAcceptedTokens(catalog, intentId, role, roleDesc),
+    bandIdsFromMask(roleDesc.candidateBandMask),
+    roleDesc.valueKind,
+  );
 }
 
 /**
@@ -319,14 +408,14 @@ export function compilePerRowArgumentMask(
   active: ActiveFrame,
   catalog: CompiledActionCatalog,
   intents: readonly number[],
-  argumentIndex = 0,
+  role: RelationRole = "object",
 ): Float32Array {
   const q = active.queryRecords.length;
   const r = active.bankRecords.length;
   if (intents.length !== q) throw new ForwardMasksError(`per-row intents must be [Q] = ${q}`);
   const mask = new Float32Array(q * r);
   for (let i = 0; i < q; i++) {
-    const row = argMaskFor(frame, active, catalog, intents[i]!, argumentIndex);
+    const row = argMaskFor(frame, active, catalog, intents[i]!, role);
     for (let j = 0; j < r; j++) mask[i * r + j] = row[j]!;
   }
   return mask;

@@ -22,7 +22,7 @@ import {
   type BrainForwardWeights,
 } from "../packages/krystal/src/forward/model.ts";
 import { brainForwardOracle, matmulOracle } from "../packages/krystal/src/forward/oracle.ts";
-import { lowerPolicyFrame, policyRefToken, type PolicyAction, type PolicyEpisode } from "../packages/krystal/src/bridge/policy.ts";
+import { lowerPolicyFrame, policyRefToken, type PolicyAction, type PolicyEpisode } from "../packages/krystal/src/training/policy.ts";
 
 const POLICY_CONFIG = { ...BRAIN_FORWARD_CONFIG, routeKindCount: 6 };
 const ROUTE: Record<PolicyAction, number> = { CRY: 0, LAUGH: 1, EAT: 2, MOVE_TOWARDS: 3, LOOK: 4, WAIT: 5 };
@@ -60,7 +60,7 @@ function prepareFor(frame: any, gold: any, catalog: any) {
   if (gold.refToken !== undefined) {
     for (let j = 0; j < active.bankRecords.length; j++) {
       const slot = active.bankRecords[j]!;
-      if ((frame.runtimeRefs[slot * BRAIN_LIMITS.maxReferencesPerRecord]! & 0xfff) === gold.refToken) { argTarget = j; break; }
+      if ((frame.runtimeRefs[slot * BRAIN_LIMITS.maxReferencesPerRecord]! & 0xffff) === gold.refToken) { argTarget = j; break; }
     }
   }
   return { frame, selection: { intentMask, argMask }, routeKinds: Uint32Array.of(ROUTE[gold.action as PolicyAction]), intentGold: Uint32Array.of(intentGold), argumentTargets: [Uint32Array.of(argTarget)] };

@@ -259,8 +259,10 @@ export class KrystalBackward {
     for (const frameTok of active.activeTokens) {
       const slot = frameTok >> 3;
       const indices = [
-        options.frame.tokenIds[frameTok]!,
-        options.frame.fieldRoles[frameTok]!,
+        // Same projection the forward upload applies: the tables are indexed by
+        // embedding row, and a raw token id is not one.
+        this.forward.config.tokenRows[options.frame.tokenIds[frameTok]!]!,
+        this.forward.config.tokenRows[options.frame.fieldRoles[frameTok]!]!,
         options.frame.schemaIds[slot]!,
         options.frame.bandIds[slot]!,
         active.streamIds[slot]!,

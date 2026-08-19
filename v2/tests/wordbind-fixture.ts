@@ -10,6 +10,7 @@
 // physical token positions (word members may be non-contiguous), local word
 // ids, the record's slot inside the vision band, and the runtime ref.
 import {
+  KRYSTAL_ABI,
   BRAIN_FIXED_RECORDS,
   BRAIN_FRAME_BANDS,
   BRAIN_LIMITS,
@@ -23,7 +24,7 @@ import { ACTION_INTENT_SCHEMA_ID } from "../../packages/krystal/src/fixtures/fra
 import { fixtureTokenId } from "../../packages/krystal/src/fixtures/vocabulary.ts";
 import { INVALID_WORD_ID } from "../../packages/krystal/src/forward/masks.ts";
 import { mulberry32 } from "../../packages/krystal/src/forward/model.ts";
-import { mix32 } from "../../packages/krystal/src/bridge/comfort.ts";
+import { mix32 } from "../../packages/krystal/src/training/comfort.ts";
 
 const W = BRAIN_LIMITS.recordWidth;
 const APPLE_SCHEMA_ID = 2;
@@ -78,6 +79,7 @@ function assemble(specs: readonly Spec[], tick: number): v1_0_0.BrainFrame {
         schemaId: 0, band: "system", source: "runtime", flags: 0, tokenCount: 0,
         referenceCount: 0, observedAt: 0, revision: 0, primaryReference: INVALID_U32,
         continuationRecord: INVALID_U32, salience: 0, freshness: 0,
+        previousObservedAt: INVALID_U32, changeMagnitude: 0, reserved0: 0, reserved1: 0,
       },
       tokens: new Array<number>(W).fill(PAD_TOKEN_ID),
       tokenMeta: new Array<v1_0_0.BrainTokenMeta>(W).fill(tokenMeta(0, TOKEN_FLAGS.padding)),
@@ -95,6 +97,7 @@ function assemble(specs: readonly Spec[], tick: number): v1_0_0.BrainFrame {
       tokenCount, referenceCount: spec.refs?.length ?? 0, observedAt: tick, revision: 1,
       primaryReference: spec.refs?.[0]?.handle.tokenId ?? INVALID_U32,
       continuationRecord: INVALID_U32, salience: 0.5, freshness: 1,
+      previousObservedAt: INVALID_U32, changeMagnitude: 0, reserved0: 0, reserved1: 0,
     };
     record.tokens = spec.tokens.slice();
     record.tokenMeta = spec.tokens.map((t) =>
@@ -113,7 +116,8 @@ function assemble(specs: readonly Spec[], tick: number): v1_0_0.BrainFrame {
   });
   return {
     header: {
-      tokenAbiVersion: 0, architectureVersion: 2, layoutVersion: 1, tick, snapshot: 1,
+      tokenAbiVersion: KRYSTAL_ABI.tokenAbiVersion, architectureVersion: KRYSTAL_ABI.architectureVersion,
+      layoutVersion: KRYSTAL_ABI.frameLayoutVersion, tick, snapshot: 1, deltaMillis: 0,
       activeRecordCount, activeTokenCount,
       activeQueryRecord: BRAIN_FIXED_RECORDS.primaryQuery,
       actorRecord: BRAIN_FIXED_RECORDS.actor,
@@ -161,7 +165,7 @@ export function wordBindPair(seed: number, options: WordBindOptions = {}): [Word
   const MUCH = fixtureTokenId("MUCH");
 
   // Nuisance drawn ONCE per pair, before any variant is considered.
-  const refToken = 0xe00 + Math.floor(rng() * 0x100);
+  const refToken = 0x8000 + Math.floor(rng() * 0x100);
   const slot = VISION.recordOffset + Math.floor(rng() * VISION.recordCapacity);
   const free = shuffle([2, 3, 4, 5, 6, 7], rng).slice(0, 4);
   const order = shuffle([RED, YELLOW, SOME, MUCH], rng);

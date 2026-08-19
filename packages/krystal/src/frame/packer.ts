@@ -12,6 +12,8 @@ import {
   BRAIN_FRAME_BANDS,
   BRAIN_LIMITS,
   INVALID_U32,
+  KRYSTAL_ABI,
+  KRYSTAL_SENTINEL_TOKENS,
   RECORD_FLAGS,
   TOKEN_FLAGS,
 } from "../../../schema/src/krystal-engine-schema.ts";
@@ -25,18 +27,26 @@ import {
 
 export { PlanMismatchError };
 
+/** PAD token used for unused token positions. */
+export const PAD_TOKEN_ID = KRYSTAL_SENTINEL_TOKENS.pad;
+
+/** Reference half of the 16-bit token space: 0x8000..0xFFFF. */
+export const DYNAMIC_REF_TOKEN_START = KRYSTAL_ABI.refSpaceStart;
+export const DYNAMIC_REF_TOKEN_END = KRYSTAL_ABI.refSpaceEnd;
+
 /**
- * PAD token used for unused token positions. 0x000 is the first system token
- * and matches the fixture vocabulary's FIXTURE_PAD_TOKEN.
+ * A packed handle is still one u32, now split 16/16 instead of 12/20.
+ *
+ * NOTE the narrowing: generation drops from 20 bits (~1M epochs) to 16 (~65k).
+ * That is mitigated rather than solved by the wider reference space — with 32k
+ * reference slots instead of 256, a given slot is reused ~128x less often, so
+ * the wrap horizon is far away in practice. If long-lived autobiographical
+ * memory ever needs to outlive 65k rebindings of one slot, the fix is to widen
+ * `runtimeRefs` to two words per reference (token in word 0, full u32
+ * generation in word 1) rather than to steal bits back from the token.
  */
-export const PAD_TOKEN_ID = 0x000;
-
-/** Reference token space per KRYSTAL_ABI_V0.md: 0xE00..0xEFF. */
-export const DYNAMIC_REF_TOKEN_START = 0xe00;
-export const DYNAMIC_REF_TOKEN_END = 0xeff;
-
-export const RUNTIME_REF_GENERATION_BITS = 20;
-export const RUNTIME_REF_TOKEN_BITS = 12;
+export const RUNTIME_REF_GENERATION_BITS = 16;
+export const RUNTIME_REF_TOKEN_BITS = KRYSTAL_ABI.tokenBits;
 
 export class FramePackerError extends Error {
   constructor(message: string) {
@@ -46,14 +56,14 @@ export class FramePackerError extends Error {
 }
 
 /**
- * Pack a runtime handle into one u32: tokenId in the low 12 bits, generation
- * in the high 20 bits. This is the compiler-selected identity projection
- * exposed to the model (generation protects against 0xExx slot ABA reuse).
+ * Pack a runtime handle into one u32: tokenId in the low 16 bits, generation
+ * in the high 16. This is the compiler-selected identity projection exposed to
+ * the model (generation protects against reference-slot ABA reuse).
  */
 export function packRuntimeHandle(handle: v1_0_0.RuntimeRefHandle): number {
   if (handle.tokenId < DYNAMIC_REF_TOKEN_START || handle.tokenId > DYNAMIC_REF_TOKEN_END) {
     throw new FramePackerError(
-      `Runtime handle tokenId 0x${handle.tokenId.toString(16)} outside dynamic 0xE00..0xEFF range`,
+      `Runtime handle tokenId 0x${handle.tokenId.toString(16)} outside the reference half 0x${DYNAMIC_REF_TOKEN_START.toString(16)}..0x${DYNAMIC_REF_TOKEN_END.toString(16)}`,
     );
   }
   if (handle.generation >= 1 << RUNTIME_REF_GENERATION_BITS) {
@@ -61,13 +71,13 @@ export function packRuntimeHandle(handle: v1_0_0.RuntimeRefHandle): number {
       `Runtime handle generation ${handle.generation} exceeds ${RUNTIME_REF_GENERATION_BITS} bits`,
     );
   }
-  return (handle.tokenId | (handle.generation << RUNTIME_REF_TOKEN_BITS)) >>> 0;
+  return ((handle.tokenId | (handle.generation << RUNTIME_REF_TOKEN_BITS)) >>> 0) >>> 0;
 }
 
 export function unpackRuntimeHandle(packed: number): v1_0_0.RuntimeRefHandle {
   if (packed === INVALID_U32) return { tokenId: 0, generation: 0, kind: "none", status: "invalid" };
   return {
-    tokenId: packed & 0xfff,
+    tokenId: packed & 0xffff,
     generation: packed >>> RUNTIME_REF_TOKEN_BITS,
     kind: "none",
     status: "live",
@@ -108,6 +118,9 @@ export function packBrainFrame(
 
   const tokenIds = new Array<number>(frameTokens).fill(PAD_TOKEN_ID);
   const fieldRoles = new Array<number>(frameTokens).fill(0);
+  // Default 0: an unoccupied slot is masked out entirely, so the vast empty
+  // remainder of every sensory band never reaches attention.
+  const attentionMask = new Array<number>(frameTokens).fill(0);
   const schemaIds = new Array<number>(frameRecordSlots).fill(INVALID_U32);
   const bandIds = new Array<number>(frameRecordSlots).fill(INVALID_U32);
   const runtimeRefs = new Array<number>(frameRecordSlots * maxReferencesPerRecord).fill(
@@ -142,9 +155,9 @@ export function packBrainFrame(
 
     for (let localToken = 0; localToken < recordWidth; localToken++) {
       const token = record.tokens[localToken] ?? PAD_TOKEN_ID;
-      if (token > 0xfff) {
+      if (token > KRYSTAL_ABI.refSpaceEnd) {
         throw new FramePackerError(
-          `Record ${slot} token ${localToken}: 0x${token.toString(16)} exceeds the 12-bit token space`,
+          `Record ${slot} token ${localToken}: 0x${token.toString(16)} exceeds the 16-bit token space`,
         );
       }
       tokenIds[slot * recordWidth + localToken] = token;
@@ -158,7 +171,14 @@ export function packBrainFrame(
           );
         }
       }
-      if (token !== PAD_TOKEN_ID) activeTokenCount++;
+      if (token !== PAD_TOKEN_ID) {
+        activeTokenCount++;
+        // Only structural absence is masked. `void` (sensed emptiness) and
+        // `unavailable` (the sense is not reporting) are ordinary percepts and
+        // must stay visible — a creature that cannot tell silence from a
+        // blocked ear has lost real information.
+        attentionMask[slot * recordWidth + localToken] = 1;
+      }
     }
 
     for (let localRef = 0; localRef < maxReferencesPerRecord; localRef++) {
@@ -184,6 +204,7 @@ export function packBrainFrame(
     header: { ...plan.header },
     tokenIds,
     fieldRoles,
+    attentionMask,
     schemaIds,
     bandIds,
     runtimeRefs,

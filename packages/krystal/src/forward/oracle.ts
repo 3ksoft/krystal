@@ -10,6 +10,7 @@
  *   -> 2 mixer blocks (query -> bank cross-attention + ReLU FFN)
  */
 import type { v1_0_0 } from "../../../schema/generated/krystal.types.ts";
+import { sampleRow } from "./sampling.ts";
 import type {
   ActiveFrame,
 } from "./masks.ts";
@@ -123,7 +124,17 @@ export function addInPlace(a: Float32Array, b: Float32Array): void {
   for (let i = 0; i < a.length; i++) a[i] = a[i]! + b[i]!;
 }
 
-function fieldEmbed(
+/**
+ * The six additive embeddings for the active token range.
+ *
+ * Exported because the backward pass needs exactly this and used to carry its
+ * own copy. The copy drifted the moment token ids stopped being usable as
+ * embedding rows directly: the projection was applied here and not there, so
+ * the backward read past the end of the table and produced NaN through the
+ * whole graph — silently, because `!` erases at runtime and an out-of-range
+ * read is `undefined`, not an error.
+ */
+export function fieldEmbed(
   frame: v1_0_0.BrainFrameGpu,
   active: ActiveFrame,
   config: BrainForwardConfig,
@@ -137,8 +148,10 @@ function fieldEmbed(
     const frameTok = active.activeTokens[t]!;
     const slot = frameTok >> 3; // record width is the frozen ABI value 8
     const local = frameTok & 7;
-    const tok = frame.tokenIds[frameTok]!;
-    const role = frame.fieldRoles[frameTok]!;
+    // Ids are projected to embedding rows, never used as rows directly: the
+    // semantic half is sparse and the reference half shares a small pool.
+    const tok = config.tokenRows[frame.tokenIds[frameTok]!]!;
+    const role = config.tokenRows[frame.fieldRoles[frameTok]!]!;
     const schema = frame.schemaIds[slot]!;
     const band = frame.bandIds[slot]!;
     const stream = active.streamIds[slot]!;
@@ -277,7 +290,14 @@ export interface SelectionSlotResult {
   readonly p: Float32Array;
   /** [Q, H] soft-gathered value vectors. */
   readonly gather: Float32Array;
-  /** [Q] argmax record index into the bank (first max on ties). */
+  /**
+   * [Q] chosen record index into the bank.
+   *
+   * The argmax (first max on ties) unless a sampler is supplied, in which case
+   * it is drawn from the row's distribution — see `sampling.ts` for why that
+   * distinction is the difference between a creature that acts and one that
+   * merely has opinions.
+   */
   readonly index: Uint32Array;
 }
 
@@ -288,7 +308,13 @@ export interface BrainSelectionResult {
 
 /**
  * One typed selector slot: score = dot(Wq*query, Wk*key)/sqrt(H) + mask,
- * softmax, then gather g = sum p_i * value_i and take argmax (first max).
+ * softmax, then gather g = sum p_i * value_i and choose a record.
+ *
+ * `sampleUniform`, when given, is called once per query row and must return a
+ * uniform in [0, 1); the row's choice is then drawn from its distribution
+ * rather than taken at the mode. Omitting it keeps the argmax, which is what
+ * every gradient check and every supervised evaluation wants: those ask what
+ * the policy believes, and an answer that moves between runs is not an answer.
  */
 export function selectorOracle(
   query: Float32Array, // [Q, H] mixed query output
@@ -297,6 +323,7 @@ export function selectorOracle(
   mask: Float32Array, // [Q, R]
   selector: { readonly wq: Float32Array; readonly wk: Float32Array },
   h: number,
+  sampleUniform?: (row: number) => number,
 ): SelectionSlotResult {
   const q = query.length / h;
   const r = bankKeys.length / h;
@@ -321,7 +348,17 @@ export function selectorOracle(
       p[i * r + j] = scores[j]!;
       if (scores[j]! > scores[best]!) best = j;
     }
-    index[i] = allBlocked ? 0xffff_ffff : best;
+    if (allBlocked) {
+      index[i] = 0xffff_ffff;
+    } else if (sampleUniform) {
+      // A masked record has probability exactly zero after the softmax, so the
+      // draw can never land on one: sampling narrows nothing the mask allowed
+      // and admits nothing it forbade.
+      const drawn = sampleRow(p, i * r, r, sampleUniform(i));
+      index[i] = drawn < 0 ? 0xffff_ffff : drawn;
+    } else {
+      index[i] = best;
+    }
     for (let d = 0; d < h; d++) {
       let g = 0;
       for (let j = 0; j < r; j++) g += scores[j]! * bankValues[j * h + d]!;

@@ -44,6 +44,7 @@ import {
   type BrainForwardWeights,
 } from "../../krystal/src/forward/model";
 import type { v1_0_0 } from "../../schema/generated/krystal.types";
+import { BRAIN_LIMITS } from "../../schema/src/krystal-engine-schema";
 
 function validate(condition: boolean, message: string): void {
   if (!condition) throw new Error(`KrystalForward: ${message}`);
@@ -86,7 +87,8 @@ export interface BrainForwardWeightPages {
 
 export class KrystalForward {
   private readonly definition: KrystalDefinition;
-  private readonly config: BrainForwardConfig;
+  /** The profile this runner was built for, including its embedding row table. */
+  readonly config: BrainForwardConfig;
   private readonly executor: KrystalExecutor;
 
   private readonly embeddingsPage: GPUBuffer;
@@ -182,8 +184,12 @@ export class KrystalForward {
     };
 
     // SoA frame payloads + host-compiled active lists (u32 in the f32 arena).
-    uploadU32(A.tokenIds, Uint32Array.from(frame.tokenIds));
-    uploadU32(A.fieldRoles, Uint32Array.from(frame.fieldRoles));
+    // The embed kernel indexes the table directly, so it receives embedding
+    // ROWS, not token ids. Projecting on the host keeps the kernel free of the
+    // semantic/reference split and means the shader never has to know that a
+    // reference token shares a pooled row.
+    uploadU32(A.tokenIds, projectRows(frame.tokenIds, this.config.tokenRows));
+    uploadU32(A.fieldRoles, projectRows(frame.fieldRoles, this.config.tokenRows));
     uploadU32(A.schemaIds, Uint32Array.from(frame.schemaIds));
     uploadU32(A.bandIds, Uint32Array.from(frame.bandIds));
     uploadU32(A.streamIds, active.streamIds);
@@ -283,12 +289,12 @@ export class KrystalForward {
 
     // 1. field embed -> fieldStates.
     encoder.compute((pass) => pass.run("krystal_field_embed", {
-        inputOffset: this.region(A.tokenIds, 1024),
-        auxOffset: this.region(A.fieldRoles, 1024),
-        aux2Offset: this.region(A.schemaIds, 128),
-        aux3Offset: this.region(A.bandIds, 128),
+        inputOffset: this.region(A.tokenIds, BRAIN_LIMITS.frameTokens),
+        auxOffset: this.region(A.fieldRoles, BRAIN_LIMITS.frameTokens),
+        aux2Offset: this.region(A.schemaIds, BRAIN_LIMITS.frameRecordSlots),
+        aux3Offset: this.region(A.bandIds, BRAIN_LIMITS.frameRecordSlots),
         aux4Offset: this.region(A.activeTokens, t),
-        aux5Offset: this.region(A.streamIds, 128),
+        aux5Offset: this.region(A.streamIds, BRAIN_LIMITS.frameRecordSlots),
         outputOffset: fieldStates,
         tokenCount: t, inputDim: h,
         u0: bases.token, u1: bases.field, u2: bases.schema, u3: bases.band, u4: bases.stream, u5: bases.pos,
@@ -634,4 +640,11 @@ export class KrystalForward {
       block.w2.destroy();
     }
   }
+}
+
+/** Project a token buffer into embedding rows using this profile's table. */
+function projectRows(tokenIds: ArrayLike<number>, table: Uint32Array): Uint32Array {
+  const rows = new Uint32Array(tokenIds.length);
+  for (let i = 0; i < tokenIds.length; i++) rows[i] = table[tokenIds[i]!]!;
+  return rows;
 }

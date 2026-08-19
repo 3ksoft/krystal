@@ -61,8 +61,8 @@ export interface FixtureRecordSpec {
   readonly flags?: number;
 }
 
-export const FIXTURE_APPLE_REF = 0xe11;
-export const FIXTURE_MEMORY_REF = 0xe43;
+export const FIXTURE_APPLE_REF = 0x8011;
+export const FIXTURE_MEMORY_REF = 0x8043;
 
 const VISION_BAND_OFFSET = BRAIN_FRAME_BANDS.find((band) => band.kind === "vision")!.recordOffset;
 const MEMORY_BAND_OFFSET = BRAIN_FRAME_BANDS.find((band) => band.kind === "memory")!.recordOffset;
@@ -182,6 +182,10 @@ export function buildFixtureFrame(): v1_0_0.BrainFrame {
         continuationRecord: INVALID_U32,
         salience: 0,
         freshness: 0,
+        previousObservedAt: INVALID_U32,
+        changeMagnitude: 0,
+        reserved0: 0,
+        reserved1: 0,
       },
       tokens: new Array<number>(BRAIN_LIMITS.recordWidth).fill(PAD_TOKEN_ID),
       tokenMeta: new Array<v1_0_0.BrainTokenMeta>(BRAIN_LIMITS.recordWidth).fill(
@@ -210,6 +214,10 @@ export function buildFixtureFrame(): v1_0_0.BrainFrame {
       continuationRecord: INVALID_U32,
       salience: 0.5,
       freshness: 1.0,
+      previousObservedAt: INVALID_U32,
+      changeMagnitude: 0,
+      reserved0: 0,
+      reserved1: 0,
     };
     record.tokens = spec.tokens.slice();
     record.tokenMeta = spec.tokens.map((token, localToken) =>
@@ -246,6 +254,7 @@ export function buildFixtureFrame(): v1_0_0.BrainFrame {
       layoutVersion: 1,
       tick: 10,
       snapshot: 1,
+      deltaMillis: 0,
       activeRecordCount,
       activeTokenCount,
       activeQueryRecord: BRAIN_FIXED_RECORDS.primaryQuery,

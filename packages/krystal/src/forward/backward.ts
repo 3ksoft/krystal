@@ -25,11 +25,42 @@ import type { ActiveFrame } from "./masks.ts";
 import {
   addInPlace,
   decisionHeadOracle,
+  fieldEmbed,
   matmulOracle,
   reluOracle,
   selectorOracle,
   softmaxRow,
 } from "./oracle.ts";
+
+/**
+ * Squared-error loss of the value head against the observed valence change.
+ *
+ *   loss    = mean_q 0.5 * (pred[q] - target)^2
+ *   dPred[q] = (pred[q] - target) / Q
+ *
+ * The target is one number for the whole frame — valence describes the actor,
+ * not a query row — so every row is trained toward the same observation.
+ *
+ * A frame with no target contributes nothing rather than being pushed toward
+ * zero. The first frame of a life has nothing to difference against, and
+ * treating "unknown" as "no change" would teach the creature that beginnings
+ * are uneventful.
+ */
+export function valueHeadLoss(
+  predictions: Float32Array,
+  target: number | undefined,
+): { loss: number; dPredictions: Float32Array } {
+  const q = predictions.length;
+  const dPredictions = new Float32Array(q);
+  if (target === undefined || q === 0) return { loss: 0, dPredictions };
+  let loss = 0;
+  for (let i = 0; i < q; i++) {
+    const error = predictions[i]! - target;
+    loss += 0.5 * error * error;
+    dPredictions[i] = error / q;
+  }
+  return { loss: loss / q, dPredictions };
+}
 
 /** dIn[i] = (out[i] > 0) ? dOut[i] : 0. Mirrors relu_backward.wgsl. */
 export function reluBackward(out: Float32Array, dOut: Float32Array): Float32Array {
@@ -361,8 +392,10 @@ export function fieldEmbedBackward(
     const frameTok = active.activeTokens[t]!;
     const slot = frameTok >> 3; // record width is the frozen ABI value 8
     switch (tableId) {
-      case 0: return frame.tokenIds[frameTok]!;
-      case 1: return frame.fieldRoles[frameTok]!;
+      // Projected, like the forward: the token/field tables are indexed by
+      // embedding row and a raw token id is not one.
+      case 0: return config.tokenRows[frame.tokenIds[frameTok]!]!;
+      case 1: return config.tokenRows[frame.fieldRoles[frameTok]!]!;
       case 2: return frame.schemaIds[slot]!;
       case 3: return frame.bandIds[slot]!;
       case 4: return active.streamIds[slot]!;
@@ -467,6 +500,9 @@ export interface BrainBackwardResult {
   readonly dSelectorWq: Float32Array; // [H, H]
   readonly dSelectorWk: Float32Array; // [H, H]
   readonly dDecisionWh: Float32Array; // [C, 3H]
+  readonly dValueWv: Float32Array; // [1, 3H]
+  /** Squared-error loss of the value head; 0 when the frame carries no target. */
+  readonly valueLoss: number;
   readonly dQueryOutput: Float32Array; // [Q, H]
   readonly dIntentGather: Float32Array; // [Q, H]
   readonly dArgGather: Float32Array; // [Q, H]
@@ -577,39 +613,15 @@ function poolKeyValue(
   return { key, value };
 }
 
-/** The six additive embeddings for the active token range (mirrors forward). */
-function fieldEmbedCpu(
-  frame: v1_0_0.BrainFrameGpu,
-  active: ActiveFrame,
-  config: BrainForwardConfig,
-  weights: BrainForwardWeights,
-): Float32Array {
-  const { hiddenSize: h } = config;
-  const bases = embeddingTableBases(config);
-  const table = weights.embeddings;
-  const states = new Float32Array(active.activeTokens.length * h);
-  for (let t = 0; t < active.activeTokens.length; t++) {
-    const frameTok = active.activeTokens[t]!;
-    const slot = frameTok >> 3; // record width is the frozen ABI value 8
-    const local = frameTok & 7;
-    const tok = frame.tokenIds[frameTok]!;
-    const role = frame.fieldRoles[frameTok]!;
-    const schema = frame.schemaIds[slot]!;
-    const band = frame.bandIds[slot]!;
-    const stream = active.streamIds[slot]!;
-    for (let d = 0; d < h; d++) {
-      let value = 0;
-      value += table[bases.token + tok * h + d]!;
-      value += table[bases.field + role * h + d]!;
-      value += table[bases.schema + schema * h + d]!;
-      value += table[bases.band + band * h + d]!;
-      value += table[bases.stream + stream * h + d]!;
-      value += table[bases.pos + local * h + d]!;
-      states[t * h + d] = value;
-    }
-  }
-  return states;
-}
+/**
+ * The forward's field embed, not a second implementation of it.
+ *
+ * This was a verbatim copy until the two disagreed: embedding rows stopped
+ * being token ids, the projection landed in one and not the other, and the
+ * backward began reading past the table into NaN. Nothing related the copies,
+ * so nothing could notice.
+ */
+const fieldEmbedCpu = fieldEmbed;
 
 interface SavedBlock {
   in: Float32Array;
@@ -643,6 +655,17 @@ export interface BrainBackwardOracleInput {
    * none, matching the GPU runner's `intentGold` option.
    */
   readonly intentTargets?: readonly number[];
+  /**
+   * Observed change in valence for the tick this frame produced, which is the
+   * value head's target. Omitted when there is nothing to difference against —
+   * the first frame of a life — and then the head contributes no gradient at
+   * all, rather than being trained toward zero.
+   *
+   * Unlike every other target here, this one needs no labelling: it is read off
+   * the next snapshot. That is what makes live play trainable once the gold
+   * curriculum stops.
+   */
+  readonly valenceTarget?: number;
 }
 
 /**
@@ -740,6 +763,24 @@ export function brainBackwardOracle(
   // --- decision head backward ---
   const dh = decisionHeadBackward(dLogits, queryOutput, intent.gather, argument.gather, weights.decisionHeadWh, q, h, C);
 
+  // --- value head: same context, so its gradient ADDS to the decision head's ---
+  //
+  // Sharing the context is what lets the value signal shape the representation
+  // rather than only the head: whatever the encoder and mixer produce has to
+  // serve both "which action" and "how will this turn out". Were the value head
+  // given its own private input, it could learn to predict well while teaching
+  // the rest of the network nothing.
+  const valuePred = decisionHeadOracle(
+    queryOutput, intent.gather, argument.gather, weights.valueHeadWv, q, h, 1,
+  );
+  const value = valueHeadLoss(valuePred, input.valenceTarget);
+  const vh = decisionHeadBackward(
+    value.dPredictions, queryOutput, intent.gather, argument.gather, weights.valueHeadWv, q, h, 1,
+  );
+  addInPlace(dh.dQueryOutput, vh.dQueryOutput);
+  addInPlace(dh.dIntentGather, vh.dIntentGather);
+  addInPlace(dh.dArgGather, vh.dArgGather);
+
   // --- selectors (both slots accumulate into shared dQProj/dKProj/dValue) ---
   const argTargets = argumentTargets ?? new Array<number>(q).fill(0xffff_ffff);
   const intentTargets = input.intentTargets ?? new Array<number>(q).fill(0xffff_ffff);
@@ -821,6 +862,8 @@ export function brainBackwardOracle(
     dSelectorWq,
     dSelectorWk,
     dDecisionWh: dh.dWh,
+    dValueWv: vh.dWh,
+    valueLoss: value.loss,
     dQueryOutput: dh.dQueryOutput,
     dIntentGather: dh.dIntentGather,
     dArgGather: dh.dArgGather,

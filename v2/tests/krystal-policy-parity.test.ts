@@ -31,8 +31,9 @@ import {
   createBrainForwardWeights,
 } from "../../packages/krystal/src/forward/model.ts";
 import { brainForwardOracle, brainSelectionOracle, decisionHeadOracle } from "../../packages/krystal/src/forward/oracle.ts";
+import { fixtureTokenId } from "../../packages/krystal/src/fixtures/vocabulary.ts";
 import { brainBackwardOracle } from "../../packages/krystal/src/forward/backward.ts";
-import { generatePolicyEpisode, lowerPolicyFrame } from "../../packages/krystal/src/bridge/policy.ts";
+import { generatePolicyEpisode, lowerPolicyFrame } from "../../packages/krystal/src/training/policy.ts";
 
 const ROUTE_EAT = 2; // policy route kinds: CRY=0 LAUGH=1 EAT=2
 
@@ -63,8 +64,8 @@ test("policy forward: intent-conditional arg mask matches the CPU oracle on a vi
   const intentMask = compileIntentMask(frame, active, ACTION_INTENT_SCHEMA_ID);
   // Selected intent = EAT (intentId 1 in catalog order); the arg mask is the
   // capability-aware edible mask, not a shared identity list.
-  const eat = catalog.descriptors.find((d) => d.actionToken === 0x601)!;
-  const argMask = argMaskFor(frame, active, catalog, eat.intentId, 0);
+  const eat = catalog.descriptors.find((d) => d.actionToken === fixtureTokenId("EAT"))!;
+  const argMask = argMaskFor(frame, active, catalog, eat.intentId);
   const selection: SelectionMasks = { intentMask, argMask };
 
   const weights = createBrainForwardWeights(POLICY_CONFIG, 1337);
@@ -112,10 +113,10 @@ test("policy backward: argument pointer loss with no-argument rows matches the C
   const { mask: recordMask } = compileRecordMask(active.activeTokens);
   const mixerMask = compileMixerMask(frame, active);
   const intentMask = compileIntentMask(frame, active, ACTION_INTENT_SCHEMA_ID);
-  const eat = catalog.descriptors.find((d) => d.actionToken === 0x601)!;
+  const eat = catalog.descriptors.find((d) => d.actionToken === fixtureTokenId("EAT"))!;
   const selection: SelectionMasks = {
     intentMask,
-    argMask: argMaskFor(frame, active, catalog, eat.intentId, 0),
+    argMask: argMaskFor(frame, active, catalog, eat.intentId),
   };
   const q = active.queryRecords.length;
 
@@ -126,12 +127,12 @@ test("policy backward: argument pointer loss with no-argument rows matches the C
   for (let j = 0; j < active.bankRecords.length; j++) {
     const slot = active.bankRecords[j]!;
     const packed = frame.runtimeRefs[slot * 8]!;
-    if ((packed & 0xfff) === appleRef) argGold = j;
+    if ((packed & 0xffff) === appleRef) argGold = j;
   }
   expect(argGold).not.toBe(INVALID_U32);
   const routeKinds = new Uint32Array(q).fill(ROUTE_EAT);
   const intentGold = new Uint32Array(q).fill(
-    active.bankRecords.findIndex((slot) => frame.schemaIds[slot] === ACTION_INTENT_SCHEMA_ID && frame.tokenIds[slot * 8] === 0x601),
+    active.bankRecords.findIndex((slot) => frame.schemaIds[slot] === ACTION_INTENT_SCHEMA_ID && frame.tokenIds[slot * 8] === fixtureTokenId("EAT")),
   );
 
   const weights = createBrainForwardWeights(POLICY_CONFIG, 1337);
@@ -191,15 +192,15 @@ test("policy backward: arity-0 rows contribute no argument pointer loss (INVALID
   const mixerMask = compileMixerMask(frame, active);
   const intentMask = compileIntentMask(frame, active, ACTION_INTENT_SCHEMA_ID);
   // CRY has no argument: its arg mask is all-blocked and the target INVALID.
-  const cry = catalog.descriptors.find((d) => d.actionToken === 0x605)!;
+  const cry = catalog.descriptors.find((d) => d.actionToken === fixtureTokenId("CRY"))!;
   const selection: SelectionMasks = {
     intentMask,
-    argMask: argMaskFor(frame, active, catalog, cry.intentId, 0),
+    argMask: argMaskFor(frame, active, catalog, cry.intentId),
   };
   const q = active.queryRecords.length;
   const routeKinds = new Uint32Array(q).fill(0); // CRY
   const intentGold = new Uint32Array(q).fill(
-    active.bankRecords.findIndex((slot) => frame.schemaIds[slot] === ACTION_INTENT_SCHEMA_ID && frame.tokenIds[slot * 8] === 0x605),
+    active.bankRecords.findIndex((slot) => frame.schemaIds[slot] === ACTION_INTENT_SCHEMA_ID && frame.tokenIds[slot * 8] === fixtureTokenId("CRY")),
   );
 
   const weights = createBrainForwardWeights(POLICY_CONFIG, 1337);

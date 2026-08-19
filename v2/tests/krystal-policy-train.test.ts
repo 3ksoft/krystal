@@ -19,8 +19,8 @@
 // reached — see docs/M-A_TRAINING_STATUS.md and docs/FOLLOW_UP.md.
 import { expect, test } from "bun:test";
 import { buildFixtureActionCatalog, type CompiledActionCatalog } from "../../packages/krystal/src/fixtures/action-intents.ts";
-import { lowerPolicyFrame, type PolicyEpisode } from "../../packages/krystal/src/bridge/policy.ts";
-import { buildCurriculum } from "../../packages/krystal/src/bridge/curriculum.ts";
+import { lowerPolicyFrame, type PolicyEpisode } from "../../packages/krystal/src/training/policy.ts";
+import { buildCurriculum } from "../../packages/krystal/src/training/curriculum.ts";
 import { KrystalForward } from "../../packages/webgpu/src/krystal-forward.ts";
 import { KrystalBackward } from "../../packages/webgpu/src/krystal-backward.ts";
 import {

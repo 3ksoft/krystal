@@ -33,11 +33,12 @@ export namespace v1_0_0 {
 		reference: 7,
 		relation: 8,
 		logic: 9,
-		domain: 10,
-		context: 11,
+		temporal: 10,
+		domain: 11,
 		experimental: 12,
+		context: 13,
 	} as const;
-	export type KrystalTokenClass = "system" | "structure" | "operation" | "object" | "property" | "quantity" | "action" | "reference" | "relation" | "logic" | "domain" | "context" | "experimental";
+	export type KrystalTokenClass = "system" | "structure" | "operation" | "object" | "property" | "quantity" | "action" | "reference" | "relation" | "logic" | "temporal" | "domain" | "experimental" | "context";
 	
 	export const BrainBandKind = {
 		system: 0,
@@ -52,8 +53,9 @@ export namespace v1_0_0 {
 		focus: 9,
 		query: 10,
 		catalog: 11,
+		temporal: 12,
 	} as const;
-	export type BrainBandKind = "system" | "homeostasis" | "body" | "vision" | "audio" | "olfaction" | "taste" | "touch" | "memory" | "focus" | "query" | "catalog";
+	export type BrainBandKind = "system" | "homeostasis" | "body" | "vision" | "audio" | "olfaction" | "taste" | "touch" | "memory" | "focus" | "query" | "catalog" | "temporal";
 	
 	export const BandPlacementPolicy = {
 		fixed: 0,
@@ -118,6 +120,7 @@ export namespace v1_0_0 {
 		manifestVersion: BandMask;
 		vocabSize: BandMask;
 		activeTokenCount: BandMask;
+		embeddingRows: BandMask;
 		manifestHashLo: BandMask;
 		manifestHashHi: BandMask;
 		reserved0: BandMask;
@@ -146,6 +149,14 @@ export namespace v1_0_0 {
 		opaque_payload: 7,
 	} as const;
 	export type BrainValueKind = "none" | "token" | "context_ref" | "record_ref" | "boolean_class" | "scalar_band" | "quantity_projection" | "opaque_payload";
+	
+	export const QuantityKind = {
+		signed: 0,
+		unipolar: 1,
+		count: 2,
+		proportion: 3,
+	} as const;
+	export type QuantityKind = "signed" | "unipolar" | "count" | "proportion";
 	
 	export interface RecordSchemaManifestHeader {
 		version: BandMask;
@@ -176,6 +187,7 @@ export namespace v1_0_0 {
 		tokenWidth: BandMask;
 		roleToken: BandMask;
 		valueKind: BrainValueKind;
+		quantityKind: QuantityKind;
 		acceptedSchemaId: BandMask;
 		allowedBandMask: BandMask;
 		flags: BandMask;
@@ -278,6 +290,10 @@ export namespace v1_0_0 {
 		continuationRecord: BandMask;
 		salience: number;
 		freshness: number;
+		previousObservedAt: BandMask;
+		changeMagnitude: number;
+		reserved0: BandMask;
+		reserved1: BandMask;
 	}
 	
 	export interface BrainRecordSlot {
@@ -304,6 +320,7 @@ export namespace v1_0_0 {
 		layoutVersion: BandMask;
 		tick: BandMask;
 		snapshot: BandMask;
+		deltaMillis: number;
 		activeRecordCount: BandMask;
 		activeTokenCount: BandMask;
 		activeQueryRecord: BandMask;
@@ -350,6 +367,7 @@ export namespace v1_0_0 {
 		header: BinaryLayoutPlanHeader;
 		tokenIds: BandMask[];
 		fieldRoles: BandMask[];
+		attentionMask: BandMask[];
 		schemaIds: BandMask[];
 		bandIds: BandMask[];
 		runtimeRefs: BandMask[];
@@ -380,14 +398,21 @@ export namespace v1_0_0 {
 	} as const;
 	export type BrainQueryKind = "none" | "homeostasis" | "tutorial" | "external" | "internal" | "continuation" | "runtime_feedback";
 	
+	export interface ConceptRef {
+		kind: BrainValueKind;
+		token: BandMask;
+		flags: BandMask;
+		reserved0: BandMask;
+		handle: RuntimeRefHandle;
+	}
+	
 	export interface BrainQueryState {
 		queryRef: RuntimeRefHandle;
 		kind: BrainQueryKind;
 		routeToken: BandMask;
 		predicateToken: BandMask;
-		subject: RuntimeRefHandle;
-		objectToken: BandMask;
-		objectRef: RuntimeRefHandle;
+		subject: ConceptRef;
+		object: ConceptRef;
 		urgency: number;
 		createdAt: BandMask;
 		expiresAt: BandMask;
@@ -493,7 +518,7 @@ export namespace v1_0_0 {
 	export interface ActionIntentCatalogHeader {
 		version: BandMask;
 		intentCount: BandMask;
-		argumentCount: BandMask;
+		relationArity: BandMask;
 		flags: BandMask;
 		catalogHashLo: BandMask;
 		catalogHashHi: BandMask;
@@ -501,39 +526,38 @@ export namespace v1_0_0 {
 		reserved1: BandMask;
 	}
 	
-	export interface ActionIntentDescriptor {
-		intentId: BandMask;
-		actionToken: BandMask;
-		semanticIntentToken: BandMask;
-		domain: ActionIntentDomain;
-		actorSchemaId: BandMask;
-		argumentOffset: BandMask;
-		argumentCount: BandMask;
-		flags: BandMask;
-		effectClassToken: BandMask;
-		capabilityClassToken: BandMask;
-		preconditionClassToken: BandMask;
-		preferredControllerRole: BandMask;
-	}
-	
-	export interface ActionArgumentDescriptor {
-		intentId: BandMask;
-		argumentIndex: BandMask;
+	export interface RelationRoleDescriptor {
 		roleToken: BandMask;
 		valueKind: BrainValueKind;
-		acceptedSchemaId: BandMask;
+		acceptedTokens: BandMask[];
 		candidateBandMask: BandMask;
 		flags: BandMask;
 		reserved0: BandMask;
 	}
 	
-	export interface ActionArgumentAuthoringSpec {
+	export interface ActionIntentDescriptor {
+		intentId: BandMask;
+		actionToken: BandMask;
+		semanticIntentToken: BandMask;
+		domain: ActionIntentDomain;
+		subjectSchemaId: BandMask;
+		flags: BandMask;
+		effectClassToken: BandMask;
+		capabilityClassToken: BandMask;
+		preconditionClassToken: BandMask;
+		preferredControllerRole: BandMask;
+		reserved0: BandMask;
+		reserved1: BandMask;
+		subjectRole: RelationRoleDescriptor;
+		objectRole: RelationRoleDescriptor;
+	}
+	
+	export interface RelationRoleAuthoringSpec {
 		name: string;
 		roleToken: number;
 		valueKind: BrainValueKind;
 		acceptedSchema?: string;
 		candidateBands?: BrainBandKind[];
-		required?: boolean;
 		doc?: string;
 	}
 	
@@ -542,7 +566,8 @@ export namespace v1_0_0 {
 		actionToken: number;
 		semanticIntentToken: number;
 		domain: ActionIntentDomain;
-		arguments: ActionArgumentAuthoringSpec[];
+		subject: RelationRoleAuthoringSpec;
+		object?: RelationRoleAuthoringSpec;
 		effectClassToken?: number;
 		capabilityClassToken?: number;
 		preconditionClassToken?: number;
@@ -571,12 +596,8 @@ export namespace v1_0_0 {
 		reserved0: BandMask;
 	}
 	
-	export interface TypedArgumentValue {
-		kind: BrainValueKind;
-		token: BandMask;
-		flags: BandMask;
-		reserved0: BandMask;
-		handle: RuntimeRefHandle;
+	export interface SelectedConceptRef {
+		concept: ConceptRef;
 		selector: SoftGatherResult;
 	}
 	
@@ -613,10 +634,12 @@ export namespace v1_0_0 {
 		topic: RuntimeRefHandle;
 		activation: number;
 		priority: number;
+		commitment: number;
 		intensity: number;
 		persistence: number;
 		confidence: number;
-		arguments: TypedArgumentValue[];
+		subject: SelectedConceptRef;
+		object: SelectedConceptRef;
 	}
 	
 	export interface IntentSet {
@@ -785,6 +808,7 @@ export namespace v1_0_0 {
 	
 	export interface BrainModelConfig {
 		vocabSize: BandMask;
+		refEmbeddingRows: BandMask;
 		contextTokens: BandMask;
 		recordWidth: BandMask;
 		recordSlots: BandMask;
