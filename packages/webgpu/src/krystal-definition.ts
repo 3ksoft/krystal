@@ -14,7 +14,7 @@ import {
   type BufferResource,
   type BufferResourceUse,
 } from "@sandblaster/core";
-import { $ } from "../../schema/src/schema";
+import { $ } from "../../schema/src/gpu";
 import {
   ARENA_ELEMENTS,
   TOKEN_CAPACITY,

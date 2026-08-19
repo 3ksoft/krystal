@@ -11,5 +11,4 @@
 // forbids allowImportingTsExtensions here.
 import "./env";
 
-export * from "./schema";
 export * from "./sparse";
