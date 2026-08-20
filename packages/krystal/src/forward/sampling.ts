@@ -44,7 +44,16 @@ export function hashString(text: string): number {
 /** Which selector a draw belongs to, so the two never share a number. */
 export const SAMPLE_STREAM = {
   intent: 0x1,
-  object: 0x2,
+  /**
+   * Base for the per-role selection streams; a role's stream is this plus its
+   * index in `RELATION_ROLES`.
+   *
+   * Separate streams per role on purpose: sharing one would correlate the agent
+   * and the patient draws, so a relation would tend to pick both from the same
+   * region of the distribution and the pair would explore far less than either
+   * head alone.
+   */
+  role: 0x10,
 } as const;
 
 /**

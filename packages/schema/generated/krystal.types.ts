@@ -44,17 +44,23 @@ export namespace v1_0_0 {
 		system: 0,
 		homeostasis: 1,
 		body: 2,
-		vision: 3,
-		audio: 4,
-		olfaction: 5,
-		taste: 6,
-		touch: 7,
-		memory: 8,
-		focus: 9,
-		query: 10,
-		catalog: 11,
+		perception: 3,
+		memory: 4,
+		focus: 5,
+		query: 6,
+		catalog: 7,
 	} as const;
-	export type BrainBandKind = "system" | "homeostasis" | "body" | "vision" | "audio" | "olfaction" | "taste" | "touch" | "memory" | "focus" | "query" | "catalog";
+	export type BrainBandKind = "system" | "homeostasis" | "body" | "perception" | "memory" | "focus" | "query" | "catalog";
+	
+	export const RelationRole = {
+		agent: 0,
+		patient: 1,
+		instrument: 2,
+		location: 3,
+		time: 4,
+		reason: 5,
+	} as const;
+	export type RelationRole = "agent" | "patient" | "instrument" | "location" | "time" | "reason";
 	
 	export const PropositionModality = {
 		declarative: 0,
@@ -100,11 +106,12 @@ export namespace v1_0_0 {
 		event: 4,
 		goal: 5,
 		intent: 6,
-		snapshot: 7,
-		controller: 8,
-		topic: 9,
+		transition: 7,
+		snapshot: 8,
+		controller: 9,
+		topic: 10,
 	} as const;
-	export type RuntimeRefKind = "none" | "entity" | "value" | "memory" | "event" | "goal" | "intent" | "snapshot" | "controller" | "topic";
+	export type RuntimeRefKind = "none" | "entity" | "value" | "memory" | "event" | "goal" | "intent" | "transition" | "snapshot" | "controller" | "topic";
 	
 	export const RuntimeRefStatus = {
 		invalid: 0,
@@ -279,8 +286,8 @@ export namespace v1_0_0 {
 	export interface BrainReferenceBinding {
 		localTokenIndex: BandMask;
 		fieldId: BandMask;
+		role: RelationRole;
 		flags: BandMask;
-		reserved0: BandMask;
 		handle: RuntimeRefHandle;
 	}
 	
@@ -300,7 +307,7 @@ export namespace v1_0_0 {
 		freshness: number;
 		previousObservedAt: BandMask;
 		changeMagnitude: number;
-		reserved0: BandMask;
+		channelToken: BandMask;
 		reserved1: BandMask;
 	}
 	
@@ -420,8 +427,7 @@ export namespace v1_0_0 {
 		modality: PropositionModality;
 		routeToken: BandMask;
 		predicateToken: BandMask;
-		subject: ConceptRef;
-		object: ConceptRef;
+		roles: ConceptRef[];
 		urgency: number;
 		createdAt: BandMask;
 		expiresAt: BandMask;
@@ -442,11 +448,12 @@ export namespace v1_0_0 {
 		event: 2,
 		goal: 3,
 		intent: 4,
-		rule: 5,
-		topic: 6,
-		observation: 7,
+		transition: 5,
+		rule: 6,
+		topic: 7,
+		observation: 8,
 	} as const;
-	export type MemoryTraceKind = "none" | "entity" | "event" | "goal" | "intent" | "rule" | "topic" | "observation";
+	export type MemoryTraceKind = "none" | "entity" | "event" | "goal" | "intent" | "transition" | "rule" | "topic" | "observation";
 	
 	export const MemorySlotState = {
 		empty: 0,
@@ -538,9 +545,9 @@ export namespace v1_0_0 {
 	}
 	
 	export interface RelationRoleDescriptor {
+		role: RelationRole;
 		roleToken: BandMask;
 		valueKind: BrainValueKind;
-		acceptedTokens: BandMask[];
 		candidateBandMask: BandMask;
 		flags: BandMask;
 		reserved0: BandMask;
@@ -551,7 +558,6 @@ export namespace v1_0_0 {
 		actionToken: BandMask;
 		semanticIntentToken: BandMask;
 		domain: ActionIntentDomain;
-		subjectSchemaId: BandMask;
 		flags: BandMask;
 		effectClassToken: BandMask;
 		capabilityClassToken: BandMask;
@@ -559,15 +565,14 @@ export namespace v1_0_0 {
 		preferredControllerRole: BandMask;
 		reserved0: BandMask;
 		reserved1: BandMask;
-		subjectRole: RelationRoleDescriptor;
-		objectRole: RelationRoleDescriptor;
+		roles: RelationRoleDescriptor[];
 	}
 	
 	export interface RelationRoleAuthoringSpec {
+		role: RelationRole;
 		name: string;
 		roleToken: number;
 		valueKind: BrainValueKind;
-		acceptedSchema?: string;
 		candidateBands?: BrainBandKind[];
 		doc?: string;
 	}
@@ -577,8 +582,7 @@ export namespace v1_0_0 {
 		actionToken: number;
 		semanticIntentToken: number;
 		domain: ActionIntentDomain;
-		subject: RelationRoleAuthoringSpec;
-		object?: RelationRoleAuthoringSpec;
+		roles: RelationRoleAuthoringSpec[];
 		effectClassToken?: number;
 		capabilityClassToken?: number;
 		preconditionClassToken?: number;
@@ -650,8 +654,7 @@ export namespace v1_0_0 {
 		intensity: number;
 		persistence: number;
 		confidence: number;
-		subject: SelectedConceptRef;
-		object: SelectedConceptRef;
+		roles: SelectedConceptRef[];
 	}
 	
 	export interface IntentSet {

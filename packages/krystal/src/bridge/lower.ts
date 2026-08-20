@@ -7,24 +7,63 @@ import {
   RECORD_FLAGS,
   REFERENCE_FLAGS,
   TOKEN_FLAGS,
+  type RelationRoleName,
 } from "../../../schema/src/krystal-engine-schema.ts";
 import type { v1_0_0 } from "../../../schema/generated/krystal.types.ts";
-import { CATALOG_SCHEMA_ID, schemaIdOf, type CompiledGrammar } from "./agent.ts";
-import type { ConceptOperandV2, RawRecordV2, RawSnapshotV2, SensoryBand } from "./contract.ts";
+import type { v1_0_0 as world } from "../../../schema/generated/world.types.ts";
+import { CATALOG_SCHEMA_ID, schemaIdOf, type CompiledVocabulary } from "./agent.ts";
 import { BAND_SYMBOLS, quantize } from "./quantize.ts";
 
-export interface PerformedAction {
-  readonly relation: string;
-  readonly object?: string;
-  readonly intensity?: number;
+/**
+ * Percept -> BrainFrame.
+ *
+ * This fills the PERCEPTUAL frame only. Memory is resident and has its own
+ * lifetime — it is not rewritten from a tick, which is the whole reason the two
+ * frames were split. A relation observed now is a percept; whether it also
+ * becomes a memory trace is a decision made later, against activation and
+ * eviction, not here.
+ */
+
+/**
+ * The instance id standing for one emitted proposal.
+ *
+ * Proposals are not records in the frame, so they have no identity of their
+ * own; this manufactures a stable one from the `intentRef` the proposal was
+ * emitted with, and the reference table then treats it like any other instance.
+ */
+export function intentInstanceId(intentRef: number): string {
+  return `intent:${intentRef}`;
 }
 
-type LoweredRecord = Omit<RawRecordV2, "band"> & {
-  band: v1_0_0.BrainBandKind;
-  catalogIndex?: number;
-  subjectToken?: number;
-  objectToken?: number;
-};
+/** A relation the engine itself performed, fed back as its own percept. */
+export interface PerformedRelation {
+  readonly relation: string;
+  readonly roles: readonly world.PerceptRoleBinding[];
+  readonly quantities?: readonly world.PerceptQuantity[];
+}
+
+interface RoleBinding {
+  readonly role: RelationRoleName;
+  readonly token: number;
+}
+
+interface LoweredRecord {
+  readonly band: v1_0_0.BrainBandKind;
+  readonly modality: v1_0_0.PropositionModality;
+  readonly schema: string;
+  /** Sensory channel symbol; absent for engine-authored records. */
+  readonly channel?: string | undefined;
+  readonly instanceId?: string | undefined;
+  /** Bound participants — what makes this record a reified relation. */
+  readonly roles?: readonly RoleBinding[] | undefined;
+  readonly tokens: readonly string[];
+  readonly quantities?: readonly world.PerceptQuantity[] | undefined;
+  readonly count?: number | undefined;
+  readonly salience?: number | undefined;
+  readonly observedAt: number;
+  readonly emptiness?: "void" | "unavailable" | undefined;
+  readonly catalogIndex?: number | undefined;
+}
 
 export class LoweringError extends Error {
   constructor(message: string) {
@@ -85,6 +124,7 @@ function emptyRecord(): v1_0_0.BrainRecordSlot {
       schemaId: 0,
       band: "system",
       source: "runtime",
+      modality: "declarative",
       flags: 0,
       tokenCount: 0,
       referenceCount: 0,
@@ -96,7 +136,7 @@ function emptyRecord(): v1_0_0.BrainRecordSlot {
       freshness: 0,
       previousObservedAt: INVALID_U32,
       changeMagnitude: 0,
-      reserved0: 0,
+      channelToken: 0,
       reserved1: 0,
     },
     tokens: Array.from({ length: BRAIN_LIMITS.recordWidth }, () => KRYSTAL_SENTINEL_TOKENS.pad),
@@ -109,34 +149,47 @@ function emptyRecord(): v1_0_0.BrainRecordSlot {
     references: Array.from({ length: BRAIN_LIMITS.maxReferencesPerRecord }, () => ({
       localTokenIndex: INVALID_U32,
       fieldId: 0,
+      role: "agent" as const,
       flags: 0,
-      reserved0: 0,
       handle: { tokenId: 0, generation: 0, kind: "none" as const, status: "invalid" as const },
     })),
   };
 }
 
+/**
+ * The record's own tokens: what it is, who is in it, then what is true of it.
+ *
+ * A relation's participants are tokens, not merely sidecar entries. The
+ * reference table carries the exact handle and the role, but the TOKEN is what
+ * attention sees: a participant kept only in the sidecar would be invisible to
+ * every head that reads the frame, and the packer refuses such a binding for
+ * exactly that reason. So a role costs a token slot, which is the real ceiling
+ * on how many roles one relation can usefully bind.
+ */
 function recordTokens(
   record: LoweredRecord,
-  grammar: CompiledGrammar,
+  vocabulary: CompiledVocabulary,
   refToken: number | undefined,
-  objectRefToken: number | undefined,
-): { tokens: number[]; refIndex: number } {
+): { tokens: number[]; refIndex: number; roleTokenIndices: number[] } {
   const tokens: number[] = [];
   let refIndex = -1;
+  const roleTokenIndices: number[] = [];
 
   const push = (symbol: string): void => {
-    const id = grammar.tokenBySymbol.get(symbol);
-    if (id === undefined) throw new LoweringError(`symbol '${symbol}' is not in the grammar`);
+    const id = vocabulary.tokenBySymbol.get(symbol);
+    if (id === undefined) throw new LoweringError(`symbol '${symbol}' is not in the vocabulary`);
     tokens.push(id);
   };
 
   push(record.schema);
+  for (const binding of record.roles ?? []) {
+    roleTokenIndices.push(tokens.length);
+    tokens.push(binding.token);
+  }
   if (refToken !== undefined) {
     if (refToken >= KRYSTAL_ABI.refSpaceStart) refIndex = tokens.length;
     tokens.push(refToken);
   }
-  if (objectRefToken !== undefined) tokens.push(objectRefToken);
   if (record.emptiness) {
     tokens.push(
       record.emptiness === "void"
@@ -149,22 +202,26 @@ function recordTokens(
   }
   for (const symbol of record.tokens) push(symbol);
   for (const quantity of record.quantities ?? []) {
-    const declared = grammar.quantities.get(quantity.field);
+    const declared = vocabulary.quantities.get(quantity.field);
     if (!declared) throw new LoweringError(`quantity field '${quantity.field}' is not declared`);
-    for (const symbol of quantize(quantity.value, declared.kind, declared.polarity).tokens) {
+    for (const symbol of quantize(
+      quantity.value,
+      declared.kind as v1_0_0.QuantityKind,
+      declared.polarity,
+    ).tokens) {
       push(symbol);
     }
   }
 
-  return { tokens, refIndex };
+  return { tokens, refIndex, roleTokenIndices };
 }
 
-export function lowerSnapshot(
-  snapshot: RawSnapshotV2,
-  grammar: CompiledGrammar,
+export function lowerPercept(
+  percept: world.Percept,
+  vocabulary: CompiledVocabulary,
   references: ReferenceTable,
   previous?: ReadonlyMap<string, { observedAt: number; tokens: readonly number[] }>,
-  selfActions?: readonly PerformedAction[],
+  selfRelations?: readonly PerformedRelation[],
   previousValence?: number,
 ): LoweredFrame {
   const records: v1_0_0.BrainRecordSlot[] = Array.from(
@@ -173,37 +230,50 @@ export function lowerSnapshot(
   );
 
   const byBand = new Map<v1_0_0.BrainBandKind, LoweredRecord[]>();
-  for (const record of snapshot.records) {
-    const list = byBand.get(record.band) ?? [];
-    list.push(record);
-    byBand.set(record.band, list);
+  const perception: LoweredRecord[] = [];
+
+  for (const record of percept.records) {
+    perception.push({
+      band: "perception",
+      modality: "declarative",
+      schema: record.schema,
+      channel: record.channel,
+      instanceId: record.instanceId,
+      tokens: record.tokens,
+      quantities: record.quantities,
+      count: record.count,
+      salience: record.salience,
+      observedAt: record.observedAt,
+      emptiness: record.emptiness,
+    });
   }
+
+  perception.push(
+    ...relationRecords(percept, vocabulary, references, selfRelations),
+    ...vanishedRecords(percept, references, previous),
+  );
+  if (perception.length > 0) byBand.set("perception", perception);
 
   const valenceDelta =
-    previousValence === undefined ? undefined : snapshot.valence - previousValence;
+    previousValence === undefined ? undefined : percept.valence - previousValence;
   if (valenceDelta !== undefined) {
-    byBand.set("homeostasis", [
-      ...(byBand.get("homeostasis") ?? []),
-      valenceRecord(snapshot, valenceDelta),
-    ]);
+    byBand.set("homeostasis", [valenceRecord(percept, valenceDelta)]);
   }
 
-  byBand.set("query", [queryRecord(snapshot, valenceDelta)]);
+  byBand.set("query", [queryRecord(percept, valenceDelta)]);
 
-  if (grammar.actions.length > 0) {
-    byBand.set("catalog", grammar.actions.map((action, index) => ({
+  byBand.set(
+    "catalog",
+    vocabulary.relations.map((relation, index) => ({
       band: "catalog" as const,
-      modality: "catalog",
-      schema: action.relation,
+      modality: "imperative" as const,
+      schema: relation.relation,
       tokens: [],
       salience: 0,
-      observedAt: snapshot.tick,
+      observedAt: percept.tick,
       catalogIndex: index,
-    })));
-  }
-
-  const temporal = temporalRecords(snapshot, grammar, references, previous, selfActions);
-  if (temporal.length > 0) byBand.set("temporal", temporal);
+    })),
+  );
 
   const overflow: BandOverflow[] = [];
   let truncatedRecords = 0;
@@ -224,13 +294,13 @@ export function lowerSnapshot(
       const raw = ranked[i]!;
       const slot = layout.recordOffset + i;
       const target = records[slot]!;
+
+      // A relation's participants live in its references; an entity record's
+      // single identity is folded into its tokens as before.
+      const isRelation = raw.roles !== undefined && raw.roles.length > 0;
       const refToken =
-        raw.subjectToken ??
-        (raw.instanceId === undefined ? undefined : references.tokenFor(raw.instanceId));
-      const objectRefToken =
-        raw.objectToken ??
-        (raw.objectInstanceId === undefined ? undefined : references.tokenFor(raw.objectInstanceId));
-      const { tokens, refIndex } = recordTokens(raw, grammar, refToken, objectRefToken);
+        isRelation || raw.instanceId === undefined ? undefined : references.tokenFor(raw.instanceId);
+      const { tokens, refIndex, roleTokenIndices } = recordTokens(raw, vocabulary, refToken);
 
       const width = Math.min(tokens.length, BRAIN_LIMITS.recordWidth);
       if (tokens.length > BRAIN_LIMITS.recordWidth) truncatedRecords++;
@@ -245,35 +315,46 @@ export function lowerSnapshot(
         };
       }
 
-      const prior = raw.instanceId === undefined ? undefined : previous?.get(raw.instanceId);
-      target.header = {
-        ...target.header,
-        schemaId:
-          raw.catalogIndex === undefined
-            ? schemaIdOf(grammar, raw.schema)
-            : CATALOG_SCHEMA_ID,
-        band,
-        source: "sensor",
-        flags:
-          RECORD_FLAGS.occupied |
-          (tokens.length > BRAIN_LIMITS.recordWidth ? RECORD_FLAGS.truncated : 0) |
-          (raw.emptiness === "unavailable" ? RECORD_FLAGS.unavailable : 0),
-        tokenCount: width,
-        referenceCount: refIndex >= 0 ? 1 : 0,
-        observedAt: raw.observedAt,
-        primaryReference: refIndex >= 0 ? 0 : INVALID_U32,
-        salience: raw.salience ?? 0,
-        freshness: 1,
-        previousObservedAt: prior?.observedAt ?? INVALID_U32,
-        changeMagnitude: prior ? changeBetween(prior.tokens, tokens.slice(0, width)) : 0,
-      };
-
-      if (refIndex >= 0 && refToken !== undefined) {
+      let referenceCount = 0;
+      if (isRelation) {
+        raw.roles!.forEach((binding, index) => {
+          const localTokenIndex = roleTokenIndices[index];
+          // A participant whose token was truncated away has no binding: the
+          // reference must point at a token that survived, or the packer is
+          // describing a slot that is not there.
+          if (localTokenIndex === undefined || localTokenIndex >= width) return;
+          if (referenceCount >= BRAIN_LIMITS.maxReferencesPerRecord) return;
+          // A sentinel participant (UNKNOWN, SOMETHING) names no referent, so
+          // there is no handle to bind — it stays a plain token. Its role is
+          // then carried by position in the relation rather than by a binding,
+          // which is the honest encoding: there is nothing to point at.
+          if (binding.token < KRYSTAL_ABI.refSpaceStart) return;
+          target.references[referenceCount] = {
+            localTokenIndex,
+            fieldId: localTokenIndex,
+            role: binding.role,
+            flags: (referenceCount === 0 ? REFERENCE_FLAGS.primary : 0) | REFERENCE_FLAGS.live,
+            handle: {
+              tokenId: binding.token,
+              generation: references.generationOf(binding.token),
+              kind: "entity",
+              status: "live",
+            },
+          };
+          target.tokenMeta[localTokenIndex] = {
+            fieldId: localTokenIndex,
+            roleToken: 0,
+            flags: TOKEN_FLAGS.reference,
+            referenceBinding: referenceCount,
+          };
+          referenceCount++;
+        });
+      } else if (refIndex >= 0 && refToken !== undefined) {
         target.references[0] = {
           localTokenIndex: refIndex,
           fieldId: refIndex,
+          role: "agent",
           flags: REFERENCE_FLAGS.primary | REFERENCE_FLAGS.live,
-          reserved0: 0,
           handle: {
             tokenId: refToken,
             generation: references.generationOf(refToken),
@@ -281,7 +362,33 @@ export function lowerSnapshot(
             status: "live",
           },
         };
+        referenceCount = 1;
       }
+
+      const prior = raw.instanceId === undefined ? undefined : previous?.get(raw.instanceId);
+      target.header = {
+        ...target.header,
+        schemaId:
+          raw.catalogIndex === undefined ? schemaIdOf(vocabulary, raw.schema) : CATALOG_SCHEMA_ID,
+        band,
+        source: "sensor",
+        modality: raw.modality,
+        flags:
+          RECORD_FLAGS.occupied |
+          (isRelation ? RECORD_FLAGS.relation : 0) |
+          (tokens.length > BRAIN_LIMITS.recordWidth ? RECORD_FLAGS.truncated : 0) |
+          (raw.emptiness === "unavailable" ? RECORD_FLAGS.unavailable : 0),
+        tokenCount: width,
+        referenceCount,
+        observedAt: raw.observedAt,
+        primaryReference: referenceCount > 0 ? 0 : INVALID_U32,
+        salience: raw.salience ?? 0,
+        freshness: 1,
+        previousObservedAt: prior?.observedAt ?? INVALID_U32,
+        changeMagnitude: prior ? changeBetween(prior.tokens, tokens.slice(0, width)) : 0,
+        channelToken:
+          raw.channel === undefined ? 0 : (vocabulary.tokenBySymbol.get(raw.channel) ?? 0),
+      };
 
       activeRecordCount++;
       activeTokenCount += width;
@@ -290,7 +397,7 @@ export function lowerSnapshot(
 
   const bands: v1_0_0.BrainBandState[] = BRAIN_FRAME_BANDS.map((layout) => {
     const spill = overflow.find((entry) => entry.band === layout.kind);
-    const offered = byBand.get(layout.kind as SensoryBand)?.length ?? 0;
+    const offered = byBand.get(layout.kind)?.length ?? 0;
     return {
       kind: layout.kind,
       activeRecords: Math.min(offered, layout.recordCapacity),
@@ -308,14 +415,14 @@ export function lowerSnapshot(
       tokenAbiVersion: KRYSTAL_ABI.tokenAbiVersion,
       architectureVersion: KRYSTAL_ABI.architectureVersion,
       layoutVersion: KRYSTAL_ABI.frameLayoutVersion,
-      tick: snapshot.tick,
-      snapshot: snapshot.tick,
-      deltaMillis: snapshot.deltaMillis,
+      tick: percept.tick,
+      snapshot: percept.tick,
+      deltaMillis: percept.deltaMillis,
       activeRecordCount,
       activeTokenCount,
       activeQueryRecord: INVALID_U32,
       actorRecord: 2,
-      frameRevision: snapshot.tick,
+      frameRevision: percept.tick,
       memoryRevision: 0,
       intentRevision: 0,
       flags: 0,
@@ -337,151 +444,152 @@ export function lowerSnapshot(
  * The standing query: the row the selectors score candidates against.
  *
  * Engine-authored, because asking is not something the world reports — it is
- * the shape of the creature's own turn. Its content is deliberately thin for
- * now; what a richer query should carry is a question about attention and
- * goals, not about the sensory format.
+ * the shape of the creature's own turn.
  */
-function queryRecord(snapshot: RawSnapshotV2, valenceDelta: number | undefined): LoweredRecord {
+function queryRecord(
+  percept: world.Percept,
+  valenceDelta: number | undefined,
+): LoweredRecord {
   const tokens =
     valenceDelta === undefined
       ? []
       : quantize(Math.max(-1, Math.min(1, valenceDelta)), "signed", {
-        negative: BAND_SYMBOLS.worse,
-        positive: BAND_SYMBOLS.better,
-      }).tokens;
+          negative: BAND_SYMBOLS.worse,
+          positive: BAND_SYMBOLS.better,
+        }).tokens;
   return {
     band: "query",
-    modality: "query",
+    modality: "interrogative",
     schema: BAND_SYMBOLS.neither,
     tokens,
     salience: 1,
-    observedAt: snapshot.tick,
+    observedAt: percept.tick,
   };
 }
 
-function valenceRecord(snapshot: RawSnapshotV2, delta: number): LoweredRecord {
+function valenceRecord(percept: world.Percept, delta: number): LoweredRecord {
   const banded = quantize(Math.max(-1, Math.min(1, delta)), "signed", {
     negative: BAND_SYMBOLS.worse,
     positive: BAND_SYMBOLS.better,
   });
   return {
     band: "homeostasis",
-    modality: "derived",
+    modality: "declarative",
     schema: banded.tokens[0]!,
     tokens: banded.tokens.slice(1),
     salience: Math.abs(delta),
-    observedAt: snapshot.tick,
+    observedAt: percept.tick,
   };
 }
 
-function temporalRecords(
-  snapshot: RawSnapshotV2,
-  grammar: CompiledGrammar,
+/**
+ * Perceived relations, plus the creature's own acts fed back to it.
+ *
+ * Its own acts are not sent by the world — the engine emitted them and already
+ * knows — but they are perceived all the same, and sharing one shape with
+ * everyone else's is what makes the agency distinction free: the same relation
+ * differs only in who stands in the agent role.
+ */
+function relationRecords(
+  percept: world.Percept,
+  vocabulary: CompiledVocabulary,
   references: ReferenceTable,
-  previous?: ReadonlyMap<string, { observedAt: number; tokens: readonly number[] }>,
-  selfActions?: readonly PerformedAction[],
+  selfRelations?: readonly PerformedRelation[],
 ): LoweredRecord[] {
-  const operandToken = (operand: ConceptOperandV2): number => {
+  const operandToken = (operand: world.PerceptOperand): number => {
     switch (operand.kind) {
       case "instance":
         return references.tokenFor(operand.instanceId);
       case "symbol": {
-        const token = grammar.tokenBySymbol.get(operand.symbol);
-        if (token === undefined) throw new LoweringError(`symbol '${operand.symbol}' is not in the grammar`);
+        const token = vocabulary.tokenBySymbol.get(operand.symbol);
+        if (token === undefined) {
+          throw new LoweringError(`symbol '${operand.symbol}' is not in the vocabulary`);
+        }
         return token;
       }
       case "unknown":
         return KRYSTAL_SENTINEL_TOKENS.unknown;
       case "something":
         return KRYSTAL_SENTINEL_TOKENS.something;
+      case "intent":
+        // The creature's own earlier reach, given the same kind of identity as
+        // any other participant. It is a thing that happened and can be pointed
+        // at, so it earns a reference like an entity does.
+        return references.tokenFor(intentInstanceId(operand.intentRef));
     }
   };
 
-  const eventRecord = (
-    relation: string,
-    subject: ConceptOperandV2,
-    object: ConceptOperandV2 | undefined,
-    intensity: number | undefined,
-    meta: { modality: string; salience: number; observedAt: number },
-  ): LoweredRecord => ({
-    band: "temporal",
-    modality: meta.modality,
-    schema: relation,
-    subjectToken: operandToken(subject),
-    objectToken: operandToken(object ?? subject),
-    tokens: intensity === undefined ? [] : quantize(intensity, "unipolar").tokens,
-    salience: meta.salience,
-    observedAt: meta.observedAt,
-  });
+  const bind = (roles: readonly world.PerceptRoleBinding[]): RoleBinding[] =>
+    roles.map((binding) => ({
+      role: binding.role as RelationRoleName,
+      token: operandToken(binding.operand),
+    }));
 
   const records: LoweredRecord[] = [];
-  const presentNow = new Set<string>();
-  for (const record of snapshot.records) {
-    if (record.instanceId) presentNow.add(record.instanceId);
-  }
 
-  for (const motion of snapshot.motion ?? []) {
-    if (!grammar.motion) {
-      throw new LoweringError(
-        "snapshot carries motion but the grammar declares none; a world with space must name what each direction of movement means",
-      );
-    }
-    const polarity = grammar.motion.radial;
-    const banded = quantize(motion.radial, "signed", polarity);
-    if (banded.tokens[0] === BAND_SYMBOLS.neither) continue;
+  for (const relation of percept.relations ?? []) {
     records.push({
-      band: "temporal",
-      modality: "motion",
-      schema: banded.tokens[0]!,
-      instanceId: motion.instanceId,
-      tokens: banded.tokens.slice(1),
-      salience: Math.abs(motion.radial),
-      observedAt: snapshot.tick,
+      band: "perception",
+      // A standing relation is a fact; a punctual one is a transition, and the
+      // implicative modality is what marks a 'before -> then' edge.
+      modality: relation.aspect === "state" ? "declarative" : "implicative",
+      schema: relation.relation,
+      channel: relation.channel,
+      roles: bind(relation.roles),
+      tokens: [],
+      quantities: relation.quantities,
+      salience: relation.salience ?? 0.5,
+      observedAt: relation.observedAt,
     });
   }
 
-  for (const event of snapshot.events ?? []) {
-    records.push(
-      eventRecord(event.relation, event.subject, event.object, event.intensity, {
-        modality: "event",
-        salience: event.salience ?? 0.5,
-        observedAt: event.observedAt,
-      }),
-    );
+  for (const performed of selfRelations ?? []) {
+    records.push({
+      band: "perception",
+      modality: "implicative",
+      schema: performed.relation,
+      roles: bind(performed.roles),
+      tokens: [],
+      quantities: performed.quantities,
+      salience: 1,
+      observedAt: percept.tick,
+    });
   }
 
-  for (const action of selfActions ?? []) {
-    records.push(
-      eventRecord(
-        action.relation,
-        { kind: "instance", instanceId: snapshot.actorId },
-        action.object === undefined ? undefined : { kind: "instance", instanceId: action.object },
-        action.intensity,
-        {
-          modality: "self",
-          salience: 1,
-          observedAt: snapshot.tick,
-        },
-      ),
-    );
+  return records;
+}
+
+/**
+ * What is gone.
+ *
+ * A vanished thing is precisely what is NOT perceived, so no world can report
+ * it. The engine derives it from a stable instanceId missing where it was.
+ */
+function vanishedRecords(
+  percept: world.Percept,
+  references: ReferenceTable,
+  previous?: ReadonlyMap<string, { observedAt: number; tokens: readonly number[] }>,
+): LoweredRecord[] {
+  if (!previous) return [];
+  const presentNow = new Set<string>();
+  for (const record of percept.records) {
+    if (record.instanceId) presentNow.add(record.instanceId);
   }
 
-  if (previous) {
-    for (const instanceId of previous.keys()) {
-      if (presentNow.has(instanceId)) continue;
-      references.tokenFor(instanceId);
-      records.push({
-        band: "temporal",
-        modality: "derived",
-        schema: "VANISHED",
-        instanceId,
-        tokens: [],
-        salience: 1,
-        observedAt: snapshot.tick,
-      });
-    }
+  const records: LoweredRecord[] = [];
+  for (const instanceId of previous.keys()) {
+    if (presentNow.has(instanceId)) continue;
+    references.tokenFor(instanceId);
+    records.push({
+      band: "perception",
+      modality: "declarative",
+      schema: "VANISHED",
+      instanceId,
+      tokens: [],
+      salience: 1,
+      observedAt: percept.tick,
+    });
   }
-
   return records;
 }
 

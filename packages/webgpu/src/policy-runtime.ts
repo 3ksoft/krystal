@@ -1,4 +1,4 @@
-import { BRAIN_LIMITS, INVALID_U32 } from "../../schema/src/krystal-engine-schema.ts";
+import { BRAIN_LIMITS, INVALID_U32, RELATION_ROLE_INDEX } from "../../schema/src/krystal-engine-schema.ts";
 import { packBrainFrame, unpackRuntimeHandle } from "../../krystal/src/frame/packer.ts";
 import { BRAIN_FORWARD_CONFIG, createBrainForwardWeights } from "../../krystal/src/forward/model.ts";
 import { type SelectionMasks } from "./krystal-forward.ts";
@@ -143,12 +143,16 @@ export function emitPrediction(selection: ProductionSelection, catalog: Compiled
     catalog,
     intentSchemaId: ACTION_INTENT_SCHEMA_ID,
     intent: selection.intent,
-    argument: selection.argument,
+    // One head drives every role here: this path exists to exercise the GPU
+    // selector, not to bind a full relation, and pointing the same selection at
+    // agent and patient keeps it doing exactly what it did before roles were
+    // named.
+    roleSelections: { agent: selection.argument, patient: selection.argument },
     tick: 0,
   });
   if (intentSet.count === 0) return null;
   const proposal = intentSet.proposals[0]!;
-  const refToken = proposal.object.concept.handle.tokenId;
+  const refToken = proposal.roles[RELATION_ROLE_INDEX.patient]!.concept.handle.tokenId;
   return {
     intentId: proposal.intentId,
     action: FIXTURE_ACTION_INTENTS[proposal.intentId]!.name,

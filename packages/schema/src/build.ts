@@ -2,8 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { fromModule, SchemaAnalyzer } from "@schema-pop/core";
 import { exportPlan } from "@schema-pop/exporter";
-import { schema } from "./schema";
 import { schema as krystalSchema } from "./krystal-engine-schema";
+import { world as worldSchema } from "./world";
 
 const HEADER = `// THIS FILE IS AUTO-GENERATED - DO NOT CHANGE\n\n`;
 
@@ -50,8 +50,12 @@ function buildTarget(
     wgslPath?: string | undefined;
     /** Where the runtime-free plain TS interfaces land. */
     plainTypesPath: string;
-    /** Where the DataView codec lands. */
-    codecPath: string;
+    /**
+     * Where the DataView codec lands. Omitted for contracts that cross as JSON:
+     * there is no binary layout to encode, and an unused codec is exactly the
+     * kind of generated weight that outlives the thing it was generated for.
+     */
+    codecPath?: string | undefined;
     /**
      * Optional SoA buffer table: the struct whose array fields ARE the GPU
      * buffer set, and where to write the derived table.
@@ -71,14 +75,16 @@ function buildTarget(
   // of derived at startup. No imports and no code generation, so a statically
   // compiled host can serialize the ABI without arktype/@schema-pop at runtime.
   save(options.plainTypesPath, exportPlan(ir, "ts"));
-  const codecAliases = ir.types
-    .map((entry: { name: string }) => `type ${entry.name} = v1_0_0.${entry.name};`)
-    .join("\n");
-  save(
-    options.codecPath,
-    `import type { v1_0_0 } from "./${path.basename(options.plainTypesPath)}";\n\n${codecAliases}\n\n` +
-      exportPlan(ir, "ts:codec"),
-  );
+  if (options.codecPath) {
+    const codecAliases = ir.types
+      .map((entry: { name: string }) => `type ${entry.name} = v1_0_0.${entry.name};`)
+      .join("\n");
+    save(
+      options.codecPath,
+      `import type { v1_0_0 } from "./${path.basename(options.plainTypesPath)}";\n\n${codecAliases}\n\n` +
+        exportPlan(ir, "ts:codec"),
+    );
+  }
   if (options.soaBuffers) {
     save(options.soaBuffers.destPath, exportSoaBufferTable(ir, options.soaBuffers.structName));
   }
@@ -162,6 +168,16 @@ buildTarget("krystal", krystalSchema, {
   plainTypesPath: "./generated/krystal.types.ts",
   codecPath: "./generated/krystal.codec.ts",
   soaBuffers: { structName: "BrainFrameGpu", destPath: "./generated/krystal.buffers.ts" },
+});
+
+// ---------------------------------------------------------------------------
+// World contract — what a simulation sends. JSON on the wire, so no layout and
+// no codec: the generated plain interfaces are the whole point.
+// ---------------------------------------------------------------------------
+
+buildTarget("world", worldSchema, {
+  tsExportsImport: `import { world as $ } from "../../schema/src/world";\n\n`,
+  plainTypesPath: "./generated/world.types.ts",
 });
 
 console.log("🐏 Schema build complete.");

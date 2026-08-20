@@ -11,6 +11,7 @@ type RecordIndex = v1_0_0.RecordIndex;
 type LocalTokenIndex = v1_0_0.LocalTokenIndex;
 type KrystalTokenClass = v1_0_0.KrystalTokenClass;
 type BrainBandKind = v1_0_0.BrainBandKind;
+type RelationRole = v1_0_0.RelationRole;
 type PropositionModality = v1_0_0.PropositionModality;
 type BandPlacementPolicy = v1_0_0.BandPlacementPolicy;
 type BandOverflowPolicy = v1_0_0.BandOverflowPolicy;
@@ -110,8 +111,8 @@ export const SIZEOF_RecordSchemaAuthoringSpec = 28;
 export const SIZEOF_BrainBandLayout = 32;
 export const SIZEOF_FixedRecordBinding = 16;
 export const SIZEOF_BrainFrameLayoutHeader = 44;
-export const SIZEOF_BrainFrameLayout = 940;
-export const BRAIN_FRAME_LAYOUT_BANDS_LEN = 12;
+export const SIZEOF_BrainFrameLayout = 812;
+export const BRAIN_FRAME_LAYOUT_BANDS_LEN = 8;
 export const BRAIN_FRAME_LAYOUT_FIXEDRECORDS_LEN = 32;
 export const SIZEOF_BrainTokenMeta = 16;
 export const SIZEOF_BrainReferenceBinding = 28;
@@ -122,41 +123,43 @@ export const BRAIN_RECORD_SLOT_TOKENMETA_LEN = 8;
 export const BRAIN_RECORD_SLOT_REFERENCES_LEN = 8;
 export const SIZEOF_BrainBandState = 32;
 export const SIZEOF_BrainFrameHeader = 56;
-export const SIZEOF_BrainFrame = 135416;
-export const BRAIN_FRAME_BANDS_LEN = 12;
-export const BRAIN_FRAME_RECORDS_LEN = 304;
+export const SIZEOF_BrainFrame = 192120;
+export const BRAIN_FRAME_BANDS_LEN = 8;
+export const BRAIN_FRAME_RECORDS_LEN = 432;
 export const SIZEOF_BinaryLayoutPlanHeader = 44;
 export const SIZEOF_BinaryLayoutBufferDesc = 16;
 export const SIZEOF_BinaryLayoutPlan = 48;
-export const SIZEOF_BrainFrameGpu = 43820;
-export const BRAIN_FRAME_GPU_TOKENIDS_LEN = 2432;
-export const BRAIN_FRAME_GPU_FIELDROLES_LEN = 2432;
-export const BRAIN_FRAME_GPU_ATTENTIONMASK_LEN = 2432;
-export const BRAIN_FRAME_GPU_SCHEMAIDS_LEN = 304;
-export const BRAIN_FRAME_GPU_BANDIDS_LEN = 304;
-export const BRAIN_FRAME_GPU_RUNTIMEREFS_LEN = 2432;
-export const BRAIN_FRAME_GPU_RECORDFLAGS_LEN = 304;
-export const BRAIN_FRAME_GPU_ACTIVERECORDINDICES_LEN = 304;
+export const SIZEOF_BrainFrameGpu = 62252;
+export const BRAIN_FRAME_GPU_TOKENIDS_LEN = 3456;
+export const BRAIN_FRAME_GPU_FIELDROLES_LEN = 3456;
+export const BRAIN_FRAME_GPU_ATTENTIONMASK_LEN = 3456;
+export const BRAIN_FRAME_GPU_SCHEMAIDS_LEN = 432;
+export const BRAIN_FRAME_GPU_BANDIDS_LEN = 432;
+export const BRAIN_FRAME_GPU_RUNTIMEREFS_LEN = 3456;
+export const BRAIN_FRAME_GPU_RECORDFLAGS_LEN = 432;
+export const BRAIN_FRAME_GPU_ACTIVERECORDINDICES_LEN = 432;
 export const SIZEOF_HomeostasisSignal = 44;
 export const SIZEOF_ConceptRef = 28;
-export const SIZEOF_BrainQueryState = 96;
-export const SIZEOF_BrainQuerySet = 784;
+export const SIZEOF_BrainQueryState = 208;
+export const BRAIN_QUERY_STATE_ROLES_LEN = 6;
+export const SIZEOF_BrainQuerySet = 1680;
 export const BRAIN_QUERY_SET_QUERIES_LEN = 8;
 export const SIZEOF_MemoryConfig = 32;
 export const SIZEOF_MemoryTrace = 508;
 export const SIZEOF_MemoryUpdate = 40;
-export const SIZEOF_WorkingMemoryState = 24400;
-export const WORKING_MEMORY_STATE_SLOTS_LEN = 48;
+export const SIZEOF_WorkingMemoryState = 65040;
+export const WORKING_MEMORY_STATE_SLOTS_LEN = 128;
 export const SIZEOF_ActionIntentCatalogHeader = 32;
-export const SIZEOF_RelationRoleDescriptor = 84;
-export const RELATION_ROLE_DESCRIPTOR_ACCEPTEDTOKENS_LEN = 16;
-export const SIZEOF_ActionIntentDescriptor = 216;
-export const SIZEOF_RelationRoleAuthoringSpec = 40;
-export const SIZEOF_ActionIntentAuthoringSpec = 172;
+export const SIZEOF_RelationRoleDescriptor = 24;
+export const SIZEOF_ActionIntentDescriptor = 188;
+export const ACTION_INTENT_DESCRIPTOR_ROLES_LEN = 6;
+export const SIZEOF_RelationRoleAuthoringSpec = 36;
+export const SIZEOF_ActionIntentAuthoringSpec = 92;
 export const SIZEOF_SoftGatherResult = 32;
 export const SIZEOF_SelectedConceptRef = 60;
-export const SIZEOF_IntentProposal = 208;
-export const SIZEOF_IntentSet = 1680;
+export const SIZEOF_IntentProposal = 448;
+export const INTENT_PROPOSAL_ROLES_LEN = 6;
+export const SIZEOF_IntentSet = 3600;
 export const INTENT_SET_PROPOSALS_LEN = 8;
 export const SIZEOF_ActiveIntentState = 64;
 export const SIZEOF_ActiveIntentTable = 1040;
@@ -173,7 +176,7 @@ export const SIZEOF_BrainModelConfig = 44;
 export const SIZEOF_BrainRuntimeConfig = 112;
 export const SIZEOF_BrainRuntimeState = 32;
 export const SIZEOF_BrainStepTelemetry = 72;
-export const SIZEOF_BrainStepResult = 1784;
+export const SIZEOF_BrainStepResult = 3704;
 
 export function deserializeBandMask(view: DataView, offset: number): BandMask {
 	return view.getUint32(offset, true) as any;
@@ -275,15 +278,11 @@ export function deserializeBrainBandKind(view: DataView, offset: number): BrainB
 		case 0: return "system";
 		case 1: return "homeostasis";
 		case 2: return "body";
-		case 3: return "vision";
-		case 4: return "audio";
-		case 5: return "olfaction";
-		case 6: return "taste";
-		case 7: return "touch";
-		case 8: return "memory";
-		case 9: return "focus";
-		case 10: return "query";
-		case 11: return "catalog";
+		case 3: return "perception";
+		case 4: return "memory";
+		case 5: return "focus";
+		case 6: return "query";
+		case 7: return "catalog";
 		default: throw new Error("Unknown Enum value for BrainBandKind: " + v);
 	}
 }
@@ -292,15 +291,33 @@ export function serializeBrainBandKind(val: BrainBandKind, view: DataView, offse
 	if(val === "system") { view.setUint8(offset, 0); return; }
 	if(val === "homeostasis") { view.setUint8(offset, 1); return; }
 	if(val === "body") { view.setUint8(offset, 2); return; }
-	if(val === "vision") { view.setUint8(offset, 3); return; }
-	if(val === "audio") { view.setUint8(offset, 4); return; }
-	if(val === "olfaction") { view.setUint8(offset, 5); return; }
-	if(val === "taste") { view.setUint8(offset, 6); return; }
-	if(val === "touch") { view.setUint8(offset, 7); return; }
-	if(val === "memory") { view.setUint8(offset, 8); return; }
-	if(val === "focus") { view.setUint8(offset, 9); return; }
-	if(val === "query") { view.setUint8(offset, 10); return; }
-	if(val === "catalog") { view.setUint8(offset, 11); return; }
+	if(val === "perception") { view.setUint8(offset, 3); return; }
+	if(val === "memory") { view.setUint8(offset, 4); return; }
+	if(val === "focus") { view.setUint8(offset, 5); return; }
+	if(val === "query") { view.setUint8(offset, 6); return; }
+	if(val === "catalog") { view.setUint8(offset, 7); return; }
+}
+
+export function deserializeRelationRole(view: DataView, offset: number): RelationRole {
+	const v = view.getUint8(offset);
+	switch(v) {
+		case 0: return "agent";
+		case 1: return "patient";
+		case 2: return "instrument";
+		case 3: return "location";
+		case 4: return "time";
+		case 5: return "reason";
+		default: throw new Error("Unknown Enum value for RelationRole: " + v);
+	}
+}
+
+export function serializeRelationRole(val: RelationRole, view: DataView, offset: number): void {
+	if(val === "agent") { view.setUint8(offset, 0); return; }
+	if(val === "patient") { view.setUint8(offset, 1); return; }
+	if(val === "instrument") { view.setUint8(offset, 2); return; }
+	if(val === "location") { view.setUint8(offset, 3); return; }
+	if(val === "time") { view.setUint8(offset, 4); return; }
+	if(val === "reason") { view.setUint8(offset, 5); return; }
 }
 
 export function deserializePropositionModality(view: DataView, offset: number): PropositionModality {
@@ -393,9 +410,10 @@ export function deserializeRuntimeRefKind(view: DataView, offset: number): Runti
 		case 4: return "event";
 		case 5: return "goal";
 		case 6: return "intent";
-		case 7: return "snapshot";
-		case 8: return "controller";
-		case 9: return "topic";
+		case 7: return "transition";
+		case 8: return "snapshot";
+		case 9: return "controller";
+		case 10: return "topic";
 		default: throw new Error("Unknown Enum value for RuntimeRefKind: " + v);
 	}
 }
@@ -408,9 +426,10 @@ export function serializeRuntimeRefKind(val: RuntimeRefKind, view: DataView, off
 	if(val === "event") { view.setUint8(offset, 4); return; }
 	if(val === "goal") { view.setUint8(offset, 5); return; }
 	if(val === "intent") { view.setUint8(offset, 6); return; }
-	if(val === "snapshot") { view.setUint8(offset, 7); return; }
-	if(val === "controller") { view.setUint8(offset, 8); return; }
-	if(val === "topic") { view.setUint8(offset, 9); return; }
+	if(val === "transition") { view.setUint8(offset, 7); return; }
+	if(val === "snapshot") { view.setUint8(offset, 8); return; }
+	if(val === "controller") { view.setUint8(offset, 9); return; }
+	if(val === "topic") { view.setUint8(offset, 10); return; }
 }
 
 export function deserializeRuntimeRefStatus(view: DataView, offset: number): RuntimeRefStatus {
@@ -887,12 +906,12 @@ export function serializeBrainFrameLayoutHeader(val: BrainFrameLayoutHeader, vie
 
 export function deserializeBrainFrameLayout(view: DataView, offset: number, outObj?: any): BrainFrameLayout {
 	if (!outObj) {
-		const _arr_bands = new Array(12);
-		for (let i = 0, _off_bands = offset + 44; i < 12; i++, _off_bands += 32) {
+		const _arr_bands = new Array(8);
+		for (let i = 0, _off_bands = offset + 44; i < 8; i++, _off_bands += 32) {
 			_arr_bands[i] = ({ kind: deserializeBrainBandKind(view, _off_bands), recordOffset: view.getUint32(_off_bands + 4, true), recordCapacity: view.getUint32(_off_bands + 8, true), tokenOffset: view.getUint32(_off_bands + 12, true), tokenCapacity: view.getUint32(_off_bands + 16, true), placement: deserializeBandPlacementPolicy(view, _off_bands + 20), overflow: deserializeBandOverflowPolicy(view, _off_bands + 21), flags: view.getUint32(_off_bands + 24, true), reserved0: view.getUint32(_off_bands + 28, true) });
 		}
 		const _arr_fixedRecords = new Array(32);
-		for (let i = 0, _off_fixedRecords = offset + 428; i < 32; i++, _off_fixedRecords += 16) {
+		for (let i = 0, _off_fixedRecords = offset + 300; i < 32; i++, _off_fixedRecords += 16) {
 			_arr_fixedRecords[i] = ({ roleToken: view.getUint32(_off_fixedRecords, true), recordIndex: view.getUint32(_off_fixedRecords + 4, true), expectedSchemaId: view.getUint32(_off_fixedRecords + 8, true), flags: view.getUint32(_off_fixedRecords + 12, true) });
 		}
 		return {
@@ -901,12 +920,12 @@ export function deserializeBrainFrameLayout(view: DataView, offset: number, outO
 			fixedRecords: _arr_fixedRecords,
 		} as any;
 	}
-	const _arr_bands = new Array(12);
-	for (let i = 0, _off_bands = offset + 44; i < 12; i++, _off_bands += 32) {
+	const _arr_bands = new Array(8);
+	for (let i = 0, _off_bands = offset + 44; i < 8; i++, _off_bands += 32) {
 		_arr_bands[i] = ({ kind: deserializeBrainBandKind(view, _off_bands), recordOffset: view.getUint32(_off_bands + 4, true), recordCapacity: view.getUint32(_off_bands + 8, true), tokenOffset: view.getUint32(_off_bands + 12, true), tokenCapacity: view.getUint32(_off_bands + 16, true), placement: deserializeBandPlacementPolicy(view, _off_bands + 20), overflow: deserializeBandOverflowPolicy(view, _off_bands + 21), flags: view.getUint32(_off_bands + 24, true), reserved0: view.getUint32(_off_bands + 28, true) });
 	}
 	const _arr_fixedRecords = new Array(32);
-	for (let i = 0, _off_fixedRecords = offset + 428; i < 32; i++, _off_fixedRecords += 16) {
+	for (let i = 0, _off_fixedRecords = offset + 300; i < 32; i++, _off_fixedRecords += 16) {
 		_arr_fixedRecords[i] = ({ roleToken: view.getUint32(_off_fixedRecords, true), recordIndex: view.getUint32(_off_fixedRecords + 4, true), expectedSchemaId: view.getUint32(_off_fixedRecords + 8, true), flags: view.getUint32(_off_fixedRecords + 12, true) });
 	}
 	outObj.header = deserializeBrainFrameLayoutHeader(view, offset);
@@ -917,8 +936,8 @@ export function deserializeBrainFrameLayout(view: DataView, offset: number, outO
 
 export function serializeBrainFrameLayout(val: BrainFrameLayout, view: DataView, offset: number): void {
 	serializeBrainFrameLayoutHeader(val.header, view, offset);
-	{ for (let i = 0, __o = offset + 44; i < 12; i++, __o += 32) { const __e = val.bands[i]!; { serializeBrainBandKind(__e.kind, view, __o); view.setUint32(__o + 4, __e.recordOffset, true); view.setUint32(__o + 8, __e.recordCapacity, true); view.setUint32(__o + 12, __e.tokenOffset, true); view.setUint32(__o + 16, __e.tokenCapacity, true); serializeBandPlacementPolicy(__e.placement, view, __o + 20); serializeBandOverflowPolicy(__e.overflow, view, __o + 21); view.setUint32(__o + 24, __e.flags, true); view.setUint32(__o + 28, __e.reserved0, true); } } }
-	{ for (let i = 0, __o = offset + 428; i < 32; i++, __o += 16) { const __e = val.fixedRecords[i]!; { view.setUint32(__o, __e.roleToken, true); view.setUint32(__o + 4, __e.recordIndex, true); view.setUint32(__o + 8, __e.expectedSchemaId, true); view.setUint32(__o + 12, __e.flags, true); } } }
+	{ for (let i = 0, __o = offset + 44; i < 8; i++, __o += 32) { const __e = val.bands[i]!; { serializeBrainBandKind(__e.kind, view, __o); view.setUint32(__o + 4, __e.recordOffset, true); view.setUint32(__o + 8, __e.recordCapacity, true); view.setUint32(__o + 12, __e.tokenOffset, true); view.setUint32(__o + 16, __e.tokenCapacity, true); serializeBandPlacementPolicy(__e.placement, view, __o + 20); serializeBandOverflowPolicy(__e.overflow, view, __o + 21); view.setUint32(__o + 24, __e.flags, true); view.setUint32(__o + 28, __e.reserved0, true); } } }
+	{ for (let i = 0, __o = offset + 300; i < 32; i++, __o += 16) { const __e = val.fixedRecords[i]!; { view.setUint32(__o, __e.roleToken, true); view.setUint32(__o + 4, __e.recordIndex, true); view.setUint32(__o + 8, __e.expectedSchemaId, true); view.setUint32(__o + 12, __e.flags, true); } } }
 }
 
 export function deserializeBrainTokenMeta(view: DataView, offset: number, outObj?: any): BrainTokenMeta {
@@ -949,15 +968,15 @@ export function deserializeBrainReferenceBinding(view: DataView, offset: number,
 		return {
 			localTokenIndex: view.getUint32(offset, true),
 			fieldId: view.getUint32(offset + 4, true),
-			flags: view.getUint32(offset + 8, true),
-			reserved0: view.getUint32(offset + 12, true),
+			role: deserializeRelationRole(view, offset + 8),
+			flags: view.getUint32(offset + 12, true),
 			handle: deserializeRuntimeRefHandle(view, offset + 16),
 		} as any;
 	}
 	outObj.localTokenIndex = view.getUint32(offset, true);
 	outObj.fieldId = view.getUint32(offset + 4, true);
-	outObj.flags = view.getUint32(offset + 8, true);
-	outObj.reserved0 = view.getUint32(offset + 12, true);
+	outObj.role = deserializeRelationRole(view, offset + 8);
+	outObj.flags = view.getUint32(offset + 12, true);
 	outObj.handle = deserializeRuntimeRefHandle(view, offset + 16);
 	return outObj;
 }
@@ -965,8 +984,8 @@ export function deserializeBrainReferenceBinding(view: DataView, offset: number,
 export function serializeBrainReferenceBinding(val: BrainReferenceBinding, view: DataView, offset: number): void {
 	view.setUint32(offset, val.localTokenIndex, true);
 	view.setUint32(offset + 4, val.fieldId, true);
-	view.setUint32(offset + 8, val.flags, true);
-	view.setUint32(offset + 12, val.reserved0, true);
+	serializeRelationRole(val.role, view, offset + 8);
+	view.setUint32(offset + 12, val.flags, true);
 	serializeRuntimeRefHandle(val.handle, view, offset + 16);
 }
 
@@ -988,7 +1007,7 @@ export function deserializeBrainRecordHeader(view: DataView, offset: number, out
 			freshness: view.getFloat32(offset + 40, true),
 			previousObservedAt: view.getUint32(offset + 44, true),
 			changeMagnitude: view.getFloat32(offset + 48, true),
-			reserved0: view.getUint32(offset + 52, true),
+			channelToken: view.getUint32(offset + 52, true),
 			reserved1: view.getUint32(offset + 56, true),
 		} as any;
 	}
@@ -1007,7 +1026,7 @@ export function deserializeBrainRecordHeader(view: DataView, offset: number, out
 	outObj.freshness = view.getFloat32(offset + 40, true);
 	outObj.previousObservedAt = view.getUint32(offset + 44, true);
 	outObj.changeMagnitude = view.getFloat32(offset + 48, true);
-	outObj.reserved0 = view.getUint32(offset + 52, true);
+	outObj.channelToken = view.getUint32(offset + 52, true);
 	outObj.reserved1 = view.getUint32(offset + 56, true);
 	return outObj;
 }
@@ -1028,7 +1047,7 @@ export function serializeBrainRecordHeader(val: BrainRecordHeader, view: DataVie
 	view.setFloat32(offset + 40, val.freshness, true);
 	view.setUint32(offset + 44, val.previousObservedAt, true);
 	view.setFloat32(offset + 48, val.changeMagnitude, true);
-	view.setUint32(offset + 52, val.reserved0, true);
+	view.setUint32(offset + 52, val.channelToken, true);
 	view.setUint32(offset + 56, val.reserved1, true);
 }
 
@@ -1044,7 +1063,7 @@ export function deserializeBrainRecordSlot(view: DataView, offset: number, outOb
 		}
 		const _arr_references = new Array(8);
 		for (let i = 0, _off_references = offset + 220; i < 8; i++, _off_references += 28) {
-			_arr_references[i] = ({ localTokenIndex: view.getUint32(_off_references, true), fieldId: view.getUint32(_off_references + 4, true), flags: view.getUint32(_off_references + 8, true), reserved0: view.getUint32(_off_references + 12, true), handle: deserializeRuntimeRefHandle(view, _off_references + 16) });
+			_arr_references[i] = ({ localTokenIndex: view.getUint32(_off_references, true), fieldId: view.getUint32(_off_references + 4, true), role: deserializeRelationRole(view, _off_references + 8), flags: view.getUint32(_off_references + 12, true), handle: deserializeRuntimeRefHandle(view, _off_references + 16) });
 		}
 		return {
 			header: deserializeBrainRecordHeader(view, offset),
@@ -1063,7 +1082,7 @@ export function deserializeBrainRecordSlot(view: DataView, offset: number, outOb
 	}
 	const _arr_references = new Array(8);
 	for (let i = 0, _off_references = offset + 220; i < 8; i++, _off_references += 28) {
-		_arr_references[i] = ({ localTokenIndex: view.getUint32(_off_references, true), fieldId: view.getUint32(_off_references + 4, true), flags: view.getUint32(_off_references + 8, true), reserved0: view.getUint32(_off_references + 12, true), handle: deserializeRuntimeRefHandle(view, _off_references + 16) });
+		_arr_references[i] = ({ localTokenIndex: view.getUint32(_off_references, true), fieldId: view.getUint32(_off_references + 4, true), role: deserializeRelationRole(view, _off_references + 8), flags: view.getUint32(_off_references + 12, true), handle: deserializeRuntimeRefHandle(view, _off_references + 16) });
 	}
 	outObj.header = deserializeBrainRecordHeader(view, offset);
 	outObj.tokens = _arr_tokens;
@@ -1076,7 +1095,7 @@ export function serializeBrainRecordSlot(val: BrainRecordSlot, view: DataView, o
 	serializeBrainRecordHeader(val.header, view, offset);
 	{ for (let i = 0, __o = offset + 60; i < 8; i++, __o += 4) { const __e = val.tokens[i]!; view.setUint32(__o, __e, true); } }
 	{ for (let i = 0, __o = offset + 92; i < 8; i++, __o += 16) { const __e = val.tokenMeta[i]!; { view.setUint32(__o, __e.fieldId, true); view.setUint32(__o + 4, __e.roleToken, true); view.setUint32(__o + 8, __e.flags, true); view.setUint32(__o + 12, __e.referenceBinding, true); } } }
-	{ for (let i = 0, __o = offset + 220; i < 8; i++, __o += 28) { const __e = val.references[i]!; { view.setUint32(__o, __e.localTokenIndex, true); view.setUint32(__o + 4, __e.fieldId, true); view.setUint32(__o + 8, __e.flags, true); view.setUint32(__o + 12, __e.reserved0, true); serializeRuntimeRefHandle(__e.handle, view, __o + 16); } } }
+	{ for (let i = 0, __o = offset + 220; i < 8; i++, __o += 28) { const __e = val.references[i]!; { view.setUint32(__o, __e.localTokenIndex, true); view.setUint32(__o + 4, __e.fieldId, true); serializeRelationRole(__e.role, view, __o + 8); view.setUint32(__o + 12, __e.flags, true); serializeRuntimeRefHandle(__e.handle, view, __o + 16); } } }
 }
 
 export function deserializeBrainBandState(view: DataView, offset: number, outObj?: any): BrainBandState {
@@ -1169,12 +1188,12 @@ export function serializeBrainFrameHeader(val: BrainFrameHeader, view: DataView,
 
 export function deserializeBrainFrame(view: DataView, offset: number, outObj?: any): BrainFrame {
 	if (!outObj) {
-		const _arr_bands = new Array(12);
-		for (let i = 0, _off_bands = offset + 56; i < 12; i++, _off_bands += 32) {
+		const _arr_bands = new Array(8);
+		for (let i = 0, _off_bands = offset + 56; i < 8; i++, _off_bands += 32) {
 			_arr_bands[i] = ({ kind: deserializeBrainBandKind(view, _off_bands), activeRecords: view.getUint32(_off_bands + 4, true), activeTokens: view.getUint32(_off_bands + 8, true), overflowRecords: view.getUint32(_off_bands + 12, true), truncatedRecords: view.getUint32(_off_bands + 16, true), revision: view.getUint32(_off_bands + 20, true), flags: view.getUint32(_off_bands + 24, true), reserved0: view.getUint32(_off_bands + 28, true) });
 		}
-		const _arr_records = new Array(304);
-		for (let i = 0, _off_records = offset + 440; i < 304; i++, _off_records += 444) {
+		const _arr_records = new Array(432);
+		for (let i = 0, _off_records = offset + 312; i < 432; i++, _off_records += 444) {
 			_arr_records[i] = ({ header: deserializeBrainRecordHeader(view, _off_records), tokens: ((o) => { const a: any[] = []; for(let i=0; i<8; i++) a.push(view.getUint32(o + (i * 4), true)); return a; })(_off_records + 60), tokenMeta: ((o) => { const a: any[] = []; for(let i=0; i<8; i++) a.push(deserializeBrainTokenMeta(view, o + (i * 16))); return a; })(_off_records + 92), references: ((o) => { const a: any[] = []; for(let i=0; i<8; i++) a.push(deserializeBrainReferenceBinding(view, o + (i * 28))); return a; })(_off_records + 220) });
 		}
 		return {
@@ -1183,12 +1202,12 @@ export function deserializeBrainFrame(view: DataView, offset: number, outObj?: a
 			records: _arr_records,
 		} as any;
 	}
-	const _arr_bands = new Array(12);
-	for (let i = 0, _off_bands = offset + 56; i < 12; i++, _off_bands += 32) {
+	const _arr_bands = new Array(8);
+	for (let i = 0, _off_bands = offset + 56; i < 8; i++, _off_bands += 32) {
 		_arr_bands[i] = ({ kind: deserializeBrainBandKind(view, _off_bands), activeRecords: view.getUint32(_off_bands + 4, true), activeTokens: view.getUint32(_off_bands + 8, true), overflowRecords: view.getUint32(_off_bands + 12, true), truncatedRecords: view.getUint32(_off_bands + 16, true), revision: view.getUint32(_off_bands + 20, true), flags: view.getUint32(_off_bands + 24, true), reserved0: view.getUint32(_off_bands + 28, true) });
 	}
-	const _arr_records = new Array(304);
-	for (let i = 0, _off_records = offset + 440; i < 304; i++, _off_records += 444) {
+	const _arr_records = new Array(432);
+	for (let i = 0, _off_records = offset + 312; i < 432; i++, _off_records += 444) {
 		_arr_records[i] = ({ header: deserializeBrainRecordHeader(view, _off_records), tokens: ((o) => { const a: any[] = []; for(let i=0; i<8; i++) a.push(view.getUint32(o + (i * 4), true)); return a; })(_off_records + 60), tokenMeta: ((o) => { const a: any[] = []; for(let i=0; i<8; i++) a.push(deserializeBrainTokenMeta(view, o + (i * 16))); return a; })(_off_records + 92), references: ((o) => { const a: any[] = []; for(let i=0; i<8; i++) a.push(deserializeBrainReferenceBinding(view, o + (i * 28))); return a; })(_off_records + 220) });
 	}
 	outObj.header = deserializeBrainFrameHeader(view, offset);
@@ -1199,8 +1218,8 @@ export function deserializeBrainFrame(view: DataView, offset: number, outObj?: a
 
 export function serializeBrainFrame(val: BrainFrame, view: DataView, offset: number): void {
 	serializeBrainFrameHeader(val.header, view, offset);
-	{ for (let i = 0, __o = offset + 56; i < 12; i++, __o += 32) { const __e = val.bands[i]!; { serializeBrainBandKind(__e.kind, view, __o); view.setUint32(__o + 4, __e.activeRecords, true); view.setUint32(__o + 8, __e.activeTokens, true); view.setUint32(__o + 12, __e.overflowRecords, true); view.setUint32(__o + 16, __e.truncatedRecords, true); view.setUint32(__o + 20, __e.revision, true); view.setUint32(__o + 24, __e.flags, true); view.setUint32(__o + 28, __e.reserved0, true); } } }
-	{ for (let i = 0, __o = offset + 440; i < 304; i++, __o += 444) { const __e = val.records[i]!; { serializeBrainRecordHeader(__e.header, view, __o); { for (let i = 0, __o1 = __o + 60; i < 8; i++, __o1 += 4) { const __e1 = __e.tokens[i]!; view.setUint32(__o1, __e1, true); } } { for (let i = 0, __o1 = __o + 92; i < 8; i++, __o1 += 16) { const __e1 = __e.tokenMeta[i]!; { view.setUint32(__o1, __e1.fieldId, true); view.setUint32(__o1 + 4, __e1.roleToken, true); view.setUint32(__o1 + 8, __e1.flags, true); view.setUint32(__o1 + 12, __e1.referenceBinding, true); } } } { for (let i = 0, __o1 = __o + 220; i < 8; i++, __o1 += 28) { const __e1 = __e.references[i]!; { view.setUint32(__o1, __e1.localTokenIndex, true); view.setUint32(__o1 + 4, __e1.fieldId, true); view.setUint32(__o1 + 8, __e1.flags, true); view.setUint32(__o1 + 12, __e1.reserved0, true); serializeRuntimeRefHandle(__e1.handle, view, __o1 + 16); } } } } } }
+	{ for (let i = 0, __o = offset + 56; i < 8; i++, __o += 32) { const __e = val.bands[i]!; { serializeBrainBandKind(__e.kind, view, __o); view.setUint32(__o + 4, __e.activeRecords, true); view.setUint32(__o + 8, __e.activeTokens, true); view.setUint32(__o + 12, __e.overflowRecords, true); view.setUint32(__o + 16, __e.truncatedRecords, true); view.setUint32(__o + 20, __e.revision, true); view.setUint32(__o + 24, __e.flags, true); view.setUint32(__o + 28, __e.reserved0, true); } } }
+	{ for (let i = 0, __o = offset + 312; i < 432; i++, __o += 444) { const __e = val.records[i]!; { serializeBrainRecordHeader(__e.header, view, __o); { for (let i = 0, __o1 = __o + 60; i < 8; i++, __o1 += 4) { const __e1 = __e.tokens[i]!; view.setUint32(__o1, __e1, true); } } { for (let i = 0, __o1 = __o + 92; i < 8; i++, __o1 += 16) { const __e1 = __e.tokenMeta[i]!; { view.setUint32(__o1, __e1.fieldId, true); view.setUint32(__o1 + 4, __e1.roleToken, true); view.setUint32(__o1 + 8, __e1.flags, true); view.setUint32(__o1 + 12, __e1.referenceBinding, true); } } } { for (let i = 0, __o1 = __o + 220; i < 8; i++, __o1 += 28) { const __e1 = __e.references[i]!; { view.setUint32(__o1, __e1.localTokenIndex, true); view.setUint32(__o1 + 4, __e1.fieldId, true); serializeRelationRole(__e1.role, view, __o1 + 8); view.setUint32(__o1 + 12, __e1.flags, true); serializeRuntimeRefHandle(__e1.handle, view, __o1 + 16); } } } } } }
 }
 
 export function deserializeBinaryLayoutPlanHeader(view: DataView, offset: number, outObj?: any): BinaryLayoutPlanHeader {
@@ -1289,36 +1308,36 @@ export function serializeBinaryLayoutPlan(val: BinaryLayoutPlan, view: DataView,
 
 export function deserializeBrainFrameGpu(view: DataView, offset: number, outObj?: any): BrainFrameGpu {
 	if (!outObj) {
-		const _arr_tokenIds = new Array(2432);
-		for (let i = 0, _off_tokenIds = offset + 44; i < 2432; i++, _off_tokenIds += 4) {
+		const _arr_tokenIds = new Array(3456);
+		for (let i = 0, _off_tokenIds = offset + 44; i < 3456; i++, _off_tokenIds += 4) {
 			_arr_tokenIds[i] = view.getUint32(_off_tokenIds, true);
 		}
-		const _arr_fieldRoles = new Array(2432);
-		for (let i = 0, _off_fieldRoles = offset + 9772; i < 2432; i++, _off_fieldRoles += 4) {
+		const _arr_fieldRoles = new Array(3456);
+		for (let i = 0, _off_fieldRoles = offset + 13868; i < 3456; i++, _off_fieldRoles += 4) {
 			_arr_fieldRoles[i] = view.getUint32(_off_fieldRoles, true);
 		}
-		const _arr_attentionMask = new Array(2432);
-		for (let i = 0, _off_attentionMask = offset + 19500; i < 2432; i++, _off_attentionMask += 4) {
+		const _arr_attentionMask = new Array(3456);
+		for (let i = 0, _off_attentionMask = offset + 27692; i < 3456; i++, _off_attentionMask += 4) {
 			_arr_attentionMask[i] = view.getUint32(_off_attentionMask, true);
 		}
-		const _arr_schemaIds = new Array(304);
-		for (let i = 0, _off_schemaIds = offset + 29228; i < 304; i++, _off_schemaIds += 4) {
+		const _arr_schemaIds = new Array(432);
+		for (let i = 0, _off_schemaIds = offset + 41516; i < 432; i++, _off_schemaIds += 4) {
 			_arr_schemaIds[i] = view.getUint32(_off_schemaIds, true);
 		}
-		const _arr_bandIds = new Array(304);
-		for (let i = 0, _off_bandIds = offset + 30444; i < 304; i++, _off_bandIds += 4) {
+		const _arr_bandIds = new Array(432);
+		for (let i = 0, _off_bandIds = offset + 43244; i < 432; i++, _off_bandIds += 4) {
 			_arr_bandIds[i] = view.getUint32(_off_bandIds, true);
 		}
-		const _arr_runtimeRefs = new Array(2432);
-		for (let i = 0, _off_runtimeRefs = offset + 31660; i < 2432; i++, _off_runtimeRefs += 4) {
+		const _arr_runtimeRefs = new Array(3456);
+		for (let i = 0, _off_runtimeRefs = offset + 44972; i < 3456; i++, _off_runtimeRefs += 4) {
 			_arr_runtimeRefs[i] = view.getUint32(_off_runtimeRefs, true);
 		}
-		const _arr_recordFlags = new Array(304);
-		for (let i = 0, _off_recordFlags = offset + 41388; i < 304; i++, _off_recordFlags += 4) {
+		const _arr_recordFlags = new Array(432);
+		for (let i = 0, _off_recordFlags = offset + 58796; i < 432; i++, _off_recordFlags += 4) {
 			_arr_recordFlags[i] = view.getUint32(_off_recordFlags, true);
 		}
-		const _arr_activeRecordIndices = new Array(304);
-		for (let i = 0, _off_activeRecordIndices = offset + 42604; i < 304; i++, _off_activeRecordIndices += 4) {
+		const _arr_activeRecordIndices = new Array(432);
+		for (let i = 0, _off_activeRecordIndices = offset + 60524; i < 432; i++, _off_activeRecordIndices += 4) {
 			_arr_activeRecordIndices[i] = view.getUint32(_off_activeRecordIndices, true);
 		}
 		return {
@@ -1333,36 +1352,36 @@ export function deserializeBrainFrameGpu(view: DataView, offset: number, outObj?
 			activeRecordIndices: _arr_activeRecordIndices,
 		} as any;
 	}
-	const _arr_tokenIds = new Array(2432);
-	for (let i = 0, _off_tokenIds = offset + 44; i < 2432; i++, _off_tokenIds += 4) {
+	const _arr_tokenIds = new Array(3456);
+	for (let i = 0, _off_tokenIds = offset + 44; i < 3456; i++, _off_tokenIds += 4) {
 		_arr_tokenIds[i] = view.getUint32(_off_tokenIds, true);
 	}
-	const _arr_fieldRoles = new Array(2432);
-	for (let i = 0, _off_fieldRoles = offset + 9772; i < 2432; i++, _off_fieldRoles += 4) {
+	const _arr_fieldRoles = new Array(3456);
+	for (let i = 0, _off_fieldRoles = offset + 13868; i < 3456; i++, _off_fieldRoles += 4) {
 		_arr_fieldRoles[i] = view.getUint32(_off_fieldRoles, true);
 	}
-	const _arr_attentionMask = new Array(2432);
-	for (let i = 0, _off_attentionMask = offset + 19500; i < 2432; i++, _off_attentionMask += 4) {
+	const _arr_attentionMask = new Array(3456);
+	for (let i = 0, _off_attentionMask = offset + 27692; i < 3456; i++, _off_attentionMask += 4) {
 		_arr_attentionMask[i] = view.getUint32(_off_attentionMask, true);
 	}
-	const _arr_schemaIds = new Array(304);
-	for (let i = 0, _off_schemaIds = offset + 29228; i < 304; i++, _off_schemaIds += 4) {
+	const _arr_schemaIds = new Array(432);
+	for (let i = 0, _off_schemaIds = offset + 41516; i < 432; i++, _off_schemaIds += 4) {
 		_arr_schemaIds[i] = view.getUint32(_off_schemaIds, true);
 	}
-	const _arr_bandIds = new Array(304);
-	for (let i = 0, _off_bandIds = offset + 30444; i < 304; i++, _off_bandIds += 4) {
+	const _arr_bandIds = new Array(432);
+	for (let i = 0, _off_bandIds = offset + 43244; i < 432; i++, _off_bandIds += 4) {
 		_arr_bandIds[i] = view.getUint32(_off_bandIds, true);
 	}
-	const _arr_runtimeRefs = new Array(2432);
-	for (let i = 0, _off_runtimeRefs = offset + 31660; i < 2432; i++, _off_runtimeRefs += 4) {
+	const _arr_runtimeRefs = new Array(3456);
+	for (let i = 0, _off_runtimeRefs = offset + 44972; i < 3456; i++, _off_runtimeRefs += 4) {
 		_arr_runtimeRefs[i] = view.getUint32(_off_runtimeRefs, true);
 	}
-	const _arr_recordFlags = new Array(304);
-	for (let i = 0, _off_recordFlags = offset + 41388; i < 304; i++, _off_recordFlags += 4) {
+	const _arr_recordFlags = new Array(432);
+	for (let i = 0, _off_recordFlags = offset + 58796; i < 432; i++, _off_recordFlags += 4) {
 		_arr_recordFlags[i] = view.getUint32(_off_recordFlags, true);
 	}
-	const _arr_activeRecordIndices = new Array(304);
-	for (let i = 0, _off_activeRecordIndices = offset + 42604; i < 304; i++, _off_activeRecordIndices += 4) {
+	const _arr_activeRecordIndices = new Array(432);
+	for (let i = 0, _off_activeRecordIndices = offset + 60524; i < 432; i++, _off_activeRecordIndices += 4) {
 		_arr_activeRecordIndices[i] = view.getUint32(_off_activeRecordIndices, true);
 	}
 	outObj.header = deserializeBinaryLayoutPlanHeader(view, offset);
@@ -1379,14 +1398,14 @@ export function deserializeBrainFrameGpu(view: DataView, offset: number, outObj?
 
 export function serializeBrainFrameGpu(val: BrainFrameGpu, view: DataView, offset: number): void {
 	serializeBinaryLayoutPlanHeader(val.header, view, offset);
-	{ for (let i = 0, __o = offset + 44; i < 2432; i++, __o += 4) { const __e = val.tokenIds[i]!; view.setUint32(__o, __e, true); } }
-	{ for (let i = 0, __o = offset + 9772; i < 2432; i++, __o += 4) { const __e = val.fieldRoles[i]!; view.setUint32(__o, __e, true); } }
-	{ for (let i = 0, __o = offset + 19500; i < 2432; i++, __o += 4) { const __e = val.attentionMask[i]!; view.setUint32(__o, __e, true); } }
-	{ for (let i = 0, __o = offset + 29228; i < 304; i++, __o += 4) { const __e = val.schemaIds[i]!; view.setUint32(__o, __e, true); } }
-	{ for (let i = 0, __o = offset + 30444; i < 304; i++, __o += 4) { const __e = val.bandIds[i]!; view.setUint32(__o, __e, true); } }
-	{ for (let i = 0, __o = offset + 31660; i < 2432; i++, __o += 4) { const __e = val.runtimeRefs[i]!; view.setUint32(__o, __e, true); } }
-	{ for (let i = 0, __o = offset + 41388; i < 304; i++, __o += 4) { const __e = val.recordFlags[i]!; view.setUint32(__o, __e, true); } }
-	{ for (let i = 0, __o = offset + 42604; i < 304; i++, __o += 4) { const __e = val.activeRecordIndices[i]!; view.setUint32(__o, __e, true); } }
+	{ for (let i = 0, __o = offset + 44; i < 3456; i++, __o += 4) { const __e = val.tokenIds[i]!; view.setUint32(__o, __e, true); } }
+	{ for (let i = 0, __o = offset + 13868; i < 3456; i++, __o += 4) { const __e = val.fieldRoles[i]!; view.setUint32(__o, __e, true); } }
+	{ for (let i = 0, __o = offset + 27692; i < 3456; i++, __o += 4) { const __e = val.attentionMask[i]!; view.setUint32(__o, __e, true); } }
+	{ for (let i = 0, __o = offset + 41516; i < 432; i++, __o += 4) { const __e = val.schemaIds[i]!; view.setUint32(__o, __e, true); } }
+	{ for (let i = 0, __o = offset + 43244; i < 432; i++, __o += 4) { const __e = val.bandIds[i]!; view.setUint32(__o, __e, true); } }
+	{ for (let i = 0, __o = offset + 44972; i < 3456; i++, __o += 4) { const __e = val.runtimeRefs[i]!; view.setUint32(__o, __e, true); } }
+	{ for (let i = 0, __o = offset + 58796; i < 432; i++, __o += 4) { const __e = val.recordFlags[i]!; view.setUint32(__o, __e, true); } }
+	{ for (let i = 0, __o = offset + 60524; i < 432; i++, __o += 4) { const __e = val.activeRecordIndices[i]!; view.setUint32(__o, __e, true); } }
 }
 
 export function deserializeHomeostasisSignal(view: DataView, offset: number, outObj?: any): HomeostasisSignal {
@@ -1479,31 +1498,37 @@ export function serializeConceptRef(val: ConceptRef, view: DataView, offset: num
 
 export function deserializeBrainQueryState(view: DataView, offset: number, outObj?: any): BrainQueryState {
 	if (!outObj) {
+		const _arr_roles = new Array(6);
+		for (let i = 0, _off_roles = offset + 24; i < 6; i++, _off_roles += 28) {
+			_arr_roles[i] = ({ kind: deserializeBrainValueKind(view, _off_roles), token: view.getUint32(_off_roles + 4, true), flags: view.getUint32(_off_roles + 8, true), reserved0: view.getUint32(_off_roles + 12, true), handle: deserializeRuntimeRefHandle(view, _off_roles + 16) });
+		}
 		return {
 			queryRef: deserializeRuntimeRefHandle(view, offset),
 			kind: deserializeBrainQueryKind(view, offset + 12),
 			modality: deserializePropositionModality(view, offset + 13),
 			routeToken: view.getUint32(offset + 16, true),
 			predicateToken: view.getUint32(offset + 20, true),
-			subject: deserializeConceptRef(view, offset + 24),
-			object: deserializeConceptRef(view, offset + 52),
-			urgency: view.getFloat32(offset + 80, true),
-			createdAt: view.getUint32(offset + 84, true),
-			expiresAt: view.getUint32(offset + 88, true),
-			flags: view.getUint32(offset + 92, true),
+			roles: _arr_roles,
+			urgency: view.getFloat32(offset + 192, true),
+			createdAt: view.getUint32(offset + 196, true),
+			expiresAt: view.getUint32(offset + 200, true),
+			flags: view.getUint32(offset + 204, true),
 		} as any;
+	}
+	const _arr_roles = new Array(6);
+	for (let i = 0, _off_roles = offset + 24; i < 6; i++, _off_roles += 28) {
+		_arr_roles[i] = ({ kind: deserializeBrainValueKind(view, _off_roles), token: view.getUint32(_off_roles + 4, true), flags: view.getUint32(_off_roles + 8, true), reserved0: view.getUint32(_off_roles + 12, true), handle: deserializeRuntimeRefHandle(view, _off_roles + 16) });
 	}
 	outObj.queryRef = deserializeRuntimeRefHandle(view, offset);
 	outObj.kind = deserializeBrainQueryKind(view, offset + 12);
 	outObj.modality = deserializePropositionModality(view, offset + 13);
 	outObj.routeToken = view.getUint32(offset + 16, true);
 	outObj.predicateToken = view.getUint32(offset + 20, true);
-	outObj.subject = deserializeConceptRef(view, offset + 24);
-	outObj.object = deserializeConceptRef(view, offset + 52);
-	outObj.urgency = view.getFloat32(offset + 80, true);
-	outObj.createdAt = view.getUint32(offset + 84, true);
-	outObj.expiresAt = view.getUint32(offset + 88, true);
-	outObj.flags = view.getUint32(offset + 92, true);
+	outObj.roles = _arr_roles;
+	outObj.urgency = view.getFloat32(offset + 192, true);
+	outObj.createdAt = view.getUint32(offset + 196, true);
+	outObj.expiresAt = view.getUint32(offset + 200, true);
+	outObj.flags = view.getUint32(offset + 204, true);
 	return outObj;
 }
 
@@ -1513,19 +1538,18 @@ export function serializeBrainQueryState(val: BrainQueryState, view: DataView, o
 	serializePropositionModality(val.modality, view, offset + 13);
 	view.setUint32(offset + 16, val.routeToken, true);
 	view.setUint32(offset + 20, val.predicateToken, true);
-	serializeConceptRef(val.subject, view, offset + 24);
-	serializeConceptRef(val.object, view, offset + 52);
-	view.setFloat32(offset + 80, val.urgency, true);
-	view.setUint32(offset + 84, val.createdAt, true);
-	view.setUint32(offset + 88, val.expiresAt, true);
-	view.setUint32(offset + 92, val.flags, true);
+	{ for (let i = 0, __o = offset + 24; i < 6; i++, __o += 28) { const __e = val.roles[i]!; { serializeBrainValueKind(__e.kind, view, __o); view.setUint32(__o + 4, __e.token, true); view.setUint32(__o + 8, __e.flags, true); view.setUint32(__o + 12, __e.reserved0, true); serializeRuntimeRefHandle(__e.handle, view, __o + 16); } } }
+	view.setFloat32(offset + 192, val.urgency, true);
+	view.setUint32(offset + 196, val.createdAt, true);
+	view.setUint32(offset + 200, val.expiresAt, true);
+	view.setUint32(offset + 204, val.flags, true);
 }
 
 export function deserializeBrainQuerySet(view: DataView, offset: number, outObj?: any): BrainQuerySet {
 	if (!outObj) {
 		const _arr_queries = new Array(8);
-		for (let i = 0, _off_queries = offset + 16; i < 8; i++, _off_queries += 96) {
-			_arr_queries[i] = ({ queryRef: deserializeRuntimeRefHandle(view, _off_queries), kind: deserializeBrainQueryKind(view, _off_queries + 12), modality: deserializePropositionModality(view, _off_queries + 13), routeToken: view.getUint32(_off_queries + 16, true), predicateToken: view.getUint32(_off_queries + 20, true), subject: deserializeConceptRef(view, _off_queries + 24), object: deserializeConceptRef(view, _off_queries + 52), urgency: view.getFloat32(_off_queries + 80, true), createdAt: view.getUint32(_off_queries + 84, true), expiresAt: view.getUint32(_off_queries + 88, true), flags: view.getUint32(_off_queries + 92, true) });
+		for (let i = 0, _off_queries = offset + 16; i < 8; i++, _off_queries += 208) {
+			_arr_queries[i] = ({ queryRef: deserializeRuntimeRefHandle(view, _off_queries), kind: deserializeBrainQueryKind(view, _off_queries + 12), modality: deserializePropositionModality(view, _off_queries + 13), routeToken: view.getUint32(_off_queries + 16, true), predicateToken: view.getUint32(_off_queries + 20, true), roles: ((o) => { const a: any[] = []; for(let i=0; i<6; i++) a.push(deserializeConceptRef(view, o + (i * 28))); return a; })(_off_queries + 24), urgency: view.getFloat32(_off_queries + 192, true), createdAt: view.getUint32(_off_queries + 196, true), expiresAt: view.getUint32(_off_queries + 200, true), flags: view.getUint32(_off_queries + 204, true) });
 		}
 		return {
 			count: view.getUint32(offset, true),
@@ -1536,8 +1560,8 @@ export function deserializeBrainQuerySet(view: DataView, offset: number, outObj?
 		} as any;
 	}
 	const _arr_queries = new Array(8);
-	for (let i = 0, _off_queries = offset + 16; i < 8; i++, _off_queries += 96) {
-		_arr_queries[i] = ({ queryRef: deserializeRuntimeRefHandle(view, _off_queries), kind: deserializeBrainQueryKind(view, _off_queries + 12), modality: deserializePropositionModality(view, _off_queries + 13), routeToken: view.getUint32(_off_queries + 16, true), predicateToken: view.getUint32(_off_queries + 20, true), subject: deserializeConceptRef(view, _off_queries + 24), object: deserializeConceptRef(view, _off_queries + 52), urgency: view.getFloat32(_off_queries + 80, true), createdAt: view.getUint32(_off_queries + 84, true), expiresAt: view.getUint32(_off_queries + 88, true), flags: view.getUint32(_off_queries + 92, true) });
+	for (let i = 0, _off_queries = offset + 16; i < 8; i++, _off_queries += 208) {
+		_arr_queries[i] = ({ queryRef: deserializeRuntimeRefHandle(view, _off_queries), kind: deserializeBrainQueryKind(view, _off_queries + 12), modality: deserializePropositionModality(view, _off_queries + 13), routeToken: view.getUint32(_off_queries + 16, true), predicateToken: view.getUint32(_off_queries + 20, true), roles: ((o) => { const a: any[] = []; for(let i=0; i<6; i++) a.push(deserializeConceptRef(view, o + (i * 28))); return a; })(_off_queries + 24), urgency: view.getFloat32(_off_queries + 192, true), createdAt: view.getUint32(_off_queries + 196, true), expiresAt: view.getUint32(_off_queries + 200, true), flags: view.getUint32(_off_queries + 204, true) });
 	}
 	outObj.count = view.getUint32(offset, true);
 	outObj.primary = view.getUint32(offset + 4, true);
@@ -1552,7 +1576,7 @@ export function serializeBrainQuerySet(val: BrainQuerySet, view: DataView, offse
 	view.setUint32(offset + 4, val.primary, true);
 	view.setUint32(offset + 8, val.revision, true);
 	view.setUint32(offset + 12, val.reserved0, true);
-	{ for (let i = 0, __o = offset + 16; i < 8; i++, __o += 96) { const __e = val.queries[i]!; { serializeRuntimeRefHandle(__e.queryRef, view, __o); serializeBrainQueryKind(__e.kind, view, __o + 12); serializePropositionModality(__e.modality, view, __o + 13); view.setUint32(__o + 16, __e.routeToken, true); view.setUint32(__o + 20, __e.predicateToken, true); serializeConceptRef(__e.subject, view, __o + 24); serializeConceptRef(__e.object, view, __o + 52); view.setFloat32(__o + 80, __e.urgency, true); view.setUint32(__o + 84, __e.createdAt, true); view.setUint32(__o + 88, __e.expiresAt, true); view.setUint32(__o + 92, __e.flags, true); } } }
+	{ for (let i = 0, __o = offset + 16; i < 8; i++, __o += 208) { const __e = val.queries[i]!; { serializeRuntimeRefHandle(__e.queryRef, view, __o); serializeBrainQueryKind(__e.kind, view, __o + 12); serializePropositionModality(__e.modality, view, __o + 13); view.setUint32(__o + 16, __e.routeToken, true); view.setUint32(__o + 20, __e.predicateToken, true); { for (let i = 0, __o1 = __o + 24; i < 6; i++, __o1 += 28) { const __e1 = __e.roles[i]!; { serializeBrainValueKind(__e1.kind, view, __o1); view.setUint32(__o1 + 4, __e1.token, true); view.setUint32(__o1 + 8, __e1.flags, true); view.setUint32(__o1 + 12, __e1.reserved0, true); serializeRuntimeRefHandle(__e1.handle, view, __o1 + 16); } } } view.setFloat32(__o + 192, __e.urgency, true); view.setUint32(__o + 196, __e.createdAt, true); view.setUint32(__o + 200, __e.expiresAt, true); view.setUint32(__o + 204, __e.flags, true); } } }
 }
 
 export function deserializeMemoryTraceKind(view: DataView, offset: number): MemoryTraceKind {
@@ -1563,9 +1587,10 @@ export function deserializeMemoryTraceKind(view: DataView, offset: number): Memo
 		case 2: return "event";
 		case 3: return "goal";
 		case 4: return "intent";
-		case 5: return "rule";
-		case 6: return "topic";
-		case 7: return "observation";
+		case 5: return "transition";
+		case 6: return "rule";
+		case 7: return "topic";
+		case 8: return "observation";
 		default: throw new Error("Unknown Enum value for MemoryTraceKind: " + v);
 	}
 }
@@ -1576,9 +1601,10 @@ export function serializeMemoryTraceKind(val: MemoryTraceKind, view: DataView, o
 	if(val === "event") { view.setUint8(offset, 2); return; }
 	if(val === "goal") { view.setUint8(offset, 3); return; }
 	if(val === "intent") { view.setUint8(offset, 4); return; }
-	if(val === "rule") { view.setUint8(offset, 5); return; }
-	if(val === "topic") { view.setUint8(offset, 6); return; }
-	if(val === "observation") { view.setUint8(offset, 7); return; }
+	if(val === "transition") { view.setUint8(offset, 5); return; }
+	if(val === "rule") { view.setUint8(offset, 6); return; }
+	if(val === "topic") { view.setUint8(offset, 7); return; }
+	if(val === "observation") { view.setUint8(offset, 8); return; }
 }
 
 export function deserializeMemorySlotState(view: DataView, offset: number): MemorySlotState {
@@ -1755,8 +1781,8 @@ export function serializeMemoryUpdate(val: MemoryUpdate, view: DataView, offset:
 
 export function deserializeWorkingMemoryState(view: DataView, offset: number, outObj?: any): WorkingMemoryState {
 	if (!outObj) {
-		const _arr_slots = new Array(48);
-		for (let i = 0, _off_slots = offset + 16; i < 48; i++, _off_slots += 508) {
+		const _arr_slots = new Array(128);
+		for (let i = 0, _off_slots = offset + 16; i < 128; i++, _off_slots += 508) {
 			_arr_slots[i] = ({ memoryRef: deserializeRuntimeRefHandle(view, _off_slots), subject: deserializeRuntimeRefHandle(view, _off_slots + 12), kind: deserializeMemoryTraceKind(view, _off_slots + 24), modality: deserializePropositionModality(view, _off_slots + 25), state: deserializeMemorySlotState(view, _off_slots + 26), flags: view.getUint32(_off_slots + 28, true), createdAt: view.getUint32(_off_slots + 32, true), lastObservedAt: view.getUint32(_off_slots + 36, true), lastAccessedAt: view.getUint32(_off_slots + 40, true), interactionCount: view.getUint32(_off_slots + 44, true), activation: view.getFloat32(_off_slots + 48, true), familiarity: view.getFloat32(_off_slots + 52, true), affectMagnitude: view.getFloat32(_off_slots + 56, true), reserved0: view.getFloat32(_off_slots + 60, true), rememberedRecord: deserializeBrainRecordSlot(view, _off_slots + 64) });
 		}
 		return {
@@ -1767,8 +1793,8 @@ export function deserializeWorkingMemoryState(view: DataView, offset: number, ou
 			slots: _arr_slots,
 		} as any;
 	}
-	const _arr_slots = new Array(48);
-	for (let i = 0, _off_slots = offset + 16; i < 48; i++, _off_slots += 508) {
+	const _arr_slots = new Array(128);
+	for (let i = 0, _off_slots = offset + 16; i < 128; i++, _off_slots += 508) {
 		_arr_slots[i] = ({ memoryRef: deserializeRuntimeRefHandle(view, _off_slots), subject: deserializeRuntimeRefHandle(view, _off_slots + 12), kind: deserializeMemoryTraceKind(view, _off_slots + 24), modality: deserializePropositionModality(view, _off_slots + 25), state: deserializeMemorySlotState(view, _off_slots + 26), flags: view.getUint32(_off_slots + 28, true), createdAt: view.getUint32(_off_slots + 32, true), lastObservedAt: view.getUint32(_off_slots + 36, true), lastAccessedAt: view.getUint32(_off_slots + 40, true), interactionCount: view.getUint32(_off_slots + 44, true), activation: view.getFloat32(_off_slots + 48, true), familiarity: view.getFloat32(_off_slots + 52, true), affectMagnitude: view.getFloat32(_off_slots + 56, true), reserved0: view.getFloat32(_off_slots + 60, true), rememberedRecord: deserializeBrainRecordSlot(view, _off_slots + 64) });
 	}
 	outObj.revision = view.getUint32(offset, true);
@@ -1784,7 +1810,7 @@ export function serializeWorkingMemoryState(val: WorkingMemoryState, view: DataV
 	view.setUint32(offset + 4, val.activeCount, true);
 	view.setUint32(offset + 8, val.evictedCount, true);
 	view.setUint32(offset + 12, val.flags, true);
-	{ for (let i = 0, __o = offset + 16; i < 48; i++, __o += 508) { const __e = val.slots[i]!; { serializeRuntimeRefHandle(__e.memoryRef, view, __o); serializeRuntimeRefHandle(__e.subject, view, __o + 12); serializeMemoryTraceKind(__e.kind, view, __o + 24); serializePropositionModality(__e.modality, view, __o + 25); serializeMemorySlotState(__e.state, view, __o + 26); view.setUint32(__o + 28, __e.flags, true); view.setUint32(__o + 32, __e.createdAt, true); view.setUint32(__o + 36, __e.lastObservedAt, true); view.setUint32(__o + 40, __e.lastAccessedAt, true); view.setUint32(__o + 44, __e.interactionCount, true); view.setFloat32(__o + 48, __e.activation, true); view.setFloat32(__o + 52, __e.familiarity, true); view.setFloat32(__o + 56, __e.affectMagnitude, true); view.setFloat32(__o + 60, __e.reserved0, true); serializeBrainRecordSlot(__e.rememberedRecord, view, __o + 64); } } }
+	{ for (let i = 0, __o = offset + 16; i < 128; i++, __o += 508) { const __e = val.slots[i]!; { serializeRuntimeRefHandle(__e.memoryRef, view, __o); serializeRuntimeRefHandle(__e.subject, view, __o + 12); serializeMemoryTraceKind(__e.kind, view, __o + 24); serializePropositionModality(__e.modality, view, __o + 25); serializeMemorySlotState(__e.state, view, __o + 26); view.setUint32(__o + 28, __e.flags, true); view.setUint32(__o + 32, __e.createdAt, true); view.setUint32(__o + 36, __e.lastObservedAt, true); view.setUint32(__o + 40, __e.lastAccessedAt, true); view.setUint32(__o + 44, __e.interactionCount, true); view.setFloat32(__o + 48, __e.activation, true); view.setFloat32(__o + 52, __e.familiarity, true); view.setFloat32(__o + 56, __e.affectMagnitude, true); view.setFloat32(__o + 60, __e.reserved0, true); serializeBrainRecordSlot(__e.rememberedRecord, view, __o + 64); } } }
 }
 
 export function deserializeActionIntentDomain(view: DataView, offset: number): ActionIntentDomain {
@@ -1844,74 +1870,70 @@ export function serializeActionIntentCatalogHeader(val: ActionIntentCatalogHeade
 
 export function deserializeRelationRoleDescriptor(view: DataView, offset: number, outObj?: any): RelationRoleDescriptor {
 	if (!outObj) {
-		const _arr_acceptedTokens = new Array(16);
-		for (let i = 0, _off_acceptedTokens = offset + 8; i < 16; i++, _off_acceptedTokens += 4) {
-			_arr_acceptedTokens[i] = view.getUint32(_off_acceptedTokens, true);
-		}
 		return {
-			roleToken: view.getUint32(offset, true),
-			valueKind: deserializeBrainValueKind(view, offset + 4),
-			acceptedTokens: _arr_acceptedTokens,
-			candidateBandMask: view.getUint32(offset + 72, true),
-			flags: view.getUint32(offset + 76, true),
-			reserved0: view.getUint32(offset + 80, true),
+			role: deserializeRelationRole(view, offset),
+			roleToken: view.getUint32(offset + 4, true),
+			valueKind: deserializeBrainValueKind(view, offset + 8),
+			candidateBandMask: view.getUint32(offset + 12, true),
+			flags: view.getUint32(offset + 16, true),
+			reserved0: view.getUint32(offset + 20, true),
 		} as any;
 	}
-	const _arr_acceptedTokens = new Array(16);
-	for (let i = 0, _off_acceptedTokens = offset + 8; i < 16; i++, _off_acceptedTokens += 4) {
-		_arr_acceptedTokens[i] = view.getUint32(_off_acceptedTokens, true);
-	}
-	outObj.roleToken = view.getUint32(offset, true);
-	outObj.valueKind = deserializeBrainValueKind(view, offset + 4);
-	outObj.acceptedTokens = _arr_acceptedTokens;
-	outObj.candidateBandMask = view.getUint32(offset + 72, true);
-	outObj.flags = view.getUint32(offset + 76, true);
-	outObj.reserved0 = view.getUint32(offset + 80, true);
+	outObj.role = deserializeRelationRole(view, offset);
+	outObj.roleToken = view.getUint32(offset + 4, true);
+	outObj.valueKind = deserializeBrainValueKind(view, offset + 8);
+	outObj.candidateBandMask = view.getUint32(offset + 12, true);
+	outObj.flags = view.getUint32(offset + 16, true);
+	outObj.reserved0 = view.getUint32(offset + 20, true);
 	return outObj;
 }
 
 export function serializeRelationRoleDescriptor(val: RelationRoleDescriptor, view: DataView, offset: number): void {
-	view.setUint32(offset, val.roleToken, true);
-	serializeBrainValueKind(val.valueKind, view, offset + 4);
-	{ for (let i = 0, __o = offset + 8; i < 16; i++, __o += 4) { const __e = val.acceptedTokens[i]!; view.setUint32(__o, __e, true); } }
-	view.setUint32(offset + 72, val.candidateBandMask, true);
-	view.setUint32(offset + 76, val.flags, true);
-	view.setUint32(offset + 80, val.reserved0, true);
+	serializeRelationRole(val.role, view, offset);
+	view.setUint32(offset + 4, val.roleToken, true);
+	serializeBrainValueKind(val.valueKind, view, offset + 8);
+	view.setUint32(offset + 12, val.candidateBandMask, true);
+	view.setUint32(offset + 16, val.flags, true);
+	view.setUint32(offset + 20, val.reserved0, true);
 }
 
 export function deserializeActionIntentDescriptor(view: DataView, offset: number, outObj?: any): ActionIntentDescriptor {
 	if (!outObj) {
+		const _arr_roles = new Array(6);
+		for (let i = 0, _off_roles = offset + 44; i < 6; i++, _off_roles += 24) {
+			_arr_roles[i] = ({ role: deserializeRelationRole(view, _off_roles), roleToken: view.getUint32(_off_roles + 4, true), valueKind: deserializeBrainValueKind(view, _off_roles + 8), candidateBandMask: view.getUint32(_off_roles + 12, true), flags: view.getUint32(_off_roles + 16, true), reserved0: view.getUint32(_off_roles + 20, true) });
+		}
 		return {
 			intentId: view.getUint32(offset, true),
 			actionToken: view.getUint32(offset + 4, true),
 			semanticIntentToken: view.getUint32(offset + 8, true),
 			domain: deserializeActionIntentDomain(view, offset + 12),
-			subjectSchemaId: view.getUint32(offset + 16, true),
-			flags: view.getUint32(offset + 20, true),
-			effectClassToken: view.getUint32(offset + 24, true),
-			capabilityClassToken: view.getUint32(offset + 28, true),
-			preconditionClassToken: view.getUint32(offset + 32, true),
-			preferredControllerRole: view.getUint32(offset + 36, true),
-			reserved0: view.getUint32(offset + 40, true),
-			reserved1: view.getUint32(offset + 44, true),
-			subjectRole: deserializeRelationRoleDescriptor(view, offset + 48),
-			objectRole: deserializeRelationRoleDescriptor(view, offset + 132),
+			flags: view.getUint32(offset + 16, true),
+			effectClassToken: view.getUint32(offset + 20, true),
+			capabilityClassToken: view.getUint32(offset + 24, true),
+			preconditionClassToken: view.getUint32(offset + 28, true),
+			preferredControllerRole: view.getUint32(offset + 32, true),
+			reserved0: view.getUint32(offset + 36, true),
+			reserved1: view.getUint32(offset + 40, true),
+			roles: _arr_roles,
 		} as any;
+	}
+	const _arr_roles = new Array(6);
+	for (let i = 0, _off_roles = offset + 44; i < 6; i++, _off_roles += 24) {
+		_arr_roles[i] = ({ role: deserializeRelationRole(view, _off_roles), roleToken: view.getUint32(_off_roles + 4, true), valueKind: deserializeBrainValueKind(view, _off_roles + 8), candidateBandMask: view.getUint32(_off_roles + 12, true), flags: view.getUint32(_off_roles + 16, true), reserved0: view.getUint32(_off_roles + 20, true) });
 	}
 	outObj.intentId = view.getUint32(offset, true);
 	outObj.actionToken = view.getUint32(offset + 4, true);
 	outObj.semanticIntentToken = view.getUint32(offset + 8, true);
 	outObj.domain = deserializeActionIntentDomain(view, offset + 12);
-	outObj.subjectSchemaId = view.getUint32(offset + 16, true);
-	outObj.flags = view.getUint32(offset + 20, true);
-	outObj.effectClassToken = view.getUint32(offset + 24, true);
-	outObj.capabilityClassToken = view.getUint32(offset + 28, true);
-	outObj.preconditionClassToken = view.getUint32(offset + 32, true);
-	outObj.preferredControllerRole = view.getUint32(offset + 36, true);
-	outObj.reserved0 = view.getUint32(offset + 40, true);
-	outObj.reserved1 = view.getUint32(offset + 44, true);
-	outObj.subjectRole = deserializeRelationRoleDescriptor(view, offset + 48);
-	outObj.objectRole = deserializeRelationRoleDescriptor(view, offset + 132);
+	outObj.flags = view.getUint32(offset + 16, true);
+	outObj.effectClassToken = view.getUint32(offset + 20, true);
+	outObj.capabilityClassToken = view.getUint32(offset + 24, true);
+	outObj.preconditionClassToken = view.getUint32(offset + 28, true);
+	outObj.preferredControllerRole = view.getUint32(offset + 32, true);
+	outObj.reserved0 = view.getUint32(offset + 36, true);
+	outObj.reserved1 = view.getUint32(offset + 40, true);
+	outObj.roles = _arr_roles;
 	return outObj;
 }
 
@@ -1920,45 +1942,43 @@ export function serializeActionIntentDescriptor(val: ActionIntentDescriptor, vie
 	view.setUint32(offset + 4, val.actionToken, true);
 	view.setUint32(offset + 8, val.semanticIntentToken, true);
 	serializeActionIntentDomain(val.domain, view, offset + 12);
-	view.setUint32(offset + 16, val.subjectSchemaId, true);
-	view.setUint32(offset + 20, val.flags, true);
-	view.setUint32(offset + 24, val.effectClassToken, true);
-	view.setUint32(offset + 28, val.capabilityClassToken, true);
-	view.setUint32(offset + 32, val.preconditionClassToken, true);
-	view.setUint32(offset + 36, val.preferredControllerRole, true);
-	view.setUint32(offset + 40, val.reserved0, true);
-	view.setUint32(offset + 44, val.reserved1, true);
-	serializeRelationRoleDescriptor(val.subjectRole, view, offset + 48);
-	serializeRelationRoleDescriptor(val.objectRole, view, offset + 132);
+	view.setUint32(offset + 16, val.flags, true);
+	view.setUint32(offset + 20, val.effectClassToken, true);
+	view.setUint32(offset + 24, val.capabilityClassToken, true);
+	view.setUint32(offset + 28, val.preconditionClassToken, true);
+	view.setUint32(offset + 32, val.preferredControllerRole, true);
+	view.setUint32(offset + 36, val.reserved0, true);
+	view.setUint32(offset + 40, val.reserved1, true);
+	{ for (let i = 0, __o = offset + 44; i < 6; i++, __o += 24) { const __e = val.roles[i]!; { serializeRelationRole(__e.role, view, __o); view.setUint32(__o + 4, __e.roleToken, true); serializeBrainValueKind(__e.valueKind, view, __o + 8); view.setUint32(__o + 12, __e.candidateBandMask, true); view.setUint32(__o + 16, __e.flags, true); view.setUint32(__o + 20, __e.reserved0, true); } } }
 }
 
 export function deserializeRelationRoleAuthoringSpec(view: DataView, offset: number, outObj?: any): RelationRoleAuthoringSpec {
 	if (!outObj) {
 		return {
-			name: ((o) => { const l = view.getUint32(o, true); return __textDecoder!.decode(new Uint8Array(view.buffer, view.byteOffset + o + 4, l)); })(offset),
-			roleToken: view.getFloat64(offset + 4, true),
-			valueKind: deserializeBrainValueKind(view, offset + 12),
-			acceptedSchema: (view.getUint8(offset + 16) === 1 ? ((o) => { const l = view.getUint32(o, true); return __textDecoder!.decode(new Uint8Array(view.buffer, view.byteOffset + o + 4, l)); })(offset + 17) : undefined),
-			candidateBands: (view.getUint8(offset + 24) === 1 ? ((o) => { const l = view.getUint32(o, true); const a: any[] = []; const start = o + 4; for(let i=0; i<l; i++) { const o = start; a.push(deserializeBrainBandKind(view, o + (i * 1))); } return a; })(offset + 25) : undefined),
-			doc: (view.getUint8(offset + 32) === 1 ? ((o) => { const l = view.getUint32(o, true); return __textDecoder!.decode(new Uint8Array(view.buffer, view.byteOffset + o + 4, l)); })(offset + 33) : undefined),
+			role: deserializeRelationRole(view, offset),
+			name: ((o) => { const l = view.getUint32(o, true); return __textDecoder!.decode(new Uint8Array(view.buffer, view.byteOffset + o + 4, l)); })(offset + 4),
+			roleToken: view.getFloat64(offset + 8, true),
+			valueKind: deserializeBrainValueKind(view, offset + 16),
+			candidateBands: (view.getUint8(offset + 20) === 1 ? ((o) => { const l = view.getUint32(o, true); const a: any[] = []; const start = o + 4; for(let i=0; i<l; i++) { const o = start; a.push(deserializeBrainBandKind(view, o + (i * 1))); } return a; })(offset + 21) : undefined),
+			doc: (view.getUint8(offset + 28) === 1 ? ((o) => { const l = view.getUint32(o, true); return __textDecoder!.decode(new Uint8Array(view.buffer, view.byteOffset + o + 4, l)); })(offset + 29) : undefined),
 		} as any;
 	}
-	outObj.name = ((o) => { const l = view.getUint32(o, true); return __textDecoder!.decode(new Uint8Array(view.buffer, view.byteOffset + o + 4, l)); })(offset);
-	outObj.roleToken = view.getFloat64(offset + 4, true);
-	outObj.valueKind = deserializeBrainValueKind(view, offset + 12);
-	outObj.acceptedSchema = (view.getUint8(offset + 16) === 1 ? ((o) => { const l = view.getUint32(o, true); return __textDecoder!.decode(new Uint8Array(view.buffer, view.byteOffset + o + 4, l)); })(offset + 17) : undefined);
-	outObj.candidateBands = (view.getUint8(offset + 24) === 1 ? ((o) => { const l = view.getUint32(o, true); const a: any[] = []; const start = o + 4; for(let i=0; i<l; i++) { const o = start; a.push(deserializeBrainBandKind(view, o + (i * 1))); } return a; })(offset + 25) : undefined);
-	outObj.doc = (view.getUint8(offset + 32) === 1 ? ((o) => { const l = view.getUint32(o, true); return __textDecoder!.decode(new Uint8Array(view.buffer, view.byteOffset + o + 4, l)); })(offset + 33) : undefined);
+	outObj.role = deserializeRelationRole(view, offset);
+	outObj.name = ((o) => { const l = view.getUint32(o, true); return __textDecoder!.decode(new Uint8Array(view.buffer, view.byteOffset + o + 4, l)); })(offset + 4);
+	outObj.roleToken = view.getFloat64(offset + 8, true);
+	outObj.valueKind = deserializeBrainValueKind(view, offset + 16);
+	outObj.candidateBands = (view.getUint8(offset + 20) === 1 ? ((o) => { const l = view.getUint32(o, true); const a: any[] = []; const start = o + 4; for(let i=0; i<l; i++) { const o = start; a.push(deserializeBrainBandKind(view, o + (i * 1))); } return a; })(offset + 21) : undefined);
+	outObj.doc = (view.getUint8(offset + 28) === 1 ? ((o) => { const l = view.getUint32(o, true); return __textDecoder!.decode(new Uint8Array(view.buffer, view.byteOffset + o + 4, l)); })(offset + 29) : undefined);
 	return outObj;
 }
 
 export function serializeRelationRoleAuthoringSpec(val: RelationRoleAuthoringSpec, view: DataView, offset: number): void {
-	{ const bytes = __textEncoder!.encode(val.name); const len = Math.min(bytes.length, 255); view.setUint32(offset, len, true); new Uint8Array(view.buffer, view.byteOffset + offset + 4, 255).fill(0); new Uint8Array(view.buffer, view.byteOffset + offset + 4, len).set(bytes.subarray(0, len)); }
-	view.setFloat64(offset + 4, val.roleToken, true);
-	serializeBrainValueKind(val.valueKind, view, offset + 12);
-	if (val.acceptedSchema !== undefined) { view.setUint8(offset + 16, 1); { const bytes = __textEncoder!.encode(val.acceptedSchema); const len = Math.min(bytes.length, 255); view.setUint32(offset + 17, len, true); new Uint8Array(view.buffer, view.byteOffset + offset + 17 + 4, 255).fill(0); new Uint8Array(view.buffer, view.byteOffset + offset + 17 + 4, len).set(bytes.subarray(0, len)); } } else { view.setUint8(offset + 16, 0); }
-	if (val.candidateBands !== undefined) { view.setUint8(offset + 24, 1); { view.setUint32(offset + 25, val.candidateBands.length, true); let o = offset + 25 + 4; for(let i=0; i<val.candidateBands.length; i++) { serializeBrainBandKind(val.candidateBands[i]!, view, o + (i * 1)); } } } else { view.setUint8(offset + 24, 0); }
-	if (val.doc !== undefined) { view.setUint8(offset + 32, 1); { const bytes = __textEncoder!.encode(val.doc); const len = Math.min(bytes.length, 255); view.setUint32(offset + 33, len, true); new Uint8Array(view.buffer, view.byteOffset + offset + 33 + 4, 255).fill(0); new Uint8Array(view.buffer, view.byteOffset + offset + 33 + 4, len).set(bytes.subarray(0, len)); } } else { view.setUint8(offset + 32, 0); }
+	serializeRelationRole(val.role, view, offset);
+	{ const bytes = __textEncoder!.encode(val.name); const len = Math.min(bytes.length, 255); view.setUint32(offset + 4, len, true); new Uint8Array(view.buffer, view.byteOffset + offset + 4 + 4, 255).fill(0); new Uint8Array(view.buffer, view.byteOffset + offset + 4 + 4, len).set(bytes.subarray(0, len)); }
+	view.setFloat64(offset + 8, val.roleToken, true);
+	serializeBrainValueKind(val.valueKind, view, offset + 16);
+	if (val.candidateBands !== undefined) { view.setUint8(offset + 20, 1); { view.setUint32(offset + 21, val.candidateBands.length, true); let o = offset + 21 + 4; for(let i=0; i<val.candidateBands.length; i++) { serializeBrainBandKind(val.candidateBands[i]!, view, o + (i * 1)); } } } else { view.setUint8(offset + 20, 0); }
+	if (val.doc !== undefined) { view.setUint8(offset + 28, 1); { const bytes = __textEncoder!.encode(val.doc); const len = Math.min(bytes.length, 255); view.setUint32(offset + 29, len, true); new Uint8Array(view.buffer, view.byteOffset + offset + 29 + 4, 255).fill(0); new Uint8Array(view.buffer, view.byteOffset + offset + 29 + 4, len).set(bytes.subarray(0, len)); } } else { view.setUint8(offset + 28, 0); }
 }
 
 export function deserializeActionIntentAuthoringSpec(view: DataView, offset: number, outObj?: any): ActionIntentAuthoringSpec {
@@ -1968,28 +1988,26 @@ export function deserializeActionIntentAuthoringSpec(view: DataView, offset: num
 			actionToken: view.getFloat64(offset + 4, true),
 			semanticIntentToken: view.getFloat64(offset + 12, true),
 			domain: deserializeActionIntentDomain(view, offset + 20),
-			subject: deserializeRelationRoleAuthoringSpec(view, offset + 24),
-			object: (view.getUint8(offset + 64) === 1 ? deserializeRelationRoleAuthoringSpec(view, offset + 65) : undefined),
-			effectClassToken: (view.getUint8(offset + 108) === 1 ? view.getFloat64(offset + 109, true) : undefined),
-			capabilityClassToken: (view.getUint8(offset + 120) === 1 ? view.getFloat64(offset + 121, true) : undefined),
-			preconditionClassToken: (view.getUint8(offset + 132) === 1 ? view.getFloat64(offset + 133, true) : undefined),
-			preferredControllerRole: (view.getUint8(offset + 144) === 1 ? view.getFloat64(offset + 145, true) : undefined),
-			durative: (view.getUint8(offset + 156) === 1 ? (view.getUint8(offset + 157) !== 0) : undefined),
-			doc: (view.getUint8(offset + 164) === 1 ? ((o) => { const l = view.getUint32(o, true); return __textDecoder!.decode(new Uint8Array(view.buffer, view.byteOffset + o + 4, l)); })(offset + 165) : undefined),
+			roles: ((o) => { const l = view.getUint32(o, true); const a: any[] = []; const start = o + 4; for(let i=0; i<l; i++) { const o = start; a.push(deserializeRelationRoleAuthoringSpec(view, o + (i * 36))); } return a; })(offset + 24),
+			effectClassToken: (view.getUint8(offset + 28) === 1 ? view.getFloat64(offset + 29, true) : undefined),
+			capabilityClassToken: (view.getUint8(offset + 40) === 1 ? view.getFloat64(offset + 41, true) : undefined),
+			preconditionClassToken: (view.getUint8(offset + 52) === 1 ? view.getFloat64(offset + 53, true) : undefined),
+			preferredControllerRole: (view.getUint8(offset + 64) === 1 ? view.getFloat64(offset + 65, true) : undefined),
+			durative: (view.getUint8(offset + 76) === 1 ? (view.getUint8(offset + 77) !== 0) : undefined),
+			doc: (view.getUint8(offset + 84) === 1 ? ((o) => { const l = view.getUint32(o, true); return __textDecoder!.decode(new Uint8Array(view.buffer, view.byteOffset + o + 4, l)); })(offset + 85) : undefined),
 		} as any;
 	}
 	outObj.name = ((o) => { const l = view.getUint32(o, true); return __textDecoder!.decode(new Uint8Array(view.buffer, view.byteOffset + o + 4, l)); })(offset);
 	outObj.actionToken = view.getFloat64(offset + 4, true);
 	outObj.semanticIntentToken = view.getFloat64(offset + 12, true);
 	outObj.domain = deserializeActionIntentDomain(view, offset + 20);
-	outObj.subject = deserializeRelationRoleAuthoringSpec(view, offset + 24);
-	outObj.object = (view.getUint8(offset + 64) === 1 ? deserializeRelationRoleAuthoringSpec(view, offset + 65) : undefined);
-	outObj.effectClassToken = (view.getUint8(offset + 108) === 1 ? view.getFloat64(offset + 109, true) : undefined);
-	outObj.capabilityClassToken = (view.getUint8(offset + 120) === 1 ? view.getFloat64(offset + 121, true) : undefined);
-	outObj.preconditionClassToken = (view.getUint8(offset + 132) === 1 ? view.getFloat64(offset + 133, true) : undefined);
-	outObj.preferredControllerRole = (view.getUint8(offset + 144) === 1 ? view.getFloat64(offset + 145, true) : undefined);
-	outObj.durative = (view.getUint8(offset + 156) === 1 ? (view.getUint8(offset + 157) !== 0) : undefined);
-	outObj.doc = (view.getUint8(offset + 164) === 1 ? ((o) => { const l = view.getUint32(o, true); return __textDecoder!.decode(new Uint8Array(view.buffer, view.byteOffset + o + 4, l)); })(offset + 165) : undefined);
+	outObj.roles = ((o) => { const l = view.getUint32(o, true); const a: any[] = []; const start = o + 4; for(let i=0; i<l; i++) { const o = start; a.push(deserializeRelationRoleAuthoringSpec(view, o + (i * 36))); } return a; })(offset + 24);
+	outObj.effectClassToken = (view.getUint8(offset + 28) === 1 ? view.getFloat64(offset + 29, true) : undefined);
+	outObj.capabilityClassToken = (view.getUint8(offset + 40) === 1 ? view.getFloat64(offset + 41, true) : undefined);
+	outObj.preconditionClassToken = (view.getUint8(offset + 52) === 1 ? view.getFloat64(offset + 53, true) : undefined);
+	outObj.preferredControllerRole = (view.getUint8(offset + 64) === 1 ? view.getFloat64(offset + 65, true) : undefined);
+	outObj.durative = (view.getUint8(offset + 76) === 1 ? (view.getUint8(offset + 77) !== 0) : undefined);
+	outObj.doc = (view.getUint8(offset + 84) === 1 ? ((o) => { const l = view.getUint32(o, true); return __textDecoder!.decode(new Uint8Array(view.buffer, view.byteOffset + o + 4, l)); })(offset + 85) : undefined);
 	return outObj;
 }
 
@@ -1998,14 +2016,13 @@ export function serializeActionIntentAuthoringSpec(val: ActionIntentAuthoringSpe
 	view.setFloat64(offset + 4, val.actionToken, true);
 	view.setFloat64(offset + 12, val.semanticIntentToken, true);
 	serializeActionIntentDomain(val.domain, view, offset + 20);
-	serializeRelationRoleAuthoringSpec(val.subject, view, offset + 24);
-	if (val.object !== undefined) { view.setUint8(offset + 64, 1); serializeRelationRoleAuthoringSpec(val.object, view, offset + 65); } else { view.setUint8(offset + 64, 0); }
-	if (val.effectClassToken !== undefined) { view.setUint8(offset + 108, 1); view.setFloat64(offset + 109, val.effectClassToken, true); } else { view.setUint8(offset + 108, 0); }
-	if (val.capabilityClassToken !== undefined) { view.setUint8(offset + 120, 1); view.setFloat64(offset + 121, val.capabilityClassToken, true); } else { view.setUint8(offset + 120, 0); }
-	if (val.preconditionClassToken !== undefined) { view.setUint8(offset + 132, 1); view.setFloat64(offset + 133, val.preconditionClassToken, true); } else { view.setUint8(offset + 132, 0); }
-	if (val.preferredControllerRole !== undefined) { view.setUint8(offset + 144, 1); view.setFloat64(offset + 145, val.preferredControllerRole, true); } else { view.setUint8(offset + 144, 0); }
-	if (val.durative !== undefined) { view.setUint8(offset + 156, 1); view.setUint8(offset + 157, (val.durative ? 1 : 0)); } else { view.setUint8(offset + 156, 0); }
-	if (val.doc !== undefined) { view.setUint8(offset + 164, 1); { const bytes = __textEncoder!.encode(val.doc); const len = Math.min(bytes.length, 255); view.setUint32(offset + 165, len, true); new Uint8Array(view.buffer, view.byteOffset + offset + 165 + 4, 255).fill(0); new Uint8Array(view.buffer, view.byteOffset + offset + 165 + 4, len).set(bytes.subarray(0, len)); } } else { view.setUint8(offset + 164, 0); }
+	{ view.setUint32(offset + 24, val.roles.length, true); let o = offset + 24 + 4; for(let i=0; i<val.roles.length; i++) { serializeRelationRoleAuthoringSpec(val.roles[i]!, view, o + (i * 36)); } }
+	if (val.effectClassToken !== undefined) { view.setUint8(offset + 28, 1); view.setFloat64(offset + 29, val.effectClassToken, true); } else { view.setUint8(offset + 28, 0); }
+	if (val.capabilityClassToken !== undefined) { view.setUint8(offset + 40, 1); view.setFloat64(offset + 41, val.capabilityClassToken, true); } else { view.setUint8(offset + 40, 0); }
+	if (val.preconditionClassToken !== undefined) { view.setUint8(offset + 52, 1); view.setFloat64(offset + 53, val.preconditionClassToken, true); } else { view.setUint8(offset + 52, 0); }
+	if (val.preferredControllerRole !== undefined) { view.setUint8(offset + 64, 1); view.setFloat64(offset + 65, val.preferredControllerRole, true); } else { view.setUint8(offset + 64, 0); }
+	if (val.durative !== undefined) { view.setUint8(offset + 76, 1); view.setUint8(offset + 77, (val.durative ? 1 : 0)); } else { view.setUint8(offset + 76, 0); }
+	if (val.doc !== undefined) { view.setUint8(offset + 84, 1); { const bytes = __textEncoder!.encode(val.doc); const len = Math.min(bytes.length, 255); view.setUint32(offset + 85, len, true); new Uint8Array(view.buffer, view.byteOffset + offset + 85 + 4, 255).fill(0); new Uint8Array(view.buffer, view.byteOffset + offset + 85 + 4, len).set(bytes.subarray(0, len)); } } else { view.setUint8(offset + 84, 0); }
 }
 
 export function deserializeSoftGatherStatus(view: DataView, offset: number): SoftGatherStatus {
@@ -2130,6 +2147,10 @@ export function serializeIntentExecutionStatus(val: IntentExecutionStatus, view:
 
 export function deserializeIntentProposal(view: DataView, offset: number, outObj?: any): IntentProposal {
 	if (!outObj) {
+		const _arr_roles = new Array(6);
+		for (let i = 0, _off_roles = offset + 88; i < 6; i++, _off_roles += 60) {
+			_arr_roles[i] = ({ concept: deserializeConceptRef(view, _off_roles), selector: deserializeSoftGatherResult(view, _off_roles + 28) });
+		}
 		return {
 			proposalSlot: view.getUint32(offset, true),
 			lifecycle: deserializeIntentLifecycle(view, offset + 4),
@@ -2146,9 +2167,12 @@ export function deserializeIntentProposal(view: DataView, offset: number, outObj
 			intensity: view.getFloat32(offset + 76, true),
 			persistence: view.getFloat32(offset + 80, true),
 			confidence: view.getFloat32(offset + 84, true),
-			subject: deserializeSelectedConceptRef(view, offset + 88),
-			object: deserializeSelectedConceptRef(view, offset + 148),
+			roles: _arr_roles,
 		} as any;
+	}
+	const _arr_roles = new Array(6);
+	for (let i = 0, _off_roles = offset + 88; i < 6; i++, _off_roles += 60) {
+		_arr_roles[i] = ({ concept: deserializeConceptRef(view, _off_roles), selector: deserializeSoftGatherResult(view, _off_roles + 28) });
 	}
 	outObj.proposalSlot = view.getUint32(offset, true);
 	outObj.lifecycle = deserializeIntentLifecycle(view, offset + 4);
@@ -2165,8 +2189,7 @@ export function deserializeIntentProposal(view: DataView, offset: number, outObj
 	outObj.intensity = view.getFloat32(offset + 76, true);
 	outObj.persistence = view.getFloat32(offset + 80, true);
 	outObj.confidence = view.getFloat32(offset + 84, true);
-	outObj.subject = deserializeSelectedConceptRef(view, offset + 88);
-	outObj.object = deserializeSelectedConceptRef(view, offset + 148);
+	outObj.roles = _arr_roles;
 	return outObj;
 }
 
@@ -2186,15 +2209,14 @@ export function serializeIntentProposal(val: IntentProposal, view: DataView, off
 	view.setFloat32(offset + 76, val.intensity, true);
 	view.setFloat32(offset + 80, val.persistence, true);
 	view.setFloat32(offset + 84, val.confidence, true);
-	serializeSelectedConceptRef(val.subject, view, offset + 88);
-	serializeSelectedConceptRef(val.object, view, offset + 148);
+	{ for (let i = 0, __o = offset + 88; i < 6; i++, __o += 60) { const __e = val.roles[i]!; { serializeConceptRef(__e.concept, view, __o); serializeSoftGatherResult(__e.selector, view, __o + 28); } } }
 }
 
 export function deserializeIntentSet(view: DataView, offset: number, outObj?: any): IntentSet {
 	if (!outObj) {
 		const _arr_proposals = new Array(8);
-		for (let i = 0, _off_proposals = offset + 16; i < 8; i++, _off_proposals += 208) {
-			_arr_proposals[i] = ({ proposalSlot: view.getUint32(_off_proposals, true), lifecycle: deserializeIntentLifecycle(view, _off_proposals + 4), modality: deserializePropositionModality(view, _off_proposals + 5), intentId: view.getUint32(_off_proposals + 8, true), flags: view.getUint32(_off_proposals + 12, true), intentRef: deserializeRuntimeRefHandle(view, _off_proposals + 16), purposeGoal: deserializeRuntimeRefHandle(view, _off_proposals + 28), controllerHint: deserializeRuntimeRefHandle(view, _off_proposals + 40), topic: deserializeRuntimeRefHandle(view, _off_proposals + 52), activation: view.getFloat32(_off_proposals + 64, true), priority: view.getFloat32(_off_proposals + 68, true), commitment: view.getFloat32(_off_proposals + 72, true), intensity: view.getFloat32(_off_proposals + 76, true), persistence: view.getFloat32(_off_proposals + 80, true), confidence: view.getFloat32(_off_proposals + 84, true), subject: deserializeSelectedConceptRef(view, _off_proposals + 88), object: deserializeSelectedConceptRef(view, _off_proposals + 148) });
+		for (let i = 0, _off_proposals = offset + 16; i < 8; i++, _off_proposals += 448) {
+			_arr_proposals[i] = ({ proposalSlot: view.getUint32(_off_proposals, true), lifecycle: deserializeIntentLifecycle(view, _off_proposals + 4), modality: deserializePropositionModality(view, _off_proposals + 5), intentId: view.getUint32(_off_proposals + 8, true), flags: view.getUint32(_off_proposals + 12, true), intentRef: deserializeRuntimeRefHandle(view, _off_proposals + 16), purposeGoal: deserializeRuntimeRefHandle(view, _off_proposals + 28), controllerHint: deserializeRuntimeRefHandle(view, _off_proposals + 40), topic: deserializeRuntimeRefHandle(view, _off_proposals + 52), activation: view.getFloat32(_off_proposals + 64, true), priority: view.getFloat32(_off_proposals + 68, true), commitment: view.getFloat32(_off_proposals + 72, true), intensity: view.getFloat32(_off_proposals + 76, true), persistence: view.getFloat32(_off_proposals + 80, true), confidence: view.getFloat32(_off_proposals + 84, true), roles: ((o) => { const a: any[] = []; for(let i=0; i<6; i++) a.push(deserializeSelectedConceptRef(view, o + (i * 60))); return a; })(_off_proposals + 88) });
 		}
 		return {
 			tick: view.getUint32(offset, true),
@@ -2205,8 +2227,8 @@ export function deserializeIntentSet(view: DataView, offset: number, outObj?: an
 		} as any;
 	}
 	const _arr_proposals = new Array(8);
-	for (let i = 0, _off_proposals = offset + 16; i < 8; i++, _off_proposals += 208) {
-		_arr_proposals[i] = ({ proposalSlot: view.getUint32(_off_proposals, true), lifecycle: deserializeIntentLifecycle(view, _off_proposals + 4), modality: deserializePropositionModality(view, _off_proposals + 5), intentId: view.getUint32(_off_proposals + 8, true), flags: view.getUint32(_off_proposals + 12, true), intentRef: deserializeRuntimeRefHandle(view, _off_proposals + 16), purposeGoal: deserializeRuntimeRefHandle(view, _off_proposals + 28), controllerHint: deserializeRuntimeRefHandle(view, _off_proposals + 40), topic: deserializeRuntimeRefHandle(view, _off_proposals + 52), activation: view.getFloat32(_off_proposals + 64, true), priority: view.getFloat32(_off_proposals + 68, true), commitment: view.getFloat32(_off_proposals + 72, true), intensity: view.getFloat32(_off_proposals + 76, true), persistence: view.getFloat32(_off_proposals + 80, true), confidence: view.getFloat32(_off_proposals + 84, true), subject: deserializeSelectedConceptRef(view, _off_proposals + 88), object: deserializeSelectedConceptRef(view, _off_proposals + 148) });
+	for (let i = 0, _off_proposals = offset + 16; i < 8; i++, _off_proposals += 448) {
+		_arr_proposals[i] = ({ proposalSlot: view.getUint32(_off_proposals, true), lifecycle: deserializeIntentLifecycle(view, _off_proposals + 4), modality: deserializePropositionModality(view, _off_proposals + 5), intentId: view.getUint32(_off_proposals + 8, true), flags: view.getUint32(_off_proposals + 12, true), intentRef: deserializeRuntimeRefHandle(view, _off_proposals + 16), purposeGoal: deserializeRuntimeRefHandle(view, _off_proposals + 28), controllerHint: deserializeRuntimeRefHandle(view, _off_proposals + 40), topic: deserializeRuntimeRefHandle(view, _off_proposals + 52), activation: view.getFloat32(_off_proposals + 64, true), priority: view.getFloat32(_off_proposals + 68, true), commitment: view.getFloat32(_off_proposals + 72, true), intensity: view.getFloat32(_off_proposals + 76, true), persistence: view.getFloat32(_off_proposals + 80, true), confidence: view.getFloat32(_off_proposals + 84, true), roles: ((o) => { const a: any[] = []; for(let i=0; i<6; i++) a.push(deserializeSelectedConceptRef(view, o + (i * 60))); return a; })(_off_proposals + 88) });
 	}
 	outObj.tick = view.getUint32(offset, true);
 	outObj.count = view.getUint32(offset + 4, true);
@@ -2221,7 +2243,7 @@ export function serializeIntentSet(val: IntentSet, view: DataView, offset: numbe
 	view.setUint32(offset + 4, val.count, true);
 	view.setUint32(offset + 8, val.revision, true);
 	view.setUint32(offset + 12, val.flags, true);
-	{ for (let i = 0, __o = offset + 16; i < 8; i++, __o += 208) { const __e = val.proposals[i]!; { view.setUint32(__o, __e.proposalSlot, true); serializeIntentLifecycle(__e.lifecycle, view, __o + 4); serializePropositionModality(__e.modality, view, __o + 5); view.setUint32(__o + 8, __e.intentId, true); view.setUint32(__o + 12, __e.flags, true); serializeRuntimeRefHandle(__e.intentRef, view, __o + 16); serializeRuntimeRefHandle(__e.purposeGoal, view, __o + 28); serializeRuntimeRefHandle(__e.controllerHint, view, __o + 40); serializeRuntimeRefHandle(__e.topic, view, __o + 52); view.setFloat32(__o + 64, __e.activation, true); view.setFloat32(__o + 68, __e.priority, true); view.setFloat32(__o + 72, __e.commitment, true); view.setFloat32(__o + 76, __e.intensity, true); view.setFloat32(__o + 80, __e.persistence, true); view.setFloat32(__o + 84, __e.confidence, true); serializeSelectedConceptRef(__e.subject, view, __o + 88); serializeSelectedConceptRef(__e.object, view, __o + 148); } } }
+	{ for (let i = 0, __o = offset + 16; i < 8; i++, __o += 448) { const __e = val.proposals[i]!; { view.setUint32(__o, __e.proposalSlot, true); serializeIntentLifecycle(__e.lifecycle, view, __o + 4); serializePropositionModality(__e.modality, view, __o + 5); view.setUint32(__o + 8, __e.intentId, true); view.setUint32(__o + 12, __e.flags, true); serializeRuntimeRefHandle(__e.intentRef, view, __o + 16); serializeRuntimeRefHandle(__e.purposeGoal, view, __o + 28); serializeRuntimeRefHandle(__e.controllerHint, view, __o + 40); serializeRuntimeRefHandle(__e.topic, view, __o + 52); view.setFloat32(__o + 64, __e.activation, true); view.setFloat32(__o + 68, __e.priority, true); view.setFloat32(__o + 72, __e.commitment, true); view.setFloat32(__o + 76, __e.intensity, true); view.setFloat32(__o + 80, __e.persistence, true); view.setFloat32(__o + 84, __e.confidence, true); { for (let i = 0, __o1 = __o + 88; i < 6; i++, __o1 += 60) { const __e1 = __e.roles[i]!; { serializeConceptRef(__e1.concept, view, __o1); serializeSoftGatherResult(__e1.selector, view, __o1 + 28); } } } } } }
 }
 
 export function deserializeActiveIntentState(view: DataView, offset: number, outObj?: any): ActiveIntentState {
@@ -2875,18 +2897,18 @@ export function deserializeBrainStepResult(view: DataView, offset: number, outOb
 		return {
 			state: deserializeBrainRuntimeState(view, offset),
 			intents: deserializeIntentSet(view, offset + 32),
-			telemetry: deserializeBrainStepTelemetry(view, offset + 1712),
+			telemetry: deserializeBrainStepTelemetry(view, offset + 3632),
 		} as any;
 	}
 	outObj.state = deserializeBrainRuntimeState(view, offset);
 	outObj.intents = deserializeIntentSet(view, offset + 32);
-	outObj.telemetry = deserializeBrainStepTelemetry(view, offset + 1712);
+	outObj.telemetry = deserializeBrainStepTelemetry(view, offset + 3632);
 	return outObj;
 }
 
 export function serializeBrainStepResult(val: BrainStepResult, view: DataView, offset: number): void {
 	serializeBrainRuntimeState(val.state, view, offset);
 	serializeIntentSet(val.intents, view, offset + 32);
-	serializeBrainStepTelemetry(val.telemetry, view, offset + 1712);
+	serializeBrainStepTelemetry(val.telemetry, view, offset + 3632);
 }
 

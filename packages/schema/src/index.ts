@@ -11,4 +11,5 @@
 // forbids allowImportingTsExtensions here.
 import "./env";
 
-export * from "./sparse";
+export * from "./krystal-engine-schema";
+export * from "./world";

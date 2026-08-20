@@ -12,6 +12,7 @@ export const {
 	LocalTokenIndex,
 	KrystalTokenClass,
 	BrainBandKind,
+	RelationRole,
 	PropositionModality,
 	BandPlacementPolicy,
 	BandOverflowPolicy,
@@ -99,6 +100,7 @@ export type RecordIndex = typeof RecordIndex.infer;
 export type LocalTokenIndex = typeof LocalTokenIndex.infer;
 export type KrystalTokenClass = typeof KrystalTokenClass.infer;
 export type BrainBandKind = typeof BrainBandKind.infer;
+export type RelationRole = typeof RelationRole.infer;
 export type PropositionModality = typeof PropositionModality.infer;
 export type BandPlacementPolicy = typeof BandPlacementPolicy.infer;
 export type BandOverflowPolicy = typeof BandOverflowPolicy.infer;

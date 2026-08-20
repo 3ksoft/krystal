@@ -1,50 +1,42 @@
+/**
+ * The whole surface a simulation may touch.
+ *
+ * One file on purpose: a boundary spread across a package is a boundary nobody
+ * can read in one sitting, and this one has two sides that must agree.
+ */
+
 export {
   createAgent,
-  compileGrammar,
+  compileVocabulary,
+  compileRelationCatalog,
+  schemaIdOf,
   RESERVED_SYMBOLS,
   RESERVED_TOKEN_END,
   SIM_TOKEN_CLASSES,
-  AgentGrammarError,
+  CATALOG_SCHEMA_ID,
+  VocabularyError,
   AgentCheckpointMismatchError,
   type Agent,
   type AgentCheckpoint,
   type CreateAgentInput,
-  type CompiledGrammar,
-  type SimGrammar,
-  type SimGrammarSymbol,
-  type SimQuantityField,
-  type SimActionV2,
-  type RelationRoleV2,
-  CATALOG_SCHEMA_ID,
-  compileActionCatalog,
-  schemaIdOf,
+  type CompiledVocabulary,
   type CompiledCatalog,
 } from "./agent.ts";
 
 export {
-  validateSnapshot,
-  isSensoryBand,
-  emptyDiagnostics,
+  validatePercept,
   toAgentIntents,
-  SENSORY_BANDS,
-  SensoryContractError,
-  type SensoryBand,
-  type RawSnapshotV2,
-  type RawRecordV2,
-  type RawQuantityV2,
-  type RawMotionV2,
-  type RawEventV2,
-  type RawSelfMotionV2,
-  type LoweringDiagnostics,
+  emptyDiagnostics,
+  PerceptContractError,
+  type PerceptDiagnostics,
+  type ValidateOptions,
 } from "./contract.ts";
 
-export type { AgentIntentV2, ConceptOperandV2 } from "./contract.ts";
-
 export {
-  lowerSnapshot,
+  lowerPercept,
   ReferenceTable,
   LoweringError,
-  type PerformedAction,
+  type PerformedRelation,
   type LoweredFrame,
   type BandOverflow,
 } from "./lower.ts";
@@ -61,6 +53,29 @@ export {
   type Polarity,
 } from "./quantize.ts";
 
+// The contract itself: validators for the wire, and the types generated from
+// the same scope. A simulation needs both and should not have to know that one
+// is written and the other derived.
+export {
+  world,
+  WorldVocabulary,
+  WorldChannel,
+  WorldQuantity,
+  WorldSymbol,
+  WorldRelation,
+  WorldRelationRole,
+  Percept,
+  Lesson,
+  PerceptRecord,
+  PerceptRelation,
+  PerceptRoleBinding,
+  PerceptOperand,
+  PerceptQuantity,
+  AgentIntent,
+} from "../../../schema/src/world.ts";
+
+export type { v1_0_0 as contract } from "../../../schema/generated/world.types.ts";
+
 export {
   KRYSTAL_ABI,
   KRYSTAL_SENTINEL_TOKENS,
@@ -68,4 +83,7 @@ export {
   QUANTITY_BANDS,
   QUANTIFIER_FLAGS,
   RELATION_FLAGS,
+  RELATION_ROLES,
+  RELATION_ROLE_INDEX,
+  type RelationRoleName,
 } from "../../../schema/src/krystal-engine-schema.ts";

@@ -14,14 +14,14 @@ export interface SoaBufferDescriptor {
 }
 
 export const BRAIN_FRAME_GPU_BUFFERS: readonly SoaBufferDescriptor[] = [
-  { bufferId: 0, name: "tokenIds", elementCount: 2432, byteSize: 9728 },
-  { bufferId: 1, name: "fieldRoles", elementCount: 2432, byteSize: 9728 },
-  { bufferId: 2, name: "attentionMask", elementCount: 2432, byteSize: 9728 },
-  { bufferId: 3, name: "schemaIds", elementCount: 304, byteSize: 1216 },
-  { bufferId: 4, name: "bandIds", elementCount: 304, byteSize: 1216 },
-  { bufferId: 5, name: "runtimeRefs", elementCount: 2432, byteSize: 9728 },
-  { bufferId: 6, name: "recordFlags", elementCount: 304, byteSize: 1216 },
-  { bufferId: 7, name: "activeRecordIndices", elementCount: 304, byteSize: 1216 },
+  { bufferId: 0, name: "tokenIds", elementCount: 3456, byteSize: 13824 },
+  { bufferId: 1, name: "fieldRoles", elementCount: 3456, byteSize: 13824 },
+  { bufferId: 2, name: "attentionMask", elementCount: 3456, byteSize: 13824 },
+  { bufferId: 3, name: "schemaIds", elementCount: 432, byteSize: 1728 },
+  { bufferId: 4, name: "bandIds", elementCount: 432, byteSize: 1728 },
+  { bufferId: 5, name: "runtimeRefs", elementCount: 3456, byteSize: 13824 },
+  { bufferId: 6, name: "recordFlags", elementCount: 432, byteSize: 1728 },
+  { bufferId: 7, name: "activeRecordIndices", elementCount: 432, byteSize: 1728 },
 ];
 
 export const BINARY_LAYOUT_BUFFER_IDS = {

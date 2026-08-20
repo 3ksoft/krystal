@@ -503,6 +503,15 @@ export interface BrainBackwardResult {
   readonly dValueWv: Float32Array; // [1, 3H]
   /** Squared-error loss of the value head; 0 when the frame carries no target. */
   readonly valueLoss: number;
+  /**
+   * What the value head predicted, per query row.
+   *
+   * Returned because it is the baseline a policy-gradient update subtracts:
+   * reinforcing an action by the raw outcome would credit every action taken
+   * in a good situation equally, whether or not it was the one that helped.
+   * Computed here anyway, so handing it back costs nothing.
+   */
+  readonly valuePrediction: Float32Array;
   readonly dQueryOutput: Float32Array; // [Q, H]
   readonly dIntentGather: Float32Array; // [Q, H]
   readonly dArgGather: Float32Array; // [Q, H]
@@ -864,6 +873,7 @@ export function brainBackwardOracle(
     dDecisionWh: dh.dWh,
     dValueWv: vh.dWh,
     valueLoss: value.loss,
+    valuePrediction: valuePred,
     dQueryOutput: dh.dQueryOutput,
     dIntentGather: dh.dIntentGather,
     dArgGather: dh.dArgGather,

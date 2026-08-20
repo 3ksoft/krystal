@@ -1,45 +1,54 @@
 /**
- * Host-side IntentSet emission (concerns answer 27).
+ * Host-side IntentSet emission.
  *
- * The GPU selection heads emit per-slot softmax distributions P [Q, R] and
- * argmax record indices into the bank. The runtime never asks the network to
- * synthesize an arbitrary exact handle: the network selects a compatible
- * location, and this host resolver maps that location to the exact sidecar
- * binding (arch v2 §9, TRAINING_DESIGN.md §4/§5).
+ * The selection heads emit per-slot softmax distributions P [Q, R] and argmax
+ * record indices into the bank. The runtime never asks the network to
+ * synthesize an exact handle: the network selects a compatible LOCATION, and
+ * this resolver maps that location to the exact sidecar binding.
  *
- * v0 envelope (answer 27): at most one proposal per query row — `count`,
- * `lifecycle: 'start'`, resolved `intentId`, and a subject/object pair whose
- * exact handles are read from the selected records' runtime-ref sidecars.
- * Confidence and entropy are emitted as debug/diagnostic values, and
- * `commitment` is computed from the selection heads (intent top-1 probability
- * × distribution peakedness × object support) rather than a constant.
+ * Every proposal is a reified relation: one selection per role the relation
+ * declares, resolved through the same path. There is no privileged subject any
+ * more — the agent is scored against the bank like every other participant,
+ * and `Self` is simply a candidate the agent role admits. A relation that
+ * declares no patient is reflexive, and the flag records that the slot was
+ * mirrored rather than chosen.
+ *
  * intentRef / purposeGoal / controllerHint / topic are left invalid: the
  * runtime assigns an exact intentRef when a proposal is accepted.
- *
- * Every proposal is a binary relation, so both sides are always populated:
- *
- *   subject  Resolved structurally, not selected. In this catalog the subject
- *            is always Self, and letting a head "choose" a value with exactly
- *            one legal filler would teach it nothing.
- *   object   Selected by the argument head — except for a canonically
- *            reflexive (authored-unary) intent, where the subject is mirrored
- *            in and INTENT_PROPOSAL_FLAGS.objectFromSubject records that the
- *            pair was filled rather than chosen.
  */
 import {
   ACTION_INTENT_FLAGS,
   BRAIN_LIMITS,
   INTENT_PROPOSAL_FLAGS,
   INVALID_U32,
+  RELATION_ROLES,
+  RELATION_ROLE_FLAGS,
+  RELATION_ROLE_INDEX,
+  type RelationRoleName,
 } from "../../../schema/src/krystal-engine-schema.ts";
 import type { v1_0_0 } from "../../../schema/generated/krystal.types.ts";
+import { bandIndex } from "../binary-layout-plan.ts";
 import { unpackRuntimeHandle } from "../frame/packer.ts";
 import { roleAdmitsRecord, roleFilterFor } from "./masks.ts";
 import type { ActiveFrame } from "./masks.ts";
 import type { SelectionSlotResult } from "./oracle.ts";
-import type { CompiledActionCatalog } from "../fixtures/action-intents.ts";
+import type { CompiledCatalog } from "../bridge/agent.ts";
 
 const EPS = 1e-6;
+
+/**
+ * Reaching into memory is wanting, not doing.
+ *
+ * A creature cannot act on what is not in front of it, so a proposal whose
+ * participant came from the memory band is not executable as it stands — and
+ * that is precisely what makes it a wanting rather than an act. The reading is
+ * derived from where the selection landed; the creature never asserts it, and
+ * so has nothing to gain by claiming to want something.
+ */
+const MEMORY_BAND_INDEX = bandIndex("memory");
+
+/** One selection head per role. A role with no head is simply not filled. */
+export type RoleSelections = Partial<Record<RelationRoleName, SelectionSlotResult>>;
 
 function invalidRef(): v1_0_0.RuntimeRefHandle {
   return { tokenId: 0, generation: 0, kind: "none", status: "invalid" };
@@ -71,6 +80,7 @@ export function emptyProposal(proposalSlot: number): v1_0_0.IntentProposal {
   return {
     proposalSlot,
     lifecycle: "empty",
+    modality: "imperative",
     intentId: 0,
     flags: 0,
     intentRef: invalidRef(),
@@ -85,13 +95,12 @@ export function emptyProposal(proposalSlot: number): v1_0_0.IntentProposal {
     intensity: 0,
     persistence: 0,
     confidence: 0,
-    subject: emptySelectedConcept(),
-    object: emptySelectedConcept(),
+    roles: RELATION_ROLES.map(() => emptySelectedConcept()),
   };
 }
 
 /**
- * Resolve one side of a relation from a chosen record slot.
+ * Resolve one role of a relation from a chosen record slot.
  *
  * How a concept is identified depends on its declared value kind, and the two
  * cases are not interchangeable:
@@ -102,7 +111,7 @@ export function emptyProposal(proposalSlot: number): v1_0_0.IntentProposal {
  *   record_ref   A structural record — Self, a body part, a fixed slot. These
  *                are addressed by record index and legitimately carry no
  *                dynamic reference, so demanding a sidecar handle here would
- *                reject every subject in the fixture catalog.
+ *                reject every structural participant.
  */
 function resolveConcept(
   frame: v1_0_0.BrainFrameGpu,
@@ -158,18 +167,38 @@ function resolveConcept(
   };
 }
 
+/** Peakedness and support of one row of a selection distribution. */
+function rowStatistics(
+  selection: SelectionSlotResult,
+  row: number,
+  r: number,
+): { candidateCount: number; entropy: number } {
+  let candidateCount = 0;
+  let entropy = 0;
+  const start = row * r;
+  for (let j = 0; j < r; j++) {
+    const p = selection.p[start + j]!;
+    if (p > EPS) {
+      candidateCount++;
+      entropy -= p * Math.log(p);
+    }
+  }
+  return { candidateCount, entropy };
+}
+
 export interface IntentSetEmissionInput {
   /** The packed SoA frame (exact runtime-ref sidecars live here). */
   readonly frame: v1_0_0.BrainFrameGpu;
   /** Active record/query lists compiled from the packed frame. */
   readonly active: ActiveFrame;
-  /** Compiled ActionIntent catalog: intent + argument descriptors. */
-  readonly catalog: CompiledActionCatalog;
-  /** Schema id of the ActionIntent catalog records (selector mask target). */
+  /** Compiled relation catalog: one descriptor per declared relation. */
+  readonly catalog: CompiledCatalog;
+  /** Schema id of the catalog records (selector mask target). */
   readonly intentSchemaId: number;
   /** Per-slot selection head outputs (GPU readbacks or CPU oracle). */
   readonly intent: SelectionSlotResult;
-  readonly argument: SelectionSlotResult;
+  /** One selection per role; a role with no entry is left unbound. */
+  readonly roleSelections: RoleSelections;
   readonly tick: number;
   readonly revision?: number;
   /** Cap on emitted proposals (defaults to the schema transport capacity). */
@@ -185,25 +214,15 @@ export interface IntentSetEmissionResult {
    *
    * An empty intent set has several quite different causes and they are
    * indistinguishable from outside: a creature with nothing to propose looks
-   * exactly like one whose actor record is missing, or whose catalog is empty.
-   * The first is a policy that has not committed; the others are malformed
-   * input. Counting them apart is what turns "it does nothing" into a question
-   * with an answer.
+   * exactly like one whose agent could not be resolved, or whose catalog is
+   * empty. The first is a policy that has not committed; the others are
+   * malformed input. Counting them apart is what turns "it does nothing" into
+   * a question with an answer.
    */
-  readonly droppedNoSubject: number;
-  readonly droppedNoObject: number;
+  readonly droppedNoAgent: number;
+  readonly droppedNoPatient: number;
 }
 
-/**
- * Resolve the selection heads into a typed IntentSet.
- *
- * One proposal is emitted per query row whose argmax lands on a valid
- * ActionIntent catalog record (schema id check, then action-token lookup in
- * the catalog). For each argument of the selected intent, the shared argument
- * selector's argmax record is resolved through its runtime-ref sidecar; a
- * record that fails the accepted-schema check yields a masked/error argument
- * instead of a fabricated handle.
- */
 export function emitIntentSet(input: IntentSetEmissionInput): IntentSetEmissionResult {
   const {
     frame,
@@ -211,7 +230,7 @@ export function emitIntentSet(input: IntentSetEmissionInput): IntentSetEmissionR
     catalog,
     intentSchemaId,
     intent,
-    argument,
+    roleSelections,
     tick,
     revision = 0,
   } = input;
@@ -222,17 +241,22 @@ export function emitIntentSet(input: IntentSetEmissionInput): IntentSetEmissionR
   const recordWidth = BRAIN_LIMITS.recordWidth;
   const maxRefs = BRAIN_LIMITS.maxReferencesPerRecord;
 
-  if (intent.index.length < q || argument.index.length < q) {
+  if (intent.index.length < q) {
     throw new Error(
-      `emitIntentSet: selection indices must cover ${q} query rows ` +
-        `(intent ${intent.index.length}, argument ${argument.index.length})`,
+      `emitIntentSet: intent indices must cover ${q} query rows (got ${intent.index.length})`,
     );
   }
-  if (intent.p.length < q * r || argument.p.length < q * r) {
-    throw new Error(
-      `emitIntentSet: selection P must be [${q}, ${r}] ` +
-        `(intent ${intent.p.length}, argument ${argument.p.length})`,
-    );
+  if (intent.p.length < q * r) {
+    throw new Error(`emitIntentSet: intent P must be [${q}, ${r}] (got ${intent.p.length})`);
+  }
+  for (const [role, selection] of Object.entries(roleSelections)) {
+    if (!selection) continue;
+    if (selection.index.length < q || selection.p.length < q * r) {
+      throw new Error(
+        `emitIntentSet: role '${role}' selection must cover [${q}, ${r}] ` +
+          `(index ${selection.index.length}, P ${selection.p.length})`,
+      );
+    }
   }
 
   const proposals: v1_0_0.IntentProposal[] = [];
@@ -241,159 +265,112 @@ export function emitIntentSet(input: IntentSetEmissionInput): IntentSetEmissionR
   }
 
   let emitted = 0;
-  let droppedNoSubject = 0;
-  let droppedNoObject = 0;
+  let droppedNoAgent = 0;
+  let droppedNoPatient = 0;
+
   for (let i = 0; i < Math.min(q, maxProposals); i++) {
     const bankIdx = intent.index[i]!;
     if (bankIdx >= r) continue;
     const slot = active.bankRecords[bankIdx]!;
 
-    // The selector mask only leaves catalog records open; a record that is
-    // not one (e.g. an all-masked row resolving to index 0) is not a proposal.
+    // The selector mask only leaves catalog records open; a record that is not
+    // one (e.g. an all-masked row resolving to index 0) is not a proposal.
     if (frame.schemaIds[slot] !== intentSchemaId) continue;
     const actionToken = frame.tokenIds[slot * recordWidth]!;
     const descriptor = catalog.descriptors.find((candidate) => candidate.actionToken === actionToken);
     if (!descriptor) continue;
 
     const intentProb = intent.p[i * r + bankIdx]!;
-    const rowStart = i * r;
-    let candidateCount = 0;
-    let entropy = 0;
-    for (let j = 0; j < r; j++) {
-      const p = intent.p[rowStart + j]!;
-      if (p > EPS) {
-        candidateCount++;
-        entropy -= p * Math.log(p);
-      }
-    }
+    const intentStats = rowStatistics(intent, i, r);
     // Peakedness of the intent distribution: 1 - normalized entropy, so a
     // single unambiguous candidate scores 1 and a uniform row scores 0.
-    const peakedness = candidateCount <= 1 ? 1 : Math.max(0, 1 - entropy / Math.log(candidateCount));
+    const peakedness =
+      intentStats.candidateCount <= 1
+        ? 1
+        : Math.max(0, 1 - intentStats.entropy / Math.log(intentStats.candidateCount));
 
     const proposal: v1_0_0.IntentProposal = {
-      proposalSlot: i,
+      ...emptyProposal(i),
       lifecycle: "start",
       intentId: descriptor.intentId,
-      flags: 0,
-      intentRef: invalidRef(), // runtime assigns an exact ref at acceptance
-      purposeGoal: invalidRef(),
-      controllerHint: invalidRef(),
-      topic: invalidRef(),
       activation: intentProb,
-      priority: 0,
-      commitment: 0, // overwritten below once object support is known
+      commitment: 0, // overwritten below once role support is known
       // No magnitude head exists yet, so this stays 0 rather than borrowing
       // `commitment`'s value. Emitting a fabricated magnitude would train the
       // motor layer on a number that means "how sure", not "how hard".
       intensity: 0,
-      persistence: 0,
       confidence: intentProb,
-      subject: emptySelectedConcept(),
-      object: emptySelectedConcept(),
     };
 
-    // The subject is resolved structurally: the first active bank record whose
-    // schema the subject role accepts and whose band the role admits. It is not
-    // put through a selection head because in this catalog exactly one record
-    // (Self) is ever legal.
-    const subjectFilter = roleFilterFor(
-      catalog,
-      descriptor.intentId,
-      "subject",
-      descriptor.subjectRole,
-    );
-    let subjectSlot: number | undefined;
-    for (const slot of active.bankRecords) {
-      if (!roleAdmitsRecord(frame, slot, subjectFilter)) continue;
-      subjectSlot = slot;
-      break;
-    }
-    const subject = resolveConcept(
-      frame,
-      subjectSlot,
-      descriptor.subjectRole.valueKind,
-      maxRefs,
-      // Starts unresolved. Passing "selected" in as an optimistic default made
-      // a subject that resolved to nothing report itself as resolved, and the
-      // executability check downstream then let it through with no handle.
-      { status: "masked", probability: 1, candidateCount: 1, entropy: 0 },
-    );
-    if (subject.selector.status !== "selected") {
-      droppedNoSubject++;
-      continue;
-    }
-    proposal.subject = subject;
+    // Every declared role goes through the same path. Nothing is resolved
+    // structurally any more: a role with exactly one legal filler simply has a
+    // one-candidate distribution, which is a fact about the world rather than
+    // something the emitter should special-case.
+    const bound = new Set<RelationRoleName>();
+    let roleSupport = 1;
 
-    const unary = (descriptor.flags & ACTION_INTENT_FLAGS.canonicallyReflexive) !== 0;
-    if (unary) {
-      // Object mirrors subject. LAUGH() is "I rejoice myself" — the reflexive
-      // reading, not a missing argument. The flag is what lets a later reader
-      // tell this pair from one the head genuinely chose.
-      proposal.object = {
-        concept: { ...subject.concept },
-        selector: { ...subject.selector },
-      };
-      proposal.flags |= INTENT_PROPOSAL_FLAGS.objectFromSubject;
-      // Object support is not a free parameter here: nothing was selected, so
-      // commitment rests on the intent head alone.
-      proposal.commitment = intentProb * peakedness;
-      proposals[i] = proposal;
-      emitted++;
-      continue;
-    }
+    for (const role of RELATION_ROLES) {
+      const roleDesc = descriptor.roles[RELATION_ROLE_INDEX[role]];
+      if (!roleDesc || (roleDesc.flags & RELATION_ROLE_FLAGS.present) === 0) continue;
+      const selection = roleSelections[role];
+      if (!selection) continue;
 
-    // v0 shares one argument selector across slots (answer 26). Acceptance is
-    // the same predicate the mask used, over the record's tokens: a role that
-    // names a category (`category:Edible`) admits every record carrying it,
-    // so EAT covers Apple/Berry/Bread — and a berry never seen before —
-    // without a hardcoded identity list anywhere.
-    {
-      const argBankIdx = argument.index[i]!;
-      const argSlot = argBankIdx < r ? active.bankRecords[argBankIdx]! : undefined;
+      const chosenBank = selection.index[i]!;
+      const chosenSlot = chosenBank < r ? active.bankRecords[chosenBank]! : undefined;
+      const filter = roleFilterFor(catalog, descriptor.intentId, role, roleDesc);
+      const admitted =
+        chosenSlot !== undefined &&
+        roleAdmitsRecord(frame, chosenSlot, filter)
+          ? chosenSlot
+          : undefined;
 
-      const argRowStart = i * r;
-      let argCandidateCount = 0;
-      let argEntropy = 0;
-      for (let j = 0; j < r; j++) {
-        const p = argument.p[argRowStart + j]!;
-        if (p > EPS) {
-          argCandidateCount++;
-          argEntropy -= p * Math.log(p);
+      const stats = rowStatistics(selection, i, r);
+      const probability = chosenBank < r ? selection.p[i * r + chosenBank]! : 0;
+      const resolved = resolveConcept(frame, admitted, roleDesc.valueKind, maxRefs, {
+        // Starts unresolved. An optimistic default made a role that resolved to
+        // nothing report itself as resolved, and the executability check then
+        // let it through with no handle.
+        status: "masked",
+        probability,
+        candidateCount: stats.candidateCount,
+        entropy: stats.entropy,
+      });
+
+      proposal.roles[RELATION_ROLE_INDEX[role]] = resolved;
+      if (resolved.selector.status === "selected") {
+        bound.add(role);
+        roleSupport *= probability;
+        if (admitted !== undefined && frame.bandIds[admitted] === MEMORY_BAND_INDEX) {
+          proposal.flags |= INTENT_PROPOSAL_FLAGS.volitive;
         }
       }
-
-      const objectFilter = roleFilterFor(
-        catalog,
-        descriptor.intentId,
-        "object",
-        descriptor.objectRole,
-      );
-      const objectSlot =
-        argSlot !== undefined && roleAdmitsRecord(frame, argSlot, objectFilter)
-          ? argSlot
-          : undefined;
-      const probability = argBankIdx < r ? argument.p[argRowStart + argBankIdx]! : 0;
-      proposal.object = resolveConcept(
-        frame,
-        objectSlot,
-        descriptor.objectRole.valueKind,
-        maxRefs,
-        { status: "masked", probability, candidateCount: argCandidateCount, entropy: argEntropy },
-      );
-
-      // A relation whose object did not resolve is not executable: no
-      // fabricated handle and no emitted proposal. The slot stays empty,
-      // exactly like a masked intent row, so `count` reflects executable
-      // proposals only.
-      if (proposal.object.selector.status !== "selected") {
-        droppedNoObject++;
-        continue;
-      }
-
-      // Commitment is the product of the two heads: a decisive, well-supported
-      // selection is committed; a flat or poorly supported one is not.
-      proposal.commitment = intentProb * peakedness * probability;
     }
+
+    // A relation with no agent is not executable: there is nobody to act.
+    if (!bound.has("agent")) {
+      droppedNoAgent++;
+      continue;
+    }
+
+    const reflexive = (descriptor.flags & ACTION_INTENT_FLAGS.canonicallyReflexive) !== 0;
+    if (reflexive) {
+      // The patient mirrors the agent. LAUGH() is "I rejoice myself" — the
+      // reflexive reading, not a missing argument. The flag is what lets a
+      // later reader tell this pair from one the head genuinely chose.
+      const agent = proposal.roles[RELATION_ROLE_INDEX.agent]!;
+      proposal.roles[RELATION_ROLE_INDEX.patient] = {
+        concept: { ...agent.concept },
+        selector: { ...agent.selector },
+      };
+      proposal.flags |= INTENT_PROPOSAL_FLAGS.reflexive;
+    } else if (!bound.has("patient")) {
+      droppedNoPatient++;
+      continue;
+    }
+
+    // Commitment is the product of the heads: a decisive, well-supported set of
+    // selections is committed; a flat or poorly supported one is not.
+    proposal.commitment = intentProb * peakedness * roleSupport;
 
     proposals[i] = proposal;
     emitted++;
@@ -406,5 +383,5 @@ export function emitIntentSet(input: IntentSetEmissionInput): IntentSetEmissionR
     flags: 0,
     proposals,
   };
-  return { intentSet, emitted, droppedNoSubject, droppedNoObject };
+  return { intentSet, emitted, droppedNoAgent, droppedNoPatient };
 }
