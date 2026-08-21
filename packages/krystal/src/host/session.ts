@@ -20,6 +20,8 @@ import {
   type BrainForwardWeights,
 } from "../forward/model.ts";
 import { brainForwardOracle, selectorOracle } from "../forward/oracle.ts";
+import { decodeCheckpoint, encodeCheckpoint, type CheckpointRefusal } from "./checkpoint.ts";
+import { teachFromDemonstration, type HostDemonstration, type TeachOptions, type TeachReport } from "./teach.ts";
 import { packHostFrame, type HostFrame, type HostRecord } from "./frame.ts";
 import {
   learnFromExperience,
@@ -167,6 +169,38 @@ export class BrainSession {
    */
   learn(experiences: readonly HostExperience[], options: LearnOptions = {}): LearnReport {
     return learnFromExperience(experiences, this.weights, this.config, options);
+  }
+
+  /**
+   * Be shown what can be said here.
+   *
+   * A separate mechanism from `learn` on purpose: this teaches what the frame
+   * ADMITS, not what turned out well. No reward, no baseline, no critic.
+   */
+  teach(demonstrations: readonly HostDemonstration[], options: TeachOptions = {}): TeachReport {
+    return teachFromDemonstration(demonstrations, this.weights, this.config, options);
+  }
+
+  /**
+   * This brain, written down: its weights, the geometry they were shaped for,
+   * and the token→row mapping they learned their meanings under.
+   *
+   * All three, because weights alone can be loaded into the wrong brain without
+   * failing — they would simply denote something else for the rest of that
+   * creature's life.
+   */
+  snapshot(): Uint8Array {
+    return encodeCheckpoint(this.weights, this.config, this.config.tokenRows);
+  }
+
+  /**
+   * Take up a written-down brain, or say why it does not fit.
+   *
+   * In place, so anything already holding these weights is training the brain
+   * the creature is now thinking with. Null means it was taken up.
+   */
+  restore(bytes: Uint8Array): CheckpointRefusal | null {
+    return decodeCheckpoint(bytes, this.weights, this.config, this.config.tokenRows);
   }
 }
 

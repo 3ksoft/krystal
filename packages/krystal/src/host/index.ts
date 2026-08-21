@@ -16,13 +16,23 @@ export {
   type HostToken,
 } from "./frame.ts";
 
+export { encodeCheckpoint, decodeCheckpoint, type CheckpointRefusal } from "./checkpoint.ts";
+
 export {
   learnFromExperience,
   selectionMask,
   type HostExperience,
   type LearnOptions,
   type LearnReport,
+  type ParameterHealth,
 } from "./learn.ts";
+
+export {
+  teachFromDemonstration,
+  type HostDemonstration,
+  type TeachOptions,
+  type TeachReport,
+} from "./teach.ts";
 
 export {
   BrainSession,

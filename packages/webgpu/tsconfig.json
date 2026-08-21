@@ -5,7 +5,7 @@
 		"lib": ["ES2022", "DOM", "DOM.Iterable"],
 		"jsx": "react-jsx",
 
-		"types": ["@webgpu/types", "@types/deno", "@types/node"],
+		"types": ["@webgpu/types", "@types/deno", "@types/node", "bun"],
 
 		"incremental": true,
 		"skipLibCheck": true,

@@ -1,5 +1,5 @@
 /**
- * Public surface of @sandblaster/schema.
+ * Public surface of @krystal/schema.
  *
  * `build.ts` is the code generator: it writes into sibling packages at module
  * scope, so it stays out of the barrel and is run via `bun run build`.

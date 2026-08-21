@@ -9,9 +9,10 @@
 //   -> mixed query output + record bank
 //
 // Dispatch mirrors the oracle in packages/krystal/src/forward/oracle.ts; the
-// parity test compares the two on identical packed frames. Masks and active
-// lists are compiled on the host (concerns answers 15/16) from the frame's
-// ABI metadata. Forward-only: M3 adds backward for these ops.
+// parity test compares the two on identical packed frames. The active lists
+// are compiled from the frame; every MASK comes from the host, including the
+// mixer's — this runner used to compile that one itself and thereby disagreed
+// with the CPU about what a question was looking at.
 //
 // The SoA frame payloads are u32 and are uploaded into the shared f32 arena
 // (bitcast inside the shaders). Weight pages are created once in the
@@ -31,7 +32,6 @@ import { krystal, type KrystalDefinition } from "./krystal";
 import { KrystalExecutor, type KrystalCommandEncoder } from "./pass";
 import {
   compileActiveFrame,
-  compileMixerMask,
   compileRecordMask,
   type WordBias,
   type ActiveFrame,
@@ -51,13 +51,47 @@ function validate(condition: boolean, message: string): void {
 }
 
 /**
- * Host-compiled selector masks ([Q, R] each; architecture v2 §7). When both
- * are provided, the intent and argument selectors run after the mixer;
- * otherwise selection is skipped (encoder + mixer only).
+ * Every mask the graph reads, and all of them come from the host.
+ *
+ * The runner used to compile the mixer mask itself, from the frame's runtime
+ * references. That was one layer deciding another's business, and it broke the
+ * moment the host stopped shipping a reference table: every cell came back
+ * blocked, the mixer output collapsed to zero, and the GPU quietly disagreed
+ * with the CPU about what the creature was looking at. Masks are the host's
+ * grammar; Krystal applies them and never asks why a record was refused.
+ *
+ * All [Q, R], in the compiled active order (queries x bank records).
  */
-export interface SelectionMasks {
-  readonly intentMask: Float32Array;
-  readonly argMask: Float32Array;
+export interface KrystalMasks {
+  /**
+   * What a question may ATTEND to while it thinks. Absent means unconstrained,
+   * which is how the host session runs it — what a question may attend to is
+   * not what it may CHOOSE, and only the second is grammar.
+   */
+  readonly mixer?: Float32Array;
+  /**
+   * What a question may CHOOSE. Absent means selection does not run at all
+   * (encoder + mixer only).
+   */
+  readonly selection?: Float32Array;
+  /**
+   * The second selector slot's own mask. Absent leaves that slot unconstrained
+   * (it scores the whole bank), which is what the oracle computes when nothing
+   * shapes it — and the reason the `available` context exists: an unshaped
+   * slot averages records the question could never have chosen.
+   */
+  readonly argument?: Float32Array;
+  /**
+   * What fills the third block of the context the VALUE head reads.
+   *
+   * `argument` is the second selector slot's soft gather. `available` replaces
+   * it with the mean bank value over what the grammar allows this question —
+   * "what is on offer here". A state feature, and that matters: the value head
+   * is a REINFORCE baseline, so it must not depend on which action was drawn.
+   * It is also a selector projection cheaper, because a selector with a zero
+   * query projection already computes that mean.
+   */
+  readonly context?: "argument" | "available";
 }
 
 /**
@@ -68,7 +102,10 @@ export interface SelectionMasks {
 export interface PreparedForward {
   readonly frame: v1_0_0.BrainFrameGpu;
   readonly active: ActiveFrame;
-  readonly selection?: SelectionMasks;
+  readonly masks: KrystalMasks;
+  /** Whether the selector slots run at all (the host supplied a grammar). */
+  readonly selects: boolean;
+  readonly context: "argument" | "available";
   readonly t: number; // active tokens
   readonly r: number; // bank records
   readonly q: number; // query records
@@ -83,6 +120,7 @@ export interface BrainForwardWeightPages {
   readonly selectorWq: GPUBuffer;
   readonly selectorWk: GPUBuffer;
   readonly decisionHead: GPUBuffer;
+  readonly valueHead: GPUBuffer;
 }
 
 export class KrystalForward {
@@ -98,6 +136,7 @@ export class KrystalForward {
   private readonly selectorWqPage: GPUBuffer;
   private readonly selectorWkPage: GPUBuffer;
   private readonly decisionHeadPage: GPUBuffer;
+  private readonly valueHeadPage: GPUBuffer;
 
   constructor(
     weights: BrainForwardWeights,
@@ -134,6 +173,7 @@ export class KrystalForward {
     this.selectorWqPage = page("krystal.selector.wq", weights.selector.wq);
     this.selectorWkPage = page("krystal.selector.wk", weights.selector.wk);
     this.decisionHeadPage = page("krystal.decision-head", weights.decisionHeadWh);
+    this.valueHeadPage = page("krystal.value-head", weights.valueHeadWv);
   }
 
   private region(offset: number, elements: number): number {
@@ -151,7 +191,7 @@ export class KrystalForward {
    */
   prepare(
     frame: v1_0_0.BrainFrameGpu,
-    selection?: SelectionMasks,
+    masks: KrystalMasks = {},
     wordBias?: WordBias,
   ): PreparedForward {
     const { hiddenSize: h, ffnSize: ffn, headCount: heads, headDim, encoderBlocks, mixerBlocks } = this.config;
@@ -166,13 +206,20 @@ export class KrystalForward {
     validate(q > 0, "the frame must contain at least one query record for the mixer");
 
     const { mask: recordMask } = compileRecordMask(active.activeTokens, wordBias);
-    const mixerMask = compileMixerMask(frame, active);
-    if (selection) {
-      validate(
-        selection.intentMask.length === q * r && selection.argMask.length === q * r,
-        `selector masks must be [${q}, ${r}]`,
-      );
+    // Unconstrained by default, and it is the host that decides otherwise.
+    const mixerMask = masks.mixer ?? new Float32Array(q * r);
+    const context = masks.context ?? "argument";
+    for (const [label, mask] of [
+      ["mixer", mixerMask],
+      ["selection", masks.selection],
+      ["argument", masks.argument],
+    ] as const) {
+      if (mask) validate(mask.length === q * r, `the ${label} mask must be [${q}, ${r}]`);
     }
+    validate(
+      !(masks.argument && context === "available"),
+      "the `available` context REPLACES the second selector slot; supplying an argument mask as well would silently drop it",
+    );
 
     const device = this.definition.engine.device;
     const arena = this.definition.resources.arena.gpu;
@@ -200,12 +247,10 @@ export class KrystalForward {
     uploadU32(A.queryIndices, active.queryRecords);
     uploadF32(A.encMask, recordMask);
     uploadF32(A.mixerMask, mixerMask);
-    if (selection) {
-      uploadF32(A.intentMask, selection.intentMask);
-      uploadF32(A.argMask, selection.argMask);
-    }
+    if (masks.selection) uploadF32(A.intentMask, masks.selection);
+    if (context === "argument") uploadF32(A.argMask, masks.argument ?? new Float32Array(q * r));
 
-    return { frame, active, selection, t, r, q };
+    return { frame, active, masks, selects: masks.selection !== undefined, context, t, r, q };
   }
 
   /**
@@ -217,7 +262,7 @@ export class KrystalForward {
    */
   dispatchForward(encoder: KrystalCommandEncoder, prepared: PreparedForward, save: boolean): void {
     const { hiddenSize: h, ffnSize: ffn, headCount: heads, headDim, encoderBlocks, mixerBlocks } = this.config;
-    const { frame, selection, t, r, q } = prepared;
+    const { frame, masks, selects, context, t, r, q } = prepared;
     const A = KRYSTAL_FORWARD_ARENA;
 
     const fieldStates = this.region(A.fieldStates, t * h);
@@ -247,6 +292,10 @@ export class KrystalForward {
     const argP = this.region(A.argP, q * r);
     const argGather = this.region(A.argGather, q * h);
     const argIndices = this.region(A.argIndices, q);
+    const zeroQuery = this.region(A.zeroQuery, q * h);
+    const availableGather = this.region(A.availableGather, q * h);
+    const availableP = this.region(A.availableP, q * r);
+    const valuePrediction = this.region(A.valuePrediction, q);
     const bankIndices = this.region(A.bankIndices, r);
     const queryIndices = this.region(A.queryIndices, q);
     const recordCompactOffset = this.region(A.recordCompactOffset, 128);
@@ -437,9 +486,9 @@ export class KrystalForward {
         }));
       }
 
-      // 5. catalog selection + soft gather (§7, answer 26): project the mixed
-      // query and the bank keys once, then one selector dispatch per slot.
-      if (selection) {
+      // 5. selection + soft gather: project the mixed query and the bank keys
+      // once, then one selector dispatch per slot the host asked for.
+      if (selects) {
         encoder.compute((pass) => pass.run("matmul_f32", {
           inputOffset: queryValues, outputOffset: selectorQ,
           tokenCount: q, inputDim: h, outputDim: h, rowStart: 0, rowCount: h,
@@ -454,12 +503,42 @@ export class KrystalForward {
           aux4Offset: intentP, aux5Offset: intentIndices,
           tokenCount: q, inputDim: h, u0: r,
         }));
-        encoder.compute((pass) => pass.run("krystal_selector", {
-          inputOffset: selectorQ, auxOffset: selectorK, aux2Offset: bankValues,
-          aux3Offset: argMaskOffset, outputOffset: argGather,
-          aux4Offset: argP, aux5Offset: argIndices,
-          tokenCount: q, inputDim: h, u0: r,
-        }));
+
+        // The second slot. In the `argument` context it always runs — with an
+        // unconstrained mask when the host shaped none, which is what the CPU
+        // oracle does with the same input. Under `available` it does not run at
+        // all and its gather is explicitly zero, again mirroring the oracle,
+        // rather than left as whatever the previous frame wrote.
+        if (context === "argument") {
+          encoder.compute((pass) => pass.run("krystal_selector", {
+            inputOffset: selectorQ, auxOffset: selectorK, aux2Offset: bankValues,
+            aux3Offset: argMaskOffset, outputOffset: argGather,
+            aux4Offset: argP, aux5Offset: argIndices,
+            tokenCount: q, inputDim: h, u0: r,
+          }));
+        } else {
+          encoder.compute((pass) => pass.run("zero_f32", { outputOffset: argGather, tokenCount: q * h }));
+          encoder.compute((pass) => pass.run("zero_f32", { outputOffset: argP, tokenCount: q * r }));
+        }
+
+        // "What is on offer here": the mean bank value over the records this
+        // question is ALLOWED to choose. A selector with a zero query
+        // projection computes exactly that — every score is 0 + mask, so the
+        // softmax is uniform over the open positions — and an entirely blocked
+        // row takes the shader's all-blocked path and gathers zero, which is
+        // what the oracle does with an empty allowed set.
+        if (context === "available") {
+          encoder.compute((pass) => pass.run("zero_f32", { outputOffset: zeroQuery, tokenCount: q * h }));
+          encoder.compute((pass) => pass.run("krystal_selector", {
+            inputOffset: zeroQuery, auxOffset: selectorK, aux2Offset: bankValues,
+            aux3Offset: intentMaskOffset, outputOffset: availableGather,
+            // The pointer output goes to the second slot's index region: that
+            // slot does not run under this context, and a mean has no choice
+            // to record anyway.
+            aux4Offset: availableP, aux5Offset: this.region(A.argIndices, q),
+            tokenCount: q, inputDim: h, u0: r,
+          }));
+        }
 
         // 6. typed decision head: route-kind logits from the gathered context
         // (query output + intent gather + argument gather; §17 item 9).
@@ -468,16 +547,29 @@ export class KrystalForward {
           outputOffset: this.region(A.decisionLogits, q * this.config.routeKindCount),
           tokenCount: q, inputDim: h, outputDim: this.config.routeKindCount,
         }, this.decisionHeadPage));
-    }
+
+        // 7. value head: the same head with a single class, reading the same
+        // context except for its third block. Sharing the first two is what
+        // lets the value signal shape the representation rather than only its
+        // own head — whatever the encoder and mixer produce has to serve both
+        // "which one" and "how will this turn out".
+        encoder.compute((pass) => pass.run("krystal_decision_head", {
+          inputOffset: queryValues, auxOffset: intentGather,
+          aux2Offset: context === "available" ? availableGather : argGather,
+          outputOffset: valuePrediction,
+          tokenCount: q, inputDim: h, outputDim: 1,
+        }, this.valueHeadPage));
+      }
   }
+
 
   /** Run the full encoder + mixer + selection forward, GPU-resident. */
   forward(
     frame: v1_0_0.BrainFrameGpu,
-    selection?: SelectionMasks,
+    masks: KrystalMasks = {},
     wordBias?: WordBias,
   ): void {
-    const prepared = this.prepare(frame, selection, wordBias);
+    const prepared = this.prepare(frame, masks, wordBias);
     this.executor.submit((encoder) => this.dispatchForward(encoder, prepared, false));
   }
 
@@ -507,6 +599,7 @@ export class KrystalForward {
       selectorWq: this.selectorWqPage,
       selectorWk: this.selectorWkPage,
       decisionHead: this.decisionHeadPage,
+      valueHead: this.valueHeadPage,
     };
   }
 
@@ -568,6 +661,16 @@ export class KrystalForward {
   async readIntentIndices(q: number): Promise<Uint32Array> {
     const raw = await this.readbackRegion(this.region(KRYSTAL_FORWARD_ARENA.intentIndices, q), q);
     return new Uint32Array(raw.buffer, raw.byteOffset, q);
+  }
+
+  /** Read back the value head's prediction [Q]. Test-only. */
+  async readValuePrediction(q: number): Promise<Float32Array> {
+    return this.readbackRegion(this.region(KRYSTAL_FORWARD_ARENA.valuePrediction, q), q);
+  }
+
+  /** Read back the mean bank value over what each question may choose [Q, H]. Test-only. */
+  async readAvailableGather(q: number, h: number): Promise<Float32Array> {
+    return this.readbackRegion(this.region(KRYSTAL_FORWARD_ARENA.availableGather, q * h), q * h);
   }
 
   /** Read back the argument selector distribution [Q, R]. Test-only. */
@@ -632,6 +735,8 @@ export class KrystalForward {
     this.poolPage.destroy();
     this.selectorWqPage.destroy();
     this.selectorWkPage.destroy();
+    this.decisionHeadPage.destroy();
+    this.valueHeadPage.destroy();
     for (const block of [...this.encPages, ...this.mixerPages]) {
       block.wq.destroy();
       block.wk.destroy();

@@ -512,6 +512,16 @@ export interface BrainBackwardResult {
    * Computed here anyway, so handing it back costs nothing.
    */
   readonly valuePrediction: Float32Array;
+  /**
+   * The policy's own distribution per question, over the bank, under the mask
+   * it was actually choosing from. [Q, R].
+   *
+   * Handed back because it is the only thing that says whether a creature has
+   * learned anything or is still guessing: an argmax at 0.02 and one at 0.9 are
+   * the same choice and different states of knowledge, and from outside they
+   * look identical. Computed here regardless.
+   */
+  readonly policy: Float32Array;
   readonly dQueryOutput: Float32Array; // [Q, H]
   readonly dIntentGather: Float32Array; // [Q, H]
   readonly dArgGather: Float32Array; // [Q, H]
@@ -670,9 +680,26 @@ export interface BrainBackwardOracleInput {
   /**
    * Pointer-loss targets [Q] for the intent selector (bank indices of the
    * catalog records; 0xffffffff = no pointer loss for that row). Default
-   * none, matching the GPU runner's `intentGold` option.
+   * none, matching the GPU runner's `selectionTargets` option.
    */
   readonly intentTargets?: readonly number[];
+  /**
+   * What fills the third block of the context both heads read.
+   *
+   * `argument` is the old profile's second selector slot. With no mask to shape
+   * it — which is every caller today — it softmaxes over the whole bank,
+   * forbidden records included, so a third of the critic's input is a flat
+   * average of things the creature could not have chosen.
+   *
+   * `available` replaces it with the mean bank value over what the grammar DOES
+   * allow this question: "what is on offer here". A state feature, and that
+   * matters — the value head is a REINFORCE baseline, so it must not depend on
+   * which action was drawn. A critic conditioned on the choice would make two
+   * frames with the same outcome and different choices disagree about how they
+   * went, and the difference is the policy chasing its own baseline rather than
+   * the world. It is also a selector pass cheaper.
+   */
+  readonly context?: "argument" | "available";
   /**
    * Observed change in valence for the tick this frame produced, which is the
    * value head's target. Omitted when there is nothing to difference against —
@@ -694,6 +721,10 @@ export interface BrainBackwardOracleInput {
  * composed runner exposes for parity are returned (per-block dW regions are
  * consumed by SGD in the runner and reused across blocks).
  */
+/** Anything below this was struck out by the host's grammar; the mask writes
+ *  -1e30 and nothing legitimate comes near it. */
+const NEG_INF_HALF = -1e29;
+
 export function brainBackwardOracle(
   input: BrainBackwardOracleInput,
 ): BrainBackwardResult {
@@ -766,7 +797,28 @@ export function brainBackwardOracle(
 
   const selector = weights.selector;
   const intent = selectorOracle(queryOutput, bankKeys, bankValues, intentMask, selector, h);
-  const argument = selectorOracle(queryOutput, bankKeys, bankValues, argMask, selector, h);
+  const available = input.context === "available";
+  // The second slot runs only for what still reads it. Nothing does once the
+  // context is `available`, and a selector pass is a fair share of what an
+  // update costs.
+  const argument = available
+    ? { gather: new Float32Array(q * h), p: new Float32Array(q * r) }
+    : selectorOracle(queryOutput, bankKeys, bankValues, argMask, selector, h);
+  // What is on offer: the mean bank value over the records this question is
+  // allowed to choose from. Which rows those are is kept, because the gradient
+  // has to be shared back over exactly them.
+  const offered = new Float32Array(q * h);
+  const allowedRows: number[][] = [];
+  if (available)
+    for (let i = 0; i < q; i++) {
+      const rows: number[] = [];
+      for (let j = 0; j < r; j++) if (intentMask[i * r + j]! > NEG_INF_HALF) rows.push(j);
+      allowedRows.push(rows);
+      if (!rows.length) continue;
+      for (const row of rows) for (let d = 0; d < h; d++) offered[i * h + d]! += bankValues[row * h + d]!;
+      for (let d = 0; d < h; d++) offered[i * h + d]! /= rows.length;
+    }
+  const valueContext = available ? offered : argument.gather;
   const logits = decisionHeadOracle(queryOutput, intent.gather, argument.gather, weights.decisionHeadWh, q, h, C);
 
   // --- loss: mean CE, dLogits = (softmax - onehot) / Q ---
@@ -793,15 +845,19 @@ export function brainBackwardOracle(
   // given its own private input, it could learn to predict well while teaching
   // the rest of the network nothing.
   const valuePred = decisionHeadOracle(
-    queryOutput, intent.gather, argument.gather, weights.valueHeadWv, q, h, 1,
+    queryOutput, intent.gather, valueContext, weights.valueHeadWv, q, h, 1,
   );
   const value = valueHeadLoss(valuePred, input.valenceTarget);
   const vh = decisionHeadBackward(
-    value.dPredictions, queryOutput, intent.gather, argument.gather, weights.valueHeadWv, q, h, 1,
+    value.dPredictions, queryOutput, intent.gather, valueContext, weights.valueHeadWv, q, h, 1,
   );
   addInPlace(dh.dQueryOutput, vh.dQueryOutput);
   addInPlace(dh.dIntentGather, vh.dIntentGather);
-  addInPlace(dh.dArgGather, vh.dArgGather);
+  // A mean has no softmax to push back through: its gradient is shared evenly
+  // over the rows it averaged. Applied below, once dValue exists — the same
+  // accumulator the selectors write into, which is how the value signal still
+  // reaches the encoder and the pool.
+  if (!available) addInPlace(dh.dArgGather, vh.dArgGather);
 
   // --- selectors (both slots accumulate into shared dQProj/dKProj/dValue) ---
   const argTargets = argumentTargets ?? new Array<number>(q).fill(0xffff_ffff);
@@ -809,6 +865,13 @@ export function brainBackwardOracle(
   const dQProj = new Float32Array(q * h);
   const dKProj = new Float32Array(r * h);
   const dValue = new Float32Array(r * h);
+  if (available)
+    for (let i = 0; i < q; i++) {
+      const rows = allowedRows[i] ?? [];
+      if (!rows.length) continue;
+      for (const row of rows)
+        for (let d = 0; d < h; d++) dValue[row * h + d]! += vh.dArgGather[i * h + d]! / rows.length;
+    }
   const selQProj = matmulOracle(queryOutput, selector.wq, h, h); // [Q, H]
   const selKProj = matmulOracle(bankKeys, selector.wk, h, h); // [R, H]
   for (const [dGather, p, gold, zeroInvalid] of [
@@ -885,6 +948,7 @@ export function brainBackwardOracle(
     dSelectorWk,
     dDecisionWh: dh.dWh,
     dValueWv: vh.dWh,
+    policy: intent.p,
     valueLoss: value.loss,
     valuePrediction: valuePred,
     dQueryOutput: dh.dQueryOutput,

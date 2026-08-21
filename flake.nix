@@ -1,5 +1,5 @@
 {
-  description = "Chomato WebGPU + UV (Python/CUDA) dev shell";
+  description = "Krystal WebGPU + UV (Python/CUDA) dev shell";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";

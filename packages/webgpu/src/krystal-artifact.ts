@@ -93,6 +93,7 @@ export function defineKrystalFromArtifact() {
     krystal_selector_backward_scores: engine.computeProgram("krystal_selector_backward_scores"),
     krystal_selector_backward_qkv: engine.computeProgram("krystal_selector_backward_qkv"),
     krystal_decision_head_backward: engine.computeProgram("krystal_decision_head_backward"),
+    krystal_value_head_loss: engine.computeProgram("krystal_value_head_loss"),
   } satisfies Record<KrystalProgramName, ReturnType<typeof engine.computeProgram>>;
 
   const passes = defineKrystalPasses(programs);

@@ -32,13 +32,14 @@ import {
   KRYSTAL_MAX_TOKENS,
   KRYSTAL_TRAINING_ARENA,
   TRAINING_ARENA_BASE,
+  TRAINING_READBACK_ELEMENTS,
 } from "./krystal-layout";
 import { type KrystalDefinition } from "./krystal";
 import {
   KrystalForward,
   type BrainForwardWeightPages,
+  type KrystalMasks,
   type PreparedForward,
-  type SelectionMasks,
 } from "./krystal-forward";
 import type { WordBias } from "../../krystal/src/forward/masks";
 import { EMBEDDING_TABLES } from "../../krystal/src/forward/model";
@@ -50,9 +51,26 @@ function validate(condition: boolean, message: string): void {
 
 export interface KrystalTrainStepOptions {
   readonly frame: v1_0_0.BrainFrameGpu;
-  readonly selection?: SelectionMasks;
-  /** Route-kind gold labels [Q] for the decision-head cross-entropy loss. */
-  readonly routeKinds: readonly number[] | Uint32Array;
+  /** Every mask the graph reads, from the host (see KrystalMasks). */
+  readonly masks?: KrystalMasks;
+  /**
+   * Route-kind gold labels [Q] for the decision-head cross-entropy loss.
+   *
+   * Optional, and leaving it out is not the same as passing zeros: the head is
+   * a supervised classifier, so a label nobody has means training it toward
+   * class 0 and pushing that gradient through the shared gather into the
+   * selector — an auxiliary task made of noise, shaping the actor. Left out,
+   * the head contributes nothing and the value head still reads the same
+   * context.
+   */
+  readonly routeKinds?: readonly number[] | Uint32Array;
+  /**
+   * Observed change in valence for the tick this frame produced — the value
+   * head's target. Omitted when there is nothing to difference against (the
+   * first frame of a life), and then the head contributes no gradient at all
+   * rather than being trained toward zero.
+   */
+  readonly valenceTarget?: number;
   /**
    * Optional pointer-loss targets for the argument selector, one [Q] array
    * per argument index (`argumentTarget[q][argument]`, S2-S10 contract):
@@ -63,12 +81,28 @@ export interface KrystalTrainStepOptions {
    */
   readonly argumentTargets?: readonly (readonly number[] | Uint32Array)[];
   /**
-   * Optional pointer-loss targets [Q] for the intent selector slot (bank
-   * indices of the catalog records; 0xffffffff = no pointer loss for that
-   * row; default: none). Trains the catalog selection directly.
+   * Optional pointer-loss targets [Q] for the main selector slot: bank indices
+   * of the records the question should have chosen, 0xffffffff = no pointer
+   * loss for that row (default: none). This is what a demonstration teaches
+   * and what a reinforced choice is pushed toward.
    */
-  readonly intentGold?: readonly number[] | Uint32Array;
+  readonly selectionTargets?: readonly number[] | Uint32Array;
   readonly learningRate: number;
+  /**
+   * What to do with the gradients once they exist.
+   *
+   * `sgd` applies plain SGD to every page in the same submit, as the training
+   * slice always did. `none` computes and leaves them, which is what a host
+   * doing its own update needs: the actor's step is scaled by an advantage
+   * standardised across a batch, only some parts are unfrozen, and the whole
+   * thing is one transaction that may be rolled back. None of that can be
+   * expressed as "subtract lr times the gradient, now, per frame".
+   *
+   * With `none` the fused sparse embedding update does not run either; the
+   * exposed product for the tables is dFieldStates, which the host scatters
+   * into the rows this frame actually read.
+   */
+  readonly optimizer?: "sgd" | "none";
   /**
    * Optional same-word attention bias (docs/word_attention_bias.md). It rides
    * in the record mask, so it needs no device change and no gradient.
@@ -80,7 +114,10 @@ export interface KrystalTrainStepOptions {
 
 export interface KrystalTrainStepResult {
   readonly step: number;
+  /** Mean cross-entropy over route kinds; absent when no labels were given. */
   readonly loss?: number;
+  /** Mean squared error of the value head; absent without a valence target. */
+  readonly valueLoss?: number;
 }
 
 /** Shared arena capacity for the save slices (must match the forward's dims). */
@@ -124,12 +161,14 @@ export class KrystalBackward {
     const B = KRYSTAL_BACKWARD_ARENA;
     const T = KRYSTAL_TRAINING_ARENA;
 
-    const prepared = this.forward.prepare(options.frame, options.selection, options.wordBias);
-    const { active, t, r, q } = prepared;
-    const routeKinds = options.routeKinds instanceof Uint32Array
-      ? options.routeKinds
-      : Uint32Array.from(options.routeKinds);
-    validate(routeKinds.length === q, `routeKinds must be [Q] = ${q}`);
+    const prepared = this.forward.prepare(options.frame, options.masks, options.wordBias);
+    const { active, context, selects, t, r, q } = prepared;
+    validate(selects, "training needs a selection mask: there is nothing to push toward without one");
+    const routeKinds = options.routeKinds === undefined
+      ? undefined
+      : options.routeKinds instanceof Uint32Array ? options.routeKinds : Uint32Array.from(options.routeKinds);
+    if (routeKinds) validate(routeKinds.length === q, `routeKinds must be [Q] = ${q}`);
+    const applySgd = (options.optimizer ?? "sgd") === "sgd";
     validate(Number.isFinite(options.learningRate) && options.learningRate > 0, "learningRate must be > 0");
 
     // --- Forward arena regions ---
@@ -145,6 +184,12 @@ export class KrystalBackward {
     const intentGather = this.fwd(A.intentGather, q * h);
     const argGather = this.fwd(A.argGather, q * h);
     const decisionLogits = this.fwd(A.decisionLogits, q * C);
+    const valuePrediction = this.fwd(A.valuePrediction, q);
+    const availableP = this.fwd(A.availableP, q * r);
+    const availableGather = this.fwd(A.availableGather, q * h);
+    // The critic's third context block: what was on offer, or the second
+    // slot's gather. The forward chose the same one.
+    const valueContext = context === "available" ? availableGather : argGather;
     const tokenIds = this.fwd(A.tokenIds, 1024);
     const fieldRoles = this.fwd(A.fieldRoles, 1024);
     const schemaIds = this.fwd(A.schemaIds, 128);
@@ -179,6 +224,12 @@ export class KrystalBackward {
     const dDecisionIntent = this.bwd(B.dDecisionIntent, qh);
     const dDecisionArg = this.bwd(B.dDecisionArg, qh);
     const dDecisionWh = this.bwd(B.dDecisionWh, C * 3 * h);
+    const dValuePrediction = this.bwd(B.dValuePrediction, q);
+    const valueLossRows = this.bwd(B.valueLossRows, q);
+    const dValueQuery = this.bwd(B.dValueQuery, qh);
+    const dValueIntent = this.bwd(B.dValueIntent, qh);
+    const dValueArg = this.bwd(B.dValueArg, qh);
+    const dValueWv = this.bwd(B.dValueWv, 3 * h);
     const dSelectorScores = this.bwd(B.dSelectorScores, q * r);
     const dSelectorQProj = this.bwd(B.dSelectorQProj, qh);
     const dSelectorKProj = this.bwd(B.dSelectorKProj, rh);
@@ -221,12 +272,14 @@ export class KrystalBackward {
     const arena = this.definition.resources.arena.gpu;
     const NO_TARGET = 0xffff_ffff;
     const noTargets = new Uint32Array(q).fill(NO_TARGET);
-    device.queue.writeBuffer(this.definition.resources.targets.gpu, 0, routeKinds);
-    const intentTargets = options.intentGold
-      ? (options.intentGold instanceof Uint32Array ? options.intentGold : Uint32Array.from(options.intentGold))
+    if (routeKinds) device.queue.writeBuffer(this.definition.resources.targets.gpu, 0, routeKinds);
+    const selectionTargets = options.selectionTargets
+      ? (options.selectionTargets instanceof Uint32Array
+          ? options.selectionTargets
+          : Uint32Array.from(options.selectionTargets))
       : noTargets;
-    validate(intentTargets.length === q, `intentGold must be [Q] = ${q}`);
-    device.queue.writeBuffer(arena, selectorGold * 4, intentTargets);
+    validate(selectionTargets.length === q, `selectionTargets must be [Q] = ${q}`);
+    device.queue.writeBuffer(arena, selectorGold * 4, selectionTargets);
     const argTargets = options.argumentTargets?.[0]
       ? (options.argumentTargets[0] instanceof Uint32Array
           ? options.argumentTargets[0]
@@ -283,36 +336,83 @@ export class KrystalBackward {
     const step = ++this.step;
 
     this.forward.submitPrepared(prepared, true, (encoder) => {
-      // 1. Cross-entropy over route-kind logits + telemetry reduction.
-      encoder.compute((pass) => pass.run("cross_entropy_forward_backward", {
-        inputOffset: decisionLogits, outputOffset: dDecisionLogits, auxOffset: lossRows,
-        tokenCount: q, outputDim: C, u1: 0,
-      }));
-      encoder.compute((pass) => pass.run("loss_reduce", {
-        inputOffset: lossRows, outputOffset: scalarLoss, tokenCount: q,
-      }));
+      // 1. Route-kind cross-entropy, when the frame carries labels. Without
+      //    them the head stays inert: its gradient is explicitly zeroed rather
+      //    than left as whatever the previous step wrote, so nothing trains
+      //    toward a class nobody chose.
+      if (routeKinds) {
+        encoder.compute((pass) => pass.run("cross_entropy_forward_backward", {
+          inputOffset: decisionLogits, outputOffset: dDecisionLogits, auxOffset: lossRows,
+          tokenCount: q, outputDim: C, u1: 0,
+        }));
+        encoder.compute((pass) => pass.run("loss_reduce", {
+          inputOffset: lossRows, outputOffset: scalarLoss, tokenCount: q,
+        }));
+      } else {
+        encoder.compute((pass) => pass.run("zero_f32", { outputOffset: dDecisionLogits, tokenCount: q * C }));
+      }
 
-      // 2. Decision head backward + SGD on Wh.
+      // 2. Decision head backward (+ SGD on Wh when this runner optimizes).
       encoder.compute((pass) => pass.run("krystal_decision_head_backward", {
         inputOffset: dDecisionLogits, auxOffset: queryValues, aux2Offset: intentGather, aux3Offset: argGather,
         outputOffset: dDecisionQuery, aux4Offset: dDecisionIntent, aux5Offset: dDecisionArg, aux6Offset: dDecisionWh,
         tokenCount: q, inputDim: h, outputDim: C,
       }, pages.decisionHead));
-      encoder.compute((pass) => pass.run("sgd_step", {
-        inputOffset: dDecisionWh, tokenCount: C * 3 * h, f0: lr,
-      }, pages.decisionHead));
+      if (applySgd) {
+        encoder.compute((pass) => pass.run("sgd_step", {
+          inputOffset: dDecisionWh, tokenCount: C * 3 * h, f0: lr,
+        }, pages.decisionHead));
+      }
+
+      // 2b. Value head: the same head with one class, its own squared-error
+      //     loss, and the same first two context blocks. Its gradients ADD to
+      //     the decision head's there, which is how the value signal shapes
+      //     the trunk instead of only its own head. The third block is the
+      //     one place they differ: with the `available` context the critic
+      //     reads what was on offer, not what was chosen.
+      encoder.compute((pass) => pass.run("krystal_value_head_loss", {
+        inputOffset: valuePrediction, outputOffset: dValuePrediction, auxOffset: valueLossRows,
+        tokenCount: q, f0: options.valenceTarget ?? 0, u0: options.valenceTarget === undefined ? 0 : 1,
+      }));
+      encoder.compute((pass) => pass.run("krystal_decision_head_backward", {
+        inputOffset: dValuePrediction, auxOffset: queryValues, aux2Offset: intentGather,
+        aux3Offset: valueContext,
+        outputOffset: dValueQuery, aux4Offset: dValueIntent, aux5Offset: dValueArg, aux6Offset: dValueWv,
+        tokenCount: q, inputDim: h, outputDim: 1,
+      }, pages.valueHead));
+      encoder.compute((pass) => pass.run("residual_add", {
+        inputOffset: dDecisionQuery, auxOffset: dValueQuery, outputOffset: dDecisionQuery,
+        tokenCount: q, inputDim: h,
+      }));
+      encoder.compute((pass) => pass.run("residual_add", {
+        inputOffset: dDecisionIntent, auxOffset: dValueIntent, outputOffset: dDecisionIntent,
+        tokenCount: q, inputDim: h,
+      }));
+      // Under the `available` context the critic's third block is a mean, not
+      // a soft gather, so its gradient is not the argument slot's — it is
+      // shared evenly over the rows that were averaged, below.
+      if (context === "argument") {
+        encoder.compute((pass) => pass.run("residual_add", {
+          inputOffset: dDecisionArg, auxOffset: dValueArg, outputOffset: dDecisionArg,
+          tokenCount: q, inputDim: h,
+        }));
+      }
+      if (applySgd) {
+        encoder.compute((pass) => pass.run("sgd_step", {
+          inputOffset: dValueWv, tokenCount: 3 * h, f0: lr,
+        }, pages.valueHead));
+      }
 
       // 3. Zero the bank gradient accumulators (selector + mixer accumulate).
       encoder.compute((pass) => pass.run("zero_f32", { outputOffset: dBankKeys, tokenCount: rh }));
       encoder.compute((pass) => pass.run("zero_f32", { outputOffset: dBankValues, tokenCount: rh }));
 
-      // 4. Selector backward, both slots (soft gather + optional pointer loss).
-      //    Intent slot writes the accumulators directly; the argument slot
-      //    writes scratch (dEncQ/K/V) then residual-adds into them.
-      for (const [dGather, pOff, goldOff, scratch] of [
-        [dDecisionIntent, intentP, selectorGold, false],
-        [dDecisionArg, argP, argGoldOff, true],
-      ] as const) {
+      // 4. Selector backward. The main slot writes the accumulators directly;
+      //    the second one writes scratch (dEncQ/K/V) and residual-adds.
+      const slots: readonly (readonly [number, number, number, boolean])[] = context === "argument"
+        ? [[dDecisionIntent, intentP, selectorGold, false], [dDecisionArg, argP, argGoldOff, true]]
+        : [[dDecisionIntent, intentP, selectorGold, false]];
+      for (const [dGather, pOff, goldOff, scratch] of slots) {
         const dQOut = scratch ? dEncQ : dSelectorQProj;
         const dKOut = scratch ? dEncK : dSelectorKProj;
         const dVOut = scratch ? dEncV : dSelectorValue;
@@ -344,6 +444,26 @@ export class KrystalBackward {
         }
       }
 
+      // 4b. The critic's mean context has no softmax to push back through: its
+      //     gradient is shared evenly over the records it averaged. That is
+      //     the same sum the selector's qkv backward already computes for the
+      //     values — sum_i p[i,j] * dGather[i] — with p the uniform-over-open
+      //     distribution the forward produced, so it runs that pass with a
+      //     zeroed dScore. The projections then receive exactly nothing, which
+      //     is right: the mean is not scored, so it trains no scoring.
+      if (context === "available") {
+        encoder.compute((pass) => pass.run("zero_f32", { outputOffset: dSelectorScores, tokenCount: q * r }));
+        encoder.compute((pass) => pass.run("krystal_selector_backward_qkv", {
+          inputOffset: dSelectorScores, auxOffset: selectorQ, aux2Offset: selectorK,
+          aux3Offset: availableP, aux4Offset: dValueArg,
+          outputOffset: dEncQ, aux5Offset: dEncK, aux6Offset: dEncV,
+          tokenCount: q, inputDim: h, u0: r, u1: 0, u2: 0,
+        }));
+        encoder.compute((pass) => pass.run("residual_add", {
+          inputOffset: dSelectorValue, auxOffset: dEncV, outputOffset: dSelectorValue, tokenCount: r, inputDim: h,
+        }));
+      }
+
       // 5. Selector weight gradients + route the selector gradients into the
       //    residual streams (dQueryValues already holds dDecisionQuery). SGD
       //    on the selector pages lands after the input-gradient passes so
@@ -373,8 +493,10 @@ export class KrystalBackward {
       encoder.compute((pass) => pass.run("residual_add", {
         inputOffset: dBankValues, auxOffset: dSelectorValue, outputOffset: dBankValues, tokenCount: r, inputDim: h,
       }));
-      encoder.compute((pass) => pass.run("sgd_step", { inputOffset: dSelectorWq, tokenCount: h * h, f0: lr }, pages.selectorWq));
-      encoder.compute((pass) => pass.run("sgd_step", { inputOffset: dSelectorWk, tokenCount: h * h, f0: lr }, pages.selectorWk));
+      if (applySgd) {
+        encoder.compute((pass) => pass.run("sgd_step", { inputOffset: dSelectorWq, tokenCount: h * h, f0: lr }, pages.selectorWq));
+        encoder.compute((pass) => pass.run("sgd_step", { inputOffset: dSelectorWk, tokenCount: h * h, f0: lr }, pages.selectorWk));
+      }
 
       // 6. Mixer blocks reverse (attention + FFN), interleaved SGD. dQueryKeys
       //    is the [Q,H] scratch here; it is re-zeroed before the pool pass.
@@ -469,11 +591,13 @@ export class KrystalBackward {
         // SGD after the whole block's backward: all gradients used the
         // pre-update weights, and the dW regions are consumed before the next
         // (lower) block reuses them.
-        encoder.compute((pass) => pass.run("sgd_step", { inputOffset: dW2, tokenCount: h * ffn, f0: lr }, block.w2));
-        encoder.compute((pass) => pass.run("sgd_step", { inputOffset: dW1, tokenCount: ffn * h, f0: lr }, block.w1));
-        encoder.compute((pass) => pass.run("sgd_step", { inputOffset: dWq, tokenCount: h * h, f0: lr }, block.wq));
-        encoder.compute((pass) => pass.run("sgd_step", { inputOffset: dWk, tokenCount: h * h, f0: lr }, block.wk));
-        encoder.compute((pass) => pass.run("sgd_step", { inputOffset: dWv, tokenCount: h * h, f0: lr }, block.wv));
+        if (applySgd) {
+          encoder.compute((pass) => pass.run("sgd_step", { inputOffset: dW2, tokenCount: h * ffn, f0: lr }, block.w2));
+          encoder.compute((pass) => pass.run("sgd_step", { inputOffset: dW1, tokenCount: ffn * h, f0: lr }, block.w1));
+          encoder.compute((pass) => pass.run("sgd_step", { inputOffset: dWq, tokenCount: h * h, f0: lr }, block.wq));
+          encoder.compute((pass) => pass.run("sgd_step", { inputOffset: dWk, tokenCount: h * h, f0: lr }, block.wk));
+          encoder.compute((pass) => pass.run("sgd_step", { inputOffset: dWv, tokenCount: h * h, f0: lr }, block.wv));
+        }
       }
 
       // 7. Learned-query pooling backward (bank + query) + SGD on the shared
@@ -504,7 +628,9 @@ export class KrystalBackward {
       encoder.compute((pass) => pass.run("residual_add", {
         inputOffset: dPool, auxOffset: dPool2, outputOffset: dPool, tokenCount: 2, inputDim: h,
       }));
-      encoder.compute((pass) => pass.run("sgd_step", { inputOffset: dPool, tokenCount: 2 * h, f0: lr }, pages.pool));
+      if (applySgd) {
+        encoder.compute((pass) => pass.run("sgd_step", { inputOffset: dPool, tokenCount: 2 * h, f0: lr }, pages.pool));
+      }
 
       // 8. Encoder blocks reverse (attention + FFN), interleaved SGD. The
       //    dFieldStates accumulator already holds the pool contributions.
@@ -593,29 +719,85 @@ export class KrystalBackward {
         }));
 
         // SGD after the whole block's backward (pre-update-weight gradients).
-        encoder.compute((pass) => pass.run("sgd_step", { inputOffset: dW2, tokenCount: h * ffn, f0: lr }, block.w2));
-        encoder.compute((pass) => pass.run("sgd_step", { inputOffset: dW1, tokenCount: ffn * h, f0: lr }, block.w1));
-        encoder.compute((pass) => pass.run("sgd_step", { inputOffset: dWq, tokenCount: h * h, f0: lr }, block.wq));
-        encoder.compute((pass) => pass.run("sgd_step", { inputOffset: dWk, tokenCount: h * h, f0: lr }, block.wk));
-        encoder.compute((pass) => pass.run("sgd_step", { inputOffset: dWv, tokenCount: h * h, f0: lr }, block.wv));
+        if (applySgd) {
+          encoder.compute((pass) => pass.run("sgd_step", { inputOffset: dW2, tokenCount: h * ffn, f0: lr }, block.w2));
+          encoder.compute((pass) => pass.run("sgd_step", { inputOffset: dW1, tokenCount: ffn * h, f0: lr }, block.w1));
+          encoder.compute((pass) => pass.run("sgd_step", { inputOffset: dWq, tokenCount: h * h, f0: lr }, block.wq));
+          encoder.compute((pass) => pass.run("sgd_step", { inputOffset: dWk, tokenCount: h * h, f0: lr }, block.wk));
+          encoder.compute((pass) => pass.run("sgd_step", { inputOffset: dWv, tokenCount: h * h, f0: lr }, block.wv));
+        }
       }
 
       // 9. Fused sparse field-embedding backward + SGD. The standalone dense
       //    gradient pass remains available for parity/debug tests, while the
-      //    composed runner touches only rows referenced by this frame.
-      encoder.compute((pass) => pass.run("krystal_field_embed_sgd", {
-        inputOffset: dFieldStates, outputOffset: sparseEmbeddingRowsOff,
-        auxOffset: tokenIds, aux2Offset: fieldRoles, aux3Offset: schemaIds,
-        aux4Offset: bandIds, aux5Offset: streamIds, aux6Offset: activeTokens,
-        tokenCount: sparseEmbeddingRows.length, inputDim: h, outputDim: t, f0: lr,
-        u0: embCum[0], u1: embCum[1], u2: embCum[2], u3: embCum[3], u4: embCum[4], u5: embCum[5],
-      }, pages.embeddings));
+      //    composed runner touches only rows referenced by this frame. A host
+      //    doing its own update takes dFieldStates instead and scatters it
+      //    into those rows itself, so the fused pass does not run.
+      if (applySgd) {
+        encoder.compute((pass) => pass.run("krystal_field_embed_sgd", {
+          inputOffset: dFieldStates, outputOffset: sparseEmbeddingRowsOff,
+          auxOffset: tokenIds, aux2Offset: fieldRoles, aux3Offset: schemaIds,
+          aux4Offset: bandIds, aux5Offset: streamIds, aux6Offset: activeTokens,
+          tokenCount: sparseEmbeddingRows.length, inputDim: h, outputDim: t, f0: lr,
+          u0: embCum[0], u1: embCum[1], u2: embCum[2], u3: embCum[3], u4: embCum[4], u5: embCum[5],
+        }, pages.embeddings));
+      }
     });
 
     if (!options.telemetry) return { step };
     await device.queue.onSubmittedWorkDone();
-    const loss = await this.readLoss();
-    return { step, loss };
+    // Only what this step actually computed. A cross-entropy over labels
+    // nobody supplied would be a number about nothing, and reporting the
+    // previous step's reduction as this one's is worse than reporting none.
+    const loss = routeKinds ? await this.readLoss() : undefined;
+    const valueLoss = options.valenceTarget === undefined
+      ? undefined
+      : (await this.readRegion(valueLossRows, q)).reduce((sum, value) => sum + value, 0) / q;
+    return { step, ...(loss === undefined ? {} : { loss }), ...(valueLoss === undefined ? {} : { valueLoss }) };
+  }
+
+  /** Mean of a small row vector, for the losses this runner reduces on the host. */
+  private async readRegion(offset: number, elements: number): Promise<Float32Array> {
+    validate(elements <= TRAINING_READBACK_ELEMENTS, `readback region ${elements} exceeds staging capacity`);
+    const device = this.definition.engine.device;
+    const arena = this.definition.resources.arena;
+    const staging = this.definition.resources.trainingReadback;
+    const encoder = device.createCommandEncoder();
+    encoder.copyBufferToBuffer(arena.gpu, offset * 4, staging.gpu, 0, elements * 4);
+    device.queue.submit([encoder.finish()]);
+    await device.queue.onSubmittedWorkDone();
+    const raw = (await staging.readback()) as unknown as ArrayLike<number>;
+    return Float32Array.from(raw).slice(0, elements);
+  }
+
+  /**
+   * The gradients a host applying its own update needs, and the ones parity is
+   * checked on. Read after a step; SGD writes the weight PAGES, never these
+   * regions, so they hold this step's gradient whether or not it was applied.
+   */
+  async readGradients(dims: { readonly t: number; readonly r: number; readonly q: number }): Promise<{
+    readonly dSelectorWq: Float32Array;
+    readonly dSelectorWk: Float32Array;
+    readonly dPool: Float32Array;
+    readonly dFieldStates: Float32Array;
+    readonly dValueWv: Float32Array;
+    readonly dBankKeys: Float32Array;
+    readonly dBankValues: Float32Array;
+    readonly dQueryValues: Float32Array;
+  }> {
+    const h = this.forward.getConfig().hiddenSize;
+    const B = KRYSTAL_BACKWARD_ARENA;
+    return {
+      dSelectorWq: await this.readRegion(this.bwd(B.dSelectorWq, h * h), h * h),
+      dSelectorWk: await this.readRegion(this.bwd(B.dSelectorWk, h * h), h * h),
+      dPool: await this.readRegion(this.bwd(B.dPool, 2 * h), 2 * h),
+      dFieldStates: await this.readRegion(this.bwd(B.dFieldStates, dims.t * h), dims.t * h),
+      dValueWv: await this.readRegion(this.bwd(B.dValueWv, 3 * h), 3 * h),
+      dBankKeys: await this.readRegion(this.bwd(B.dBankKeys, dims.r * h), dims.r * h),
+      dBankValues: await this.readRegion(this.bwd(B.dBankValues, dims.r * h), dims.r * h),
+      // The mixed-query gradient accumulator aliases the decision-head region.
+      dQueryValues: await this.readRegion(this.bwd(B.dDecisionQuery, dims.q * h), dims.q * h),
+    };
   }
 
   /** Read the scalar mean loss produced by the last trainStep. Debug/test-only. */

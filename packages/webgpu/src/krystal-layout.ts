@@ -209,6 +209,32 @@ export interface KrystalForwardArenaLayout {
   argGather: number; // [maxQueries, H]
   argIndices: number; // [maxQueries]
   decisionLogits: number; // [maxQueries, routeKinds] (typed decision head)
+  /**
+   * A [maxQueries, H] block of zeros, and it stays zero.
+   *
+   * The "what is on offer here" context is the mean bank value over the
+   * records a question is ALLOWED to choose — and a selector whose query
+   * projection is zero computes exactly that: every score is 0 + mask, so the
+   * softmax is uniform over the open positions and the gather is their mean.
+   * An entirely blocked row falls to the shader's all-blocked path and gathers
+   * zero, which is what the CPU oracle does with an empty allowed set.
+   *
+   * So the third context block needs no kernel of its own; it needs a region
+   * that is reliably zero.
+   */
+  zeroQuery: number; // [maxQueries, H]
+  /**
+   * The mean bank value over what a question is allowed to choose, and the
+   * uniform distribution it came from. Only the value head reads them: the
+   * critic must not be conditioned on WHICH action was drawn (it is the
+   * baseline that draw is measured against), so its third context block is a
+   * state feature — "what is on offer here" — rather than a soft gather under
+   * the chosen slot.
+   */
+  availableGather: number; // [maxQueries, H]
+  availableP: number; // [maxQueries, maxRecords]
+  /** Value-head prediction [maxQueries] (a decision head with one class). */
+  valuePrediction: number; // [maxQueries]
 
   // Per-block saved activations for the composed backward runner (M3 close,
   // §17 item 10). The forward mutates fieldStates/queryValues in place and
@@ -288,6 +314,10 @@ function createKrystalForwardArenaLayout(): KrystalForwardArenaLayout {
     argGather: take(qh),
     argIndices: take(KRYSTAL_MAX_QUERIES),
     decisionLogits: take(KRYSTAL_MAX_QUERIES * KRYSTAL_MAX_ROUTE_KINDS),
+    zeroQuery: take(qh),
+    availableGather: take(qh),
+    availableP: take(KRYSTAL_MAX_QUERIES * KRYSTAL_MAX_RECORDS),
+    valuePrediction: take(KRYSTAL_MAX_QUERIES),
 
     // Per-block saved activations (composed backward runner).
     encSavedIn: take(KRYSTAL_MAX_BLOCKS * th),
@@ -383,6 +413,20 @@ export interface KrystalBackwardArenaLayout {
   dDecisionIntent: number; // [maxQueries, H]  (d of intentGather)
   dDecisionArg: number; // [maxQueries, H]  (d of argGather)
   dDecisionWh: number; // [routeKinds, 3H]
+
+  // Value head backward. Structurally a decision head with a single class, so
+  // it reuses that pass exactly; only the loss differs — squared error against
+  // an observed number rather than cross-entropy against a label. Its three
+  // context gradients land in their own regions and are then added into the
+  // decision head's, because the two heads read the SAME context and their
+  // gradients sum there (which is how the value signal shapes the trunk and
+  // not just its own head).
+  dValuePrediction: number; // [maxQueries]
+  valueLossRows: number; // [maxQueries] (per-row 0.5*err^2, reduced for telemetry)
+  dValueQuery: number; // [maxQueries, H]
+  dValueIntent: number; // [maxQueries, H]
+  dValueArg: number; // [maxQueries, H]
+  dValueWv: number; // [1, 3H]
   elements: number;
 }
 
@@ -442,6 +486,12 @@ function createKrystalBackwardArenaLayout(): KrystalBackwardArenaLayout {
     dDecisionIntent: take(KRYSTAL_MAX_QUERIES * KRYSTAL_MAX_H),
     dDecisionArg: take(KRYSTAL_MAX_QUERIES * KRYSTAL_MAX_H),
     dDecisionWh: take(KRYSTAL_MAX_ROUTE_KINDS * 3 * KRYSTAL_MAX_H),
+    dValuePrediction: take(KRYSTAL_MAX_QUERIES),
+    valueLossRows: take(KRYSTAL_MAX_QUERIES),
+    dValueQuery: take(KRYSTAL_MAX_QUERIES * KRYSTAL_MAX_H),
+    dValueIntent: take(KRYSTAL_MAX_QUERIES * KRYSTAL_MAX_H),
+    dValueArg: take(KRYSTAL_MAX_QUERIES * KRYSTAL_MAX_H),
+    dValueWv: take(3 * KRYSTAL_MAX_H),
     elements: cursor,
   };
 }
@@ -532,6 +582,7 @@ export const KRYSTAL_BACKWARD_SHADER_NAMES = [
   "krystal_selector_backward_scores",
   "krystal_selector_backward_qkv",
   "krystal_decision_head_backward",
+  "krystal_value_head_loss",
 ] as const;
 
 export type KrystalBackwardShaderName = (typeof KRYSTAL_BACKWARD_SHADER_NAMES)[number];
@@ -744,5 +795,8 @@ export function defineKrystalPasses(
     krystal_decision_head_backward: definePass(programs.krystal_decision_head_backward, "f32", (op) =>
       linear(3 * required(op.tokenCount, "tokenCount") * required(op.inputDim, "inputDim") +
         required(op.outputDim, "outputDim") * 3 * required(op.inputDim, "inputDim"), 256)),
+
+    krystal_value_head_loss: definePass(programs.krystal_value_head_loss, "none", (op) =>
+      linear(required(op.tokenCount, "tokenCount"), 256)),
   } satisfies Record<KrystalPassName, KrystalPassSpec>;
 }

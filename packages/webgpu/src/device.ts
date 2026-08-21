@@ -13,7 +13,7 @@ export interface WebGpuContext {
 }
 
 /**
- * Thin WebGPU bootstrap used by Chomato hosts.
+ * Thin WebGPU bootstrap used by Krystal hosts.
  *
  * This deliberately owns no resource graph, shader DSL, schema integration,
  * or model behavior. Those belong to higher layers.
@@ -43,7 +43,7 @@ export async function createWebGpuDevice(options: WebGpuDeviceOptions = {}): Pro
   }
 
   const device = await adapter.requestDevice({
-    label: options.label ?? "chomato",
+    label: options.label ?? "krystal",
     requiredFeatures: features,
     requiredLimits: options.requiredLimits ?? {},
   });

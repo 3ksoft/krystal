@@ -59,7 +59,7 @@ console.log(`[webgpu] serialized Krystal artifact: ${artifact.length} bytes -> $
 // the readable view of that result alongside it, so the two can never be out of
 // step with each other. Generated, not committed.
 const report = artifactReport(artifact, {
-  title: "Chomato · Krystal artifact",
+  title: "Krystal artifact",
   generatedAt: new Date().toISOString(),
 });
 await writeFile(reportOutput, report);

@@ -512,6 +512,21 @@ export function defineKrystal(bundle: KrystalShaderBundle = emptyKrystalShaderBu
         code: sources.krystal_decision_head_backward,
       },
     }),
+
+    // Value head loss: squared error against the observed change in valence.
+    // The head itself is krystal_decision_head with one class, so only the
+    // loss needs a kernel of its own.
+    krystal_value_head_loss: engine.compute({
+      label: "krystal_value_head_loss",
+      resources: { op: r.op, arena: r.arena },
+      includes: commonIncludes,
+      compute: {
+        entryPoint: "krystal_value_head_loss",
+        params: gid,
+        workgroupSize: 256,
+        code: sources.krystal_value_head_loss,
+      },
+    }),
   } satisfies Record<KrystalProgramName, AnyComputeHandle>;
 
   const passes = defineKrystalPasses(programs);
