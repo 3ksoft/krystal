@@ -23,7 +23,6 @@
  *   mixer[b]    same block shape as enc[b]
  */
 import { BRAIN_LIMITS, KRYSTAL_ABI } from "../../../schema/src/krystal-engine-schema.ts";
-import { FIXTURE_TOKEN_ROWS } from "../fixtures/vocabulary.ts";
 
 export interface BrainForwardConfig {
   readonly hiddenSize: number;
@@ -73,10 +72,11 @@ export const BRAIN_FORWARD_CONFIG: BrainForwardConfig = {
   streamSpace: 2, // record / query
   posSpace: BRAIN_LIMITS.recordWidth, // learned record-local positions
   routeKindCount: 4, // DIRECT / ACTION / ALU / NONE (provisional fixture set)
-  // This constant is the FIXTURE profile, and naming its vocabulary here says
-  // so. An agent built from a simulation grammar passes its own
-  // `CompiledGrammar.tokenRows` instead.
-  tokenRows: FIXTURE_TOKEN_ROWS,
+  // Empty, and deliberately unusable: a vocabulary belongs to the world an
+  // agent was compiled against, so a DEFAULT one is silently correct for
+  // exactly one world and silently wrong for every other. A session supplies
+  // its own `tokenRows`, and this profile carries the geometry only.
+  tokenRows: new Uint32Array(0),
 };
 
 export interface EmbeddingTableLayout {

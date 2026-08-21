@@ -651,7 +651,16 @@ export interface BrainBackwardOracleInput {
   readonly mixerMask: Float32Array;
   readonly intentMask: Float32Array;
   readonly argMask: Float32Array;
-  readonly routeKinds: readonly number[];
+  /**
+   * Route-kind labels [Q] for the typed decision head.
+   *
+   * Optional, and omitting it is not the same as passing zeros: the head is a
+   * supervised classifier, so a label nobody has means training it toward class
+   * 0 and pushing that gradient through the shared gather into the selector —
+   * an auxiliary task made of noise, shaping the actor. Left out, the head
+   * contributes nothing and the value head still reads the same context.
+   */
+  readonly routeKinds?: readonly number[];
   /**
    * Pointer-loss targets [Q] for the argument selector (argument 0 of the
    * selected intent; `argumentTarget[q][0]` in the S2-S10 shape); 0xffffffff
@@ -761,12 +770,16 @@ export function brainBackwardOracle(
   const logits = decisionHeadOracle(queryOutput, intent.gather, argument.gather, weights.decisionHeadWh, q, h, C);
 
   // --- loss: mean CE, dLogits = (softmax - onehot) / Q ---
+  // Zero when there are no labels, which leaves the head inert rather than
+  // trained toward a class nobody chose.
   const dLogits = new Float32Array(q * C);
-  for (let i = 0; i < q; i++) {
-    const probs = Float32Array.from(logits.subarray(i * C, i * C + C));
-    softmaxRow(probs, 0, C);
-    const gold = routeKinds[i]!;
-    for (let c = 0; c < C; c++) dLogits[i * C + c] = (probs[c]! - (c === gold ? 1 : 0)) / q;
+  if (routeKinds) {
+    for (let i = 0; i < q; i++) {
+      const probs = Float32Array.from(logits.subarray(i * C, i * C + C));
+      softmaxRow(probs, 0, C);
+      const gold = routeKinds[i]!;
+      for (let c = 0; c < C; c++) dLogits[i * C + c] = (probs[c]! - (c === gold ? 1 : 0)) / q;
+    }
   }
 
   // --- decision head backward ---

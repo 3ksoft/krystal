@@ -16,6 +16,7 @@
 import {
   BRAIN_LIMITS,
   INVALID_U32,
+  KRYSTAL_SENTINEL_TOKENS,
   RECORD_FLAGS,
   RELATION_ROLE_FLAGS,
   RELATION_ROLE_INDEX,
@@ -23,9 +24,11 @@ import {
 } from "../../../schema/src/krystal-engine-schema.ts";
 import type { v1_0_0 } from "../../../schema/generated/krystal.types.ts";
 import { bandIndex } from "../binary-layout-plan.ts";
-import { PAD_TOKEN_ID } from "../frame/packer.ts";
+// The pad sentinel is an ABI fact, taken from the schema that defines it — the
+// old frame packer merely re-exported it, and importing it from there is what
+// tied every mask to the fixed-geometry world.
+const PAD_TOKEN_ID = KRYSTAL_SENTINEL_TOKENS.pad;
 import { STREAM_QUERY } from "./model.ts";
-import type { CompiledCatalog } from "../bridge/agent.ts";
 
 export const QUERY_BAND_INDEX = bandIndex("query");
 const RECORD_WIDTH = BRAIN_LIMITS.recordWidth;
@@ -318,7 +321,7 @@ export function compileArgumentMask(
 // plus `argumentTarget[q][argument]` per query row. See training/policy.ts for
 // the curriculum wiring that feeds these host-compiled masks into the runner.
 
-function allBlocked(q: number, r: number): Float32Array {
+export function allBlocked(q: number, r: number): Float32Array {
   return new Float32Array(q * r).fill(-1e30);
 }
 
@@ -329,72 +332,6 @@ export function bandIdsFromMask(candidateBandMask: number): number[] {
     if ((candidateBandMask >>> bit) & 1) ids.push(bit);
   }
   return ids;
-}
-
-/**
- * Compile the [Q, R] mask for one role: 0.0 for bank records the role admits,
- * -1e30 otherwise.
- *
- * What is left after acceptance sets were removed is structural: a candidate
- * must sit in an admissible band and, for a role that names a world entity,
- * must carry a live reference — a record without one cannot be acted upon, and
- * scoring it would let the selector choose something the emitter must then
- * refuse. Whether the candidate makes any SENSE in the role is not asked here.
- * The creature is free to think about eating a stone, and will find out.
- */
-export function argMaskFor(
-  frame: v1_0_0.BrainFrameGpu,
-  active: ActiveFrame,
-  catalog: CompiledCatalog,
-  intentId: number,
-  role: RelationRoleName = "patient",
-): Float32Array {
-  const q = active.queryRecords.length;
-  const r = active.bankRecords.length;
-  const descriptor = catalog.descriptors.find((candidate) => candidate.intentId === intentId);
-  if (!descriptor) return allBlocked(q, r);
-  const roleDesc = descriptor.roles[RELATION_ROLE_INDEX[role]];
-  // A relation that does not declare this role has nothing to select for it.
-  if (!roleDesc || (roleDesc.flags & RELATION_ROLE_FLAGS.present) === 0) return allBlocked(q, r);
-  return compileArgumentMask(
-    frame,
-    active,
-    bandIdsFromMask(roleDesc.candidateBandMask),
-    roleDesc.valueKind,
-  );
-}
-
-/** The compiled filter for one role. */
-export function roleFilterFor(
-  catalog: CompiledCatalog,
-  intentId: number,
-  role: RelationRoleName,
-  roleDesc: v1_0_0.RelationRoleDescriptor,
-): RoleFilter {
-  return roleFilter(bandIdsFromMask(roleDesc.candidateBandMask), roleDesc.valueKind);
-}
-
-/**
- * Compile a per-query-row argument mask: row i uses `intents[i]`'s argument
- * descriptor (all rows share one selector dispatch, but the mask is
- * conditioned per query on its own selected intent).
- */
-export function compilePerRowArgumentMask(
-  frame: v1_0_0.BrainFrameGpu,
-  active: ActiveFrame,
-  catalog: CompiledCatalog,
-  intents: readonly number[],
-  role: RelationRoleName = "patient",
-): Float32Array {
-  const q = active.queryRecords.length;
-  const r = active.bankRecords.length;
-  if (intents.length !== q) throw new ForwardMasksError(`per-row intents must be [Q] = ${q}`);
-  const mask = new Float32Array(q * r);
-  for (let i = 0; i < q; i++) {
-    const row = argMaskFor(frame, active, catalog, intents[i]!, role);
-    for (let j = 0; j < r; j++) mask[i * r + j] = row[j]!;
-  }
-  return mask;
 }
 
 export class ForwardMasksError extends Error {
