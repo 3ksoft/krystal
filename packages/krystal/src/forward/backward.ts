@@ -21,7 +21,7 @@ import {
   type BrainForwardConfig,
   type BrainForwardWeights,
 } from "./model.ts";
-import type { ActiveFrame } from "./masks.ts";
+import { recordRanges, type ActiveFrame, type RecordRanges } from "./masks.ts";
 import {
   addInPlace,
   decisionHeadOracle,
@@ -85,14 +85,20 @@ export function attentionBackwardScores(
   kRows: number,
   heads: number,
   headDim: number,
+  local?: RecordRanges,
 ): Float32Array {
   const h = heads * headDim;
   const dScores = new Float32Array(heads * qRows * kRows);
+  const dP = new Float32Array(kRows);
   for (let head = 0; head < heads; head++) {
     for (let i = 0; i < qRows; i++) {
-      const dP = new Float32Array(kRows);
+      // Outside the record every P is exactly zero, so both dP and dScore
+      // there are zero too: the window is the whole gradient, not a
+      // truncation of it.
+      const from = local ? local.start[i]! : 0;
+      const to = local ? from + local.count[i]! : kRows;
       let rowSum = 0;
-      for (let j = 0; j < kRows; j++) {
+      for (let j = from; j < to; j++) {
         let dp = 0;
         for (let d = 0; d < headDim; d++) {
           dp += dOut[i * h + head * headDim + d]! * v[j * h + head * headDim + d]!;
@@ -100,7 +106,7 @@ export function attentionBackwardScores(
         dP[j] = dp;
         rowSum += p[(head * qRows + i) * kRows + j]! * dp;
       }
-      for (let j = 0; j < kRows; j++) {
+      for (let j = from; j < to; j++) {
         dScores[(head * qRows + i) * kRows + j] =
           p[(head * qRows + i) * kRows + j]! * (dP[j]! - rowSum);
       }
@@ -128,6 +134,7 @@ export function attentionBackwardQkv(
   kRows: number,
   heads: number,
   headDim: number,
+  local?: RecordRanges,
 ): { dQ: Float32Array; dK: Float32Array; dV: Float32Array } {
   const h = heads * headDim;
   const scale = 1 / Math.sqrt(headDim);
@@ -135,33 +142,32 @@ export function attentionBackwardQkv(
   const dK = new Float32Array(kRows * h);
   const dV = new Float32Array(kRows * h);
   for (let i = 0; i < qRows; i++) {
+    const from = local ? local.start[i]! : 0;
+    const to = local ? from + local.count[i]! : kRows;
     for (let col = 0; col < h; col++) {
       const head = Math.floor(col / headDim);
       let acc = 0;
-      for (let j = 0; j < kRows; j++) {
+      for (let j = from; j < to; j++) {
         acc += dScores[(head * qRows + i) * kRows + j]! * k[j * h + col]!;
       }
       dQ[i * h + col] = acc * scale;
     }
   }
+  // A key belongs to one record, so the only queries that ever scored it are
+  // that record's own rows — the same window, read the other way round.
   for (let j = 0; j < kRows; j++) {
+    const from = local ? local.start[j]! : 0;
+    const to = local ? from + local.count[j]! : qRows;
     for (let col = 0; col < h; col++) {
       const head = Math.floor(col / headDim);
-      let acc = 0;
-      for (let i = 0; i < qRows; i++) {
-        acc += dScores[(head * qRows + i) * kRows + j]! * q[i * h + col]!;
+      let accK = 0;
+      let accV = 0;
+      for (let i = from; i < to; i++) {
+        accK += dScores[(head * qRows + i) * kRows + j]! * q[i * h + col]!;
+        accV += p[(head * qRows + i) * kRows + j]! * dOut[i * h + col]!;
       }
-      dK[j * h + col] = acc * scale;
-    }
-  }
-  for (let j = 0; j < kRows; j++) {
-    for (let col = 0; col < h; col++) {
-      const head = Math.floor(col / headDim);
-      let acc = 0;
-      for (let i = 0; i < qRows; i++) {
-        acc += p[(head * qRows + i) * kRows + j]! * dOut[i * h + col]!;
-      }
-      dV[j * h + col] = acc;
+      dK[j * h + col] = accK * scale;
+      dV[j * h + col] = accV;
     }
   }
   return { dQ, dK, dV };
@@ -274,6 +280,13 @@ export function poolBackward(
  *   dScore[i,j] = p[i,j] * (dP[i,j] - rowSum[i]) + pointerLossGrad[i,j]
  *   pointerLossGrad[i,j] = p[i,j] - onehot(j == gold[i])  (gold valid only)
  *
+ * A gold with its top bit set (0x80000000 | row) is pushed AWAY from rather
+ * than toward — the unlikelihood loss -log(1 - p[i,row]), whose gradient is
+ *   pointerLossGrad[i,j] = s * (onehot(j == row) - p[i,j]),  s = p[i,row] / (1 - p[i,row])
+ * bounded as p → 1 (the onehot term goes to zero as fast as s grows) and
+ * vanishing as p → 0, with 1 - p floored so a certain choice divides by
+ * something.
+ *
  * Layouts: dGather [Q,H], value [R,H], p/dScore [Q,R], gold [Q] u32 payloads
  * (0xffffffff = no pointer loss for that row).
  */
@@ -296,8 +309,13 @@ export function selectorBackwardScores(
 ): Float32Array {
   const dScore = new Float32Array(q * r);
   for (let i = 0; i < q; i++) {
-    const goldValid = gold[i] !== 0xffff_ffff;
+    const raw = gold[i]!;
+    const goldValid = raw !== 0xffff_ffff;
     if (zeroInvalidRows && !goldValid) continue; // row stays exactly zero
+    const away = goldValid && raw >= 0x8000_0000;
+    const target = away ? raw - 0x8000_0000 : raw;
+    const pAway = away ? p[i * r + target]! : 0;
+    const scale = away ? pAway / Math.max(1 - pAway, 1e-6) : 0;
     const dP = new Float32Array(r);
     let rowSum = 0;
     for (let j = 0; j < r; j++) {
@@ -309,7 +327,8 @@ export function selectorBackwardScores(
       rowSum += p[i * r + j]! * dp;
     }
     for (let j = 0; j < r; j++) {
-      const pointerGrad = goldValid ? p[i * r + j]! - (j === gold[i] ? 1 : 0) : 0;
+      const oneHot = j === target ? 1 : 0;
+      const pointerGrad = !goldValid ? 0 : away ? scale * (oneHot - p[i * r + j]!) : p[i * r + j]! - oneHot;
       dScore[i * r + j] = p[i * r + j]! * (dP[j]! - rowSum) + pointerGrad;
     }
   }
@@ -558,12 +577,13 @@ export function attentionWithP(
   q: Float32Array,
   k: Float32Array,
   v: Float32Array,
-  mask: Float32Array,
+  mask: Float32Array | undefined,
   qRows: number,
   kRows: number,
   h: number,
   heads: number,
   headDim: number,
+  local?: RecordRanges,
 ): { out: Float32Array; p: Float32Array } {
   const out = new Float32Array(qRows * h);
   const p = new Float32Array(heads * qRows * kRows);
@@ -572,18 +592,21 @@ export function attentionWithP(
   for (let head = 0; head < heads; head++) {
     const hb = head * headDim;
     for (let i = 0; i < qRows; i++) {
-      for (let j = 0; j < kRows; j++) {
+      const from = local ? local.start[i]! : 0;
+      const to = local ? from + local.count[i]! : kRows;
+      for (let j = from; j < to; j++) {
         let s = 0;
         for (let d = 0; d < headDim; d++) s += q[i * h + hb + d]! * k[j * h + hb + d]!;
-        scores[j] = s * scale + mask[i * kRows + j]!;
+        scores[j] = s * scale + (mask ? mask[i * kRows + j]! : 0);
       }
-      const allBlocked = scores.every((score) => score < -1e29);
-      if (allBlocked) scores.fill(0);
-      else softmaxRow(scores, 0, kRows);
-      for (let j = 0; j < kRows; j++) p[(head * qRows + i) * kRows + j] = scores[j]!;
+      let allBlocked = true;
+      for (let j = from; j < to; j++) if (scores[j]! >= -1e29) { allBlocked = false; break; }
+      if (allBlocked) scores.fill(0, from, to);
+      else softmaxRow(scores, from, to - from);
+      for (let j = from; j < to; j++) p[(head * qRows + i) * kRows + j] = scores[j]!;
       for (let d = 0; d < headDim; d++) {
         let value = 0;
-        for (let j = 0; j < kRows; j++) value += scores[j]! * v[j * h + hb + d]!;
+        for (let j = from; j < to; j++) value += scores[j]! * v[j * h + hb + d]!;
         out[i * h + hb + d] = value;
       }
     }
@@ -657,7 +680,7 @@ export interface BrainBackwardOracleInput {
   readonly active: ActiveFrame;
   readonly weights: BrainForwardWeights;
   readonly config?: BrainForwardConfig;
-  readonly recordMask: Float32Array;
+  readonly recordMask?: Float32Array;
   readonly mixerMask: Float32Array;
   readonly intentMask: Float32Array;
   readonly argMask: Float32Array;
@@ -737,6 +760,7 @@ export function brainBackwardOracle(
   const r = active.bankRecords.length;
   const q = active.queryRecords.length;
   const zeroQ = new Float32Array(q * h);
+  const ranges = recordRanges(active);
 
   // --- forward with per-block saves ---
   let x = fieldEmbedCpu(frame, active, config, weights);
@@ -747,7 +771,7 @@ export function brainBackwardOracle(
     const qq = matmulOracle(x, block.wq, h, h);
     const kk = matmulOracle(x, block.wk, h, h);
     const vv = matmulOracle(x, block.wv, h, h);
-    const attn = attentionWithP(qq, kk, vv, recordMask, t, t, h, heads, headDim);
+    const attn = attentionWithP(qq, kk, vv, recordMask, t, t, h, heads, headDim, ranges);
     addInPlace(x, attn.out);
     const sFfnIn = Float32Array.from(x);
     const h1 = reluOracle(matmulOracle(x, block.w1, ffn, h));
@@ -930,8 +954,8 @@ export function brainBackwardOracle(
     const dFfnIn = matmulBackInput(dH1p, block.w1, t, ffn, h); // dH1p @ W1
     const dAttnOut = new Float32Array(t * h);
     for (let i = 0; i < t * h; i++) dAttnOut[i] = dFieldStates[i]! + dFfnIn[i]!;
-    const dScores = attentionBackwardScores(dAttnOut, s.v, s.p, t, t, heads, headDim);
-    const { dQ, dK, dV } = attentionBackwardQkv(dScores, s.q, s.k, s.p, dAttnOut, t, t, heads, headDim);
+    const dScores = attentionBackwardScores(dAttnOut, s.v, s.p, t, t, heads, headDim, ranges);
+    const { dQ, dK, dV } = attentionBackwardQkv(dScores, s.q, s.k, s.p, dAttnOut, t, t, heads, headDim, ranges);
     dFieldStates.set(dAttnOut);
     addInPlace(dFieldStates, matmulBackInput(dQ, block.wq, t, h, h));
     addInPlace(dFieldStates, matmulBackInput(dK, block.wk, t, h, h));

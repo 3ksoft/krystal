@@ -10,8 +10,6 @@
  * oracle, its backward, and the masks the forward reads. No vocabulary, no
  * relation catalog, no world contract — those belong to whoever has a world.
  */
-export * from "./hash.ts";
-export * from "./binary-layout-plan.ts";
 export * from "./forward/model.ts";
 export * from "./forward/masks.ts";
 export * from "./forward/oracle.ts";

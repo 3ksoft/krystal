@@ -1,4 +1,4 @@
-// M3 backward tests (WEBGPU_BACKWARD_PLAN.md §17 order): the Krystal backward
+// M3 backward tests (docs/archive/WEBGPU_BACKWARD_PLAN.md §17 order): the Krystal backward
 // operators for the M2b forward graph — relu backward, cross-capable attention
 // backward, and the field-embedding scatter-add — each compared against the
 // CPU oracle and (for the attention path) finite-difference gradient checks.

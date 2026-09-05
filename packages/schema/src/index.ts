@@ -12,4 +12,3 @@
 import "./env";
 
 export * from "./krystal-engine-schema";
-export * from "./world";

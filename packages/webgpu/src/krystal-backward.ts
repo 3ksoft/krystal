@@ -1,4 +1,4 @@
-// M3 close (WEBGPU_BACKWARD_PLAN.md §17 item 10): the composed Krystal
+// M3 close (docs/archive/WEBGPU_BACKWARD_PLAN.md §17 item 10): the composed Krystal
 // backward runner. One submit per trainStep: the full forward (with per-block
 // saved activations), the route-kind cross-entropy loss, every backward
 // operator from the M3 slices, and plain SGD on the trainable pages — all
@@ -32,7 +32,6 @@ import {
   KRYSTAL_MAX_TOKENS,
   KRYSTAL_TRAINING_ARENA,
   TRAINING_ARENA_BASE,
-  TRAINING_READBACK_ELEMENTS,
 } from "./krystal-layout";
 import { type KrystalDefinition } from "./krystal";
 import {
@@ -43,6 +42,7 @@ import {
 } from "./krystal-forward";
 import type { WordBias } from "../../krystal/src/forward/masks";
 import { EMBEDDING_TABLES } from "../../krystal/src/forward/model";
+import type { BackwardResult } from "../../krystal/src/host/backend";
 import type { v1_0_0 } from "../../schema/generated/krystal.types";
 
 function validate(condition: boolean, message: string): void {
@@ -84,7 +84,9 @@ export interface KrystalTrainStepOptions {
    * Optional pointer-loss targets [Q] for the main selector slot: bank indices
    * of the records the question should have chosen, 0xffffffff = no pointer
    * loss for that row (default: none). This is what a demonstration teaches
-   * and what a reinforced choice is pushed toward.
+   * and what a reinforced choice is pushed toward. An index with its top bit
+   * set (0x80000000 | row) is pushed AWAY from instead — see `AWAY` in the
+   * host backend seam.
    */
   readonly selectionTargets?: readonly number[] | Uint32Array;
   readonly learningRate: number;
@@ -104,7 +106,7 @@ export interface KrystalTrainStepOptions {
    */
   readonly optimizer?: "sgd" | "none";
   /**
-   * Optional same-word attention bias (docs/word_attention_bias.md). It rides
+   * Optional same-word attention bias (docs/archive/word_attention_bias.md). It rides
    * in the record mask, so it needs no device change and no gradient.
    */
   readonly wordBias?: WordBias;
@@ -757,17 +759,8 @@ export class KrystalBackward {
   }
 
   /** Mean of a small row vector, for the losses this runner reduces on the host. */
-  private async readRegion(offset: number, elements: number): Promise<Float32Array> {
-    validate(elements <= TRAINING_READBACK_ELEMENTS, `readback region ${elements} exceeds staging capacity`);
-    const device = this.definition.engine.device;
-    const arena = this.definition.resources.arena;
-    const staging = this.definition.resources.trainingReadback;
-    const encoder = device.createCommandEncoder();
-    encoder.copyBufferToBuffer(arena.gpu, offset * 4, staging.gpu, 0, elements * 4);
-    device.queue.submit([encoder.finish()]);
-    await device.queue.onSubmittedWorkDone();
-    const raw = (await staging.readback()) as unknown as ArrayLike<number>;
-    return Float32Array.from(raw).slice(0, elements);
+  private readRegion(offset: number, elements: number): Promise<Float32Array> {
+    return this.forward.readRegions([[offset, elements]]);
   }
 
   /**
@@ -787,16 +780,64 @@ export class KrystalBackward {
   }> {
     const h = this.forward.getConfig().hiddenSize;
     const B = KRYSTAL_BACKWARD_ARENA;
+    const { t, r, q } = dims;
+    const sizes = [h * h, h * h, 2 * h, t * h, 3 * h, r * h, r * h, q * h];
+    // The mixed-query gradient accumulator aliases the decision-head region.
+    const offsets = [B.dSelectorWq, B.dSelectorWk, B.dPool, B.dFieldStates, B.dValueWv,
+      B.dBankKeys, B.dBankValues, B.dDecisionQuery];
+    const raw = await this.forward.readRegions(
+      offsets.map((offset, index) => [this.bwd(offset, sizes[index]!), sizes[index]!] as const),
+    );
+    let at = 0;
+    const next = (elements: number): Float32Array => raw.subarray(at, (at += elements));
     return {
-      dSelectorWq: await this.readRegion(this.bwd(B.dSelectorWq, h * h), h * h),
-      dSelectorWk: await this.readRegion(this.bwd(B.dSelectorWk, h * h), h * h),
-      dPool: await this.readRegion(this.bwd(B.dPool, 2 * h), 2 * h),
-      dFieldStates: await this.readRegion(this.bwd(B.dFieldStates, dims.t * h), dims.t * h),
-      dValueWv: await this.readRegion(this.bwd(B.dValueWv, 3 * h), 3 * h),
-      dBankKeys: await this.readRegion(this.bwd(B.dBankKeys, dims.r * h), dims.r * h),
-      dBankValues: await this.readRegion(this.bwd(B.dBankValues, dims.r * h), dims.r * h),
-      // The mixed-query gradient accumulator aliases the decision-head region.
-      dQueryValues: await this.readRegion(this.bwd(B.dDecisionQuery, dims.q * h), dims.q * h),
+      dSelectorWq: next(sizes[0]!), dSelectorWk: next(sizes[1]!), dPool: next(sizes[2]!),
+      dFieldStates: next(sizes[3]!), dValueWv: next(sizes[4]!), dBankKeys: next(sizes[5]!),
+      dBankValues: next(sizes[6]!), dQueryValues: next(sizes[7]!),
+    };
+  }
+
+  /**
+   * What a host applying its own update needs from one step, in one map: the
+   * gradients of the parts it may move, and the forward's reading of the frame
+   * — the policy it differentiated and the critic's prediction — which are what
+   * its report is made of. Read after a `trainStep` with `optimizer: "none"`;
+   * the value loss is the mean of the per-row losses that step wrote, and zero
+   * when the frame carried no target, exactly as the CPU oracle reports it.
+   */
+  async readHostGradients(dims: { readonly t: number; readonly r: number; readonly q: number }): Promise<BackwardResult> {
+    const h = this.forward.getConfig().hiddenSize;
+    const A = FWD;
+    const B = KRYSTAL_BACKWARD_ARENA;
+    const { t, r, q } = dims;
+    const copies: (readonly [number, number])[] = [
+      [this.fwd(A.intentP, q * r), q * r],
+      [this.fwd(A.valuePrediction, q), q],
+      [this.bwd(B.valueLossRows, q), q],
+      [this.bwd(B.dSelectorWq, h * h), h * h],
+      [this.bwd(B.dSelectorWk, h * h), h * h],
+      [this.bwd(B.dPool, 2 * h), 2 * h],
+      [this.bwd(B.dFieldStates, t * h), t * h],
+      [this.bwd(B.dValueWv, 3 * h), 3 * h],
+    ];
+    const raw = await this.forward.readRegions(copies);
+    let at = 0;
+    const next = (elements: number): Float32Array => raw.subarray(at, (at += elements));
+    const policy = next(q * r);
+    const valuePrediction = next(q);
+    const lossRows = next(q);
+    let valueLoss = 0;
+    for (const row of lossRows) valueLoss += row;
+    valueLoss = q ? valueLoss / q : 0;
+    return {
+      policy,
+      valuePrediction,
+      valueLoss,
+      dSelectorWq: next(h * h),
+      dSelectorWk: next(h * h),
+      dPool: next(2 * h),
+      dFieldStates: next(t * h),
+      dValueWv: next(3 * h),
     };
   }
 

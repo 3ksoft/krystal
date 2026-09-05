@@ -17,13 +17,9 @@
  * learned position embedding each. A record with more is a record that would
  * change the model's shape, so it is refused rather than truncated.
  */
-import {
-  BRAIN_LIMITS,
-  INVALID_U32,
-  KRYSTAL_SENTINEL_TOKENS,
-} from "../../../schema/src/krystal-engine-schema.ts";
+import { BRAIN_LIMITS, INVALID_U32, KRYSTAL_SENTINEL_TOKENS } from "../../../schema/src/krystal-engine-schema.ts";
 import type { v1_0_0 } from "../../../schema/generated/krystal.types.ts";
-import { QUERY_BAND_INDEX, compileActiveFrame, compileRecordMask, type ActiveFrame } from "../forward/masks.ts";
+import { QUERY_BAND_INDEX, compileActiveFrame, type ActiveFrame } from "../forward/masks.ts";
 
 export const RECORD_WIDTH = BRAIN_LIMITS.recordWidth;
 export const PAD_TOKEN = KRYSTAL_SENTINEL_TOKENS.pad;
@@ -60,8 +56,6 @@ export interface HostRecord {
 export interface HostFrame {
   readonly gpu: v1_0_0.BrainFrameGpu;
   readonly active: ActiveFrame;
-  /** Block-diagonal encoder mask: no token attends across a record boundary. */
-  readonly recordMask: Float32Array;
   /** Record slots, in the order the host sent them. */
   readonly slots: number;
 }
@@ -81,13 +75,8 @@ export function packHostFrame(records: readonly HostRecord[]): HostFrame {
 
   const tokenIds = new Array<number>(slots * RECORD_WIDTH).fill(PAD_TOKEN);
   const fieldRoles = new Array<number>(slots * RECORD_WIDTH).fill(0);
-  const attentionMask = new Array<number>(slots * RECORD_WIDTH).fill(0);
   const schemaIds = new Array<number>(slots).fill(0);
   const bandIds = new Array<number>(slots).fill(0);
-  const recordFlags = new Array<number>(slots).fill(0);
-  // The reference table is the host's business now; the frame carries an empty
-  // one so anything reading the shape finds what it expects.
-  const runtimeRefs = new Array<number>(slots * BRAIN_LIMITS.maxReferencesPerRecord).fill(INVALID_U32);
   const activeRecordIndices = new Array<number>(slots).fill(INVALID_U32);
 
   for (let slot = 0; slot < slots; slot++) {
@@ -108,23 +97,19 @@ export function packHostFrame(records: readonly HostRecord[]): HostFrame {
       const at = slot * RECORD_WIDTH + local;
       tokenIds[at] = token;
       fieldRoles[at] = role ?? 0;
-      attentionMask[at] = 1;
     }
   }
 
   const gpu = {
-    header: {} as any,
     tokenIds,
     fieldRoles,
-    attentionMask,
     schemaIds,
     bandIds,
-    runtimeRefs,
-    recordFlags,
     activeRecordIndices,
   } as unknown as v1_0_0.BrainFrameGpu;
 
-  const active = compileActiveFrame(gpu);
-  const { mask: recordMask } = compileRecordMask(active.activeTokens);
-  return { gpu, active, recordMask, slots };
+  // No block-diagonal mask is built here. It was a T x T Float32Array per
+  // frame — 9.4 MB at a full one — describing a rule the forward now follows
+  // directly: attention visits a token's own record and never looks further.
+  return { gpu, active: compileActiveFrame(gpu), slots };
 }

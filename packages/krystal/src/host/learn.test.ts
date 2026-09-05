@@ -16,8 +16,8 @@ const GOOD = 0;
 const BAD = 1;
 
 /** How likely the brain is to pick a given record, right now. */
-const chanceOf = (session: BrainSession, record: number): number => {
-	const { selections } = session.think(world());
+const chanceOf = async (session: BrainSession, record: number): Promise<number> => {
+	const { selections } = await session.think(world());
 	return selections[0]!.distribution[record]!;
 };
 
@@ -30,23 +30,23 @@ const lived = (): HostExperience[] => [
 ];
 
 describe("living with what happened", () => {
-	test("what went well is more likely afterwards", () => {
+	test("what went well is more likely afterwards", async () => {
 		const session = new BrainSession({ tokenRows: rows(4096), seed: 7 });
-		const before = chanceOf(session, GOOD);
-		for (let round = 0; round < 40; round++) session.learn(lived(), { learningRate: 0.05 });
-		expect(chanceOf(session, GOOD)).toBeGreaterThan(before);
+		const before = await chanceOf(session, GOOD);
+		for (let round = 0; round < 40; round++) await session.learn(lived(), { learningRate: 0.05 });
+		expect(await chanceOf(session, GOOD)).toBeGreaterThan(before);
 	});
 
-	test("and what went badly is less likely", () => {
+	test("and what went badly is less likely", async () => {
 		const session = new BrainSession({ tokenRows: rows(4096), seed: 7 });
-		const before = chanceOf(session, BAD);
-		for (let round = 0; round < 40; round++) session.learn(lived(), { learningRate: 0.05 });
-		expect(chanceOf(session, BAD)).toBeLessThan(before);
+		const before = await chanceOf(session, BAD);
+		for (let round = 0; round < 40; round++) await session.learn(lived(), { learningRate: 0.05 });
+		expect(await chanceOf(session, BAD)).toBeLessThan(before);
 	});
 
-	test("it says how many it pushed each way", () => {
+	test("it says how many it pushed each way", async () => {
 		const session = new BrainSession({ tokenRows: rows(4096), seed: 7 });
-		const report = session.learn(lived());
+		const report = await session.learn(lived());
 		expect(report.framesSeen).toBe(4);
 		expect(report.reinforced).toBe(2);
 		expect(report.discouraged).toBe(2);
@@ -54,42 +54,42 @@ describe("living with what happened", () => {
 });
 
 describe("what it refuses to learn from", () => {
-	test("a turn with no consequence yet teaches nothing", () => {
+	test("a turn with no consequence yet teaches nothing", async () => {
 		const session = new BrainSession({ tokenRows: rows(4096), seed: 7 });
-		const report = session.learn([{ records: world(), chosen: [GOOD] }]);
+		const report = await session.learn([{ records: world(), chosen: [GOOD] }]);
 		expect(report.framesSeen).toBe(0);
 	});
 
-	test("a batch where everything went equally well does not move the actor", () => {
+	test("a batch where everything went equally well does not move the actor", async () => {
 		const session = new BrainSession({ tokenRows: rows(4096), seed: 7 });
-		const before = chanceOf(session, GOOD);
+		const before = await chanceOf(session, GOOD);
 		// Nothing here says WHICH choice was responsible, so nothing may be
 		// credited to one — a batch of identical outcomes is not evidence.
-		const report = session.learn([
+		const report = await session.learn([
 			{ records: world(), chosen: [GOOD], reward: 0.2 },
 			{ records: world(), chosen: [BAD], reward: 0.2 },
 		]);
 		expect(report.reinforced + report.discouraged).toBe(0);
-		expect(chanceOf(session, GOOD)).toBe(before);
+		expect(await chanceOf(session, GOOD)).toBe(before);
 	});
 
-	test("a turn nobody acted in still teaches the critic what such a moment is worth", () => {
+	test("a turn nobody acted in still teaches the critic what such a moment is worth", async () => {
 		const session = new BrainSession({ tokenRows: rows(4096), seed: 7 });
 		const before = Float32Array.from(session.weights.valueHeadWv);
-		const report = session.learn([{ records: world(), reward: 0.5 }]);
+		const report = await session.learn([{ records: world(), reward: 0.5 }]);
 		expect(report.framesSeen).toBe(1);
 		expect(report.reinforced + report.discouraged).toBe(0);
 		expect([...session.weights.valueHeadWv]).not.toEqual([...before]);
 	});
 
-	test("the actor is left alone by a frame with no choice in it", () => {
+	test("the actor is left alone by a frame with no choice in it", async () => {
 		const session = new BrainSession({ tokenRows: rows(4096), seed: 7 });
 		const before = Float32Array.from(session.weights.selector.wq);
-		session.learn([{ records: world(), reward: 0.5 }]);
+		await session.learn([{ records: world(), reward: 0.5 }]);
 		expect([...session.weights.selector.wq]).toEqual([...before]);
 	});
 
-	test("a runaway update is rejected as one transaction", () => {
+	test("a runaway update is rejected as one transaction", async () => {
 		const session = new BrainSession({ tokenRows: rows(4096), seed: 7 });
 		const before = {
 			embeddings: Float32Array.from(session.weights.embeddings),
@@ -97,7 +97,7 @@ describe("what it refuses to learn from", () => {
 			wk: Float32Array.from(session.weights.selector.wk),
 			value: Float32Array.from(session.weights.valueHeadWv),
 		};
-		const report = session.learn(lived(), {
+		const report = await session.learn(lived(), {
 			maxParameterAbs: 0.01,
 			unfreeze: { tokens: true, tokenRate: 0.1 },
 		});
@@ -112,23 +112,23 @@ describe("what it refuses to learn from", () => {
 });
 
 describe("the grammar that was in force", () => {
-	test("a choice is trained against the same mask it was made under", () => {
+	test("a choice is trained against the same mask it was made under", async () => {
 		const session = new BrainSession({ tokenRows: rows(4096), seed: 7 });
 		// Only the good one was ever on offer, so the distribution the update
 		// differentiates has one live option in it.
 		const allows = (_query: number, record: number) => record === GOOD;
-		const report = session.learn([
+		const report = await session.learn([
 			{ records: world(), chosen: [GOOD], allows, reward: 0.4 },
 			{ records: world(), chosen: [GOOD], allows, reward: -0.4 },
 		]);
 		expect(report.framesSeen).toBe(2);
 	});
 
-	test("learning predicts better than it did: the critic's loss falls", () => {
+	test("learning predicts better than it did: the critic's loss falls", async () => {
 		const session = new BrainSession({ tokenRows: rows(4096), seed: 7 });
-		const first = session.learn(lived(), { learningRate: 0.05 });
+		const first = await session.learn(lived(), { learningRate: 0.05 });
 		let last = first;
-		for (let round = 0; round < 40; round++) last = session.learn(lived(), { learningRate: 0.05 });
+		for (let round = 0; round < 40; round++) last = await session.learn(lived(), { learningRate: 0.05 });
 		expect(last.meanValueLoss).toBeLessThan(first.meanValueLoss);
 	});
 });
@@ -149,22 +149,22 @@ const roles = (named: boolean): HostRecord[] => [
 ];
 
 /** How far each question leans toward Ada, from -1 to 1. */
-const leanings = (session: BrainSession, named: boolean): number[] =>
-	session.think(roles(named)).selections.map((selection) => selection.distribution[0]! - selection.distribution[1]!);
+const leanings = async (session: BrainSession, named: boolean): Promise<number[]> =>
+	(await session.think(roles(named))).selections.map((selection) => selection.distribution[0]! - selection.distribution[1]!);
 
-const trained = (
+const trained = async (
 	named: boolean,
 	batch: HostExperience[],
 	options: { rounds?: number; unfreeze?: { tokens?: boolean; tokenRate?: number } } = {},
-): { moved: number[] } => {
+): Promise<{ moved: number[] }> => {
 	const session = new BrainSession({ tokenRows: rows(4096), seed: 11 });
-	const before = leanings(session, named);
+	const before = await leanings(session, named);
 	// A short capability probe, deliberately not a stability run. Replaying this
 	// same batch after the policy has moved makes it stale/off-policy: eventually
 	// it keeps crediting a bad action the current policy would never draw.
 	for (let round = 0; round < (options.rounds ?? 150); round++)
-		session.learn(batch, { learningRate: 0.05, ...(options.unfreeze ? { unfreeze: options.unfreeze } : {}) });
-	const after = leanings(session, named);
+		await session.learn(batch, { learningRate: 0.05, ...(options.unfreeze ? { unfreeze: options.unfreeze } : {}) });
+	const after = await leanings(session, named);
 	return { moved: after.map((lean, index) => lean - before[index]!) };
 };
 
@@ -175,36 +175,36 @@ const eachToItsOwn = (): HostExperience[] => [
 ];
 
 describe("telling two arguments of one kind apart", () => {
-	test("rows that say the same thing are one question asked twice", () => {
+	test("rows that say the same thing are one question asked twice", async () => {
 		const batch: HostExperience[] = [
 			{ records: roles(false), chosen: [0, undefined], reward: 0.4 },
 			{ records: roles(false), chosen: [1, undefined], reward: -0.4 },
 		];
-		const { moved } = trained(false, batch);
+		const { moved } = await trained(false, batch);
 		// Not merely similar — identical. Nothing in the frame distinguishes them,
 		// so no amount of training can, and a giver could never differ from a
 		// receiver.
 		expect(moved[0]).toBe(moved[1]!);
 	});
 
-	test("a question that names its argument is answerable on its own", () => {
+	test("a question that names its argument is answerable on its own", async () => {
 		const batch: HostExperience[] = [
 			{ records: roles(true), chosen: [0, undefined], reward: 0.4 },
 			{ records: roles(true), chosen: [1, undefined], reward: -0.4 },
 		];
-		const { moved } = trained(true, batch);
+		const { moved } = await trained(true, batch);
 		// The credited question learned decisively — the policy gradient is not
 		// weak, which matters for reading the next test.
 		expect(Math.abs(moved[0]!)).toBeGreaterThan(0.15);
 		expect(moved[0]).not.toBe(moved[1]!);
 	});
 
-	test("but the two still move together, which is what freezing costs", () => {
+	test("but the two still move together, which is what freezing costs", async () => {
 		const batch: HostExperience[] = [
 			{ records: roles(true), chosen: [0, undefined], reward: 0.4 },
 			{ records: roles(true), chosen: [1, undefined], reward: -0.4 },
 		];
-		const { moved } = trained(true, batch);
+		const { moved } = await trained(true, batch);
 		// Only the first question was ever credited; the second was asked and left.
 		// It moved almost exactly as far, because the one thing still learning is a
 		// single shared projection and a query row cannot yet shape its own
@@ -217,8 +217,8 @@ describe("telling two arguments of one kind apart", () => {
 		expect(Math.abs(moved[0]! - moved[1]!)).toBeLessThan(0.01);
 	});
 
-	test("opposing targets on one shared projection very nearly cancel", () => {
-		const { moved } = trained(true, eachToItsOwn());
+	test("opposing targets on one shared projection very nearly cancel", async () => {
+		const { moved } = await trained(true, eachToItsOwn());
 		// "Ada gives, Bo receives" pushes the two rows in opposite directions
 		// through the same weights, and what survives is a residue three orders of
 		// magnitude below what a single question learns.
@@ -227,13 +227,13 @@ describe("telling two arguments of one kind apart", () => {
 });
 
 describe("what unfreezing the tables buys", () => {
-	test("two questions finally pull in opposite directions", () => {
+	test("two questions finally pull in opposite directions", async () => {
 		// 300, not the 150 the other assays use. The critic no longer pushes the
 		// selector through a soft gather over the whole bank — a slice of gradient
 		// that used to shape the representation and was made of records the
 		// grammar had forbidden. The actor does it alone now, and takes about
 		// twice as long: measured 150 → `+0.019 / +0.000`, 300 → `+0.910 / -0.880`.
-		const { moved } = trained(true, eachToItsOwn(), { rounds: 300, unfreeze: { tokens: true, tokenRate: 0.1 } });
+		const { moved } = await trained(true, eachToItsOwn(), { rounds: 300, unfreeze: { tokens: true, tokenRate: 0.1 } });
 		// Ada was the giver and Bo the receiver, and each question moved toward its
 		// own answer. Frozen, both drift the same way whatever the reward said:
 		// what tells two questions apart is about a hundredth of a row's vector,
@@ -244,12 +244,12 @@ describe("what unfreezing the tables buys", () => {
 		// Twice the rounds on the full profile: this one is a few seconds.
 	}, 30_000);
 
-	test("frozen, the same life moves both the same way", () => {
-		const { moved } = trained(true, eachToItsOwn());
+	test("frozen, the same life moves both the same way", async () => {
+		const { moved } = await trained(true, eachToItsOwn());
 		expect(Math.sign(moved[0]!)).toBe(Math.sign(moved[1]!));
 	});
 
-	test("fresh on-policy batches separate the roles without the replay runaway", () => {
+	test("fresh on-policy batches separate the roles without the replay runaway", async () => {
 		// Smaller geometry keeps this long behavioural assay cheap. It exercises
 		// the same six embedding tables and update path as the full profile.
 		const config = {
@@ -274,7 +274,7 @@ describe("what unfreezing the tables buys", () => {
 		for (let round = 0; round < 700; round++) {
 			const batch: HostExperience[] = [];
 			for (let sample = 0; sample < 8; sample++) {
-				const chosen = session.think(roles(true), { sample: () => random() }).selections.map((entry) => entry.record);
+				const chosen = (await session.think(roles(true), { sample: () => random() })).selections.map((entry) => entry.record);
 				batch.push({
 					records: roles(true),
 					chosen,
@@ -285,10 +285,10 @@ describe("what unfreezing the tables buys", () => {
 			// too hot: 107 of 500 fresh batches were rolled back and both questions
 			// collapsed onto one record. The game runs 0.1, where the unfrozen rows
 			// plateau at |0.20| over 2000 batches and never trip the ceiling.
-			session.learn(batch, { learningRate: 0.05, unfreeze: { tokens: true, tokenRate: 0.5 } });
+			await session.learn(batch, { learningRate: 0.05, unfreeze: { tokens: true, tokenRate: 0.5 } });
 		}
 
-		const [giver, receiver] = session.think(roles(true)).selections;
+		const [giver, receiver] = (await session.think(roles(true))).selections;
 		// Converged, not pinned: measured `0.99997` and `0.98991`. The bar is what
 		// separates "it learned the two roles" from "it did not", and a threshold
 		// closer than that to the measurement is a test about arithmetic noise.

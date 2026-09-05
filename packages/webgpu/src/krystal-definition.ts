@@ -212,12 +212,6 @@ export function defineKrystal(bundle: KrystalShaderBundle = emptyKrystalShaderBu
     // Reuse the shared OpParams/arena conventions. Gradient and optimizer
     // dispatches are separate: no training shader updates parameters except
     // sgd_step, which binds weight32 as writable storage.
-    embedding_f32: engine.compute({
-      label: "embedding_f32",
-      resources: { op: r.op, tokens: r.tokens, arena: r.arena, weight32: r.weight32 },
-      includes: commonIncludes,
-      compute: { entryPoint: "embedding_f32", params: gid, workgroupSize: 256, code: sources.embedding_f32 },
-    }),
 
     zero_f32: engine.compute({
       label: "zero_f32",
@@ -259,12 +253,6 @@ export function defineKrystal(bundle: KrystalShaderBundle = emptyKrystalShaderBu
       compute: { entryPoint: "matmul_backward_weight", params: gid, workgroupSize: 256, code: sources.matmul_backward_weight },
     }),
 
-    embedding_backward: engine.compute({
-      label: "embedding_backward",
-      resources: { op: r.op, tokens: r.tokens, arena: r.arena },
-      includes: commonIncludes,
-      compute: { entryPoint: "embedding_backward", params: gid, workgroupSize: 256, code: sources.embedding_backward },
-    }),
 
     // SGD writes the trainable parameter page in place, so weight32 is bound
     // as storage (read-write) here, unlike the read-only weight32 views above.
@@ -285,31 +273,8 @@ export function defineKrystal(bundle: KrystalShaderBundle = emptyKrystalShaderBu
     // weight pages. attention_forward persists the softmax probs P so the two
     // backward shaders can reuse them (the mask never needs re-reading: masked
     // positions carry P == 0).
-    attention_forward: engine.compute({
-      label: "attention_forward",
-      resources: { op: r.op, arena: r.arena },
-      includes: [...commonIncludes, include("attention-scores")],
-      compute: { entryPoint: "attention_forward", params: widLid, workgroupSize: 64, code: sources.attention_forward },
-    }),
 
-    attention_backward_scores: engine.compute({
-      label: "attention_backward_scores",
-      resources: { op: r.op, arena: r.arena },
-      includes: [...commonIncludes, include("attention-scores"), include("reduce-f32")],
-      compute: {
-        entryPoint: "attention_backward_scores",
-        params: widLid,
-        workgroupSize: 64,
-        code: sources.attention_backward_scores,
-      },
-    }),
 
-    attention_backward_qkv: engine.compute({
-      label: "attention_backward_qkv",
-      resources: { op: r.op, arena: r.arena },
-      includes: commonIncludes,
-      compute: { entryPoint: "attention_backward_qkv", params: gid, workgroupSize: 256, code: sources.attention_backward_qkv },
-    }),
 
     // --- M2b Krystal forward programs ---
     // The SoA frame and host-compiled active lists live in the shared arena

@@ -64,17 +64,12 @@ export function defineKrystalFromArtifact() {
     residual_add: engine.computeProgram("residual_add"),
     arena_copy: engine.computeProgram("arena_copy"),
     // M1 training programs (same names as the shader files).
-    embedding_f32: engine.computeProgram("embedding_f32"),
     zero_f32: engine.computeProgram("zero_f32"),
     cross_entropy_forward_backward: engine.computeProgram("cross_entropy_forward_backward"),
     loss_reduce: engine.computeProgram("loss_reduce"),
     matmul_backward_input: engine.computeProgram("matmul_backward_input"),
     matmul_backward_weight: engine.computeProgram("matmul_backward_weight"),
-    embedding_backward: engine.computeProgram("embedding_backward"),
     sgd_step: engine.computeProgram("sgd_step"),
-    attention_forward: engine.computeProgram("attention_forward"),
-    attention_backward_scores: engine.computeProgram("attention_backward_scores"),
-    attention_backward_qkv: engine.computeProgram("attention_backward_qkv"),
     // M2b Krystal forward programs.
     krystal_field_embed: engine.computeProgram("krystal_field_embed"),
     krystal_attention_forward: engine.computeProgram("krystal_attention_forward"),

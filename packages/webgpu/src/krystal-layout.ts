@@ -156,7 +156,16 @@ export const KRYSTAL_FRAME_TOKENS = BRAIN_LIMITS.frameTokens;
 export const KRYSTAL_MAX_H = 128; // first profile hidden size (answer 9)
 export const KRYSTAL_MAX_FFN = 384; // first profile FFN size (answer 9)
 export const KRYSTAL_MAX_HEADS = 4; // first profile full attention heads (answer 11)
-export const KRYSTAL_MAX_QUERIES = 8; // maxQueries
+/**
+ * How many questions one frame may ask.
+ *
+ * A ceiling the CPU path never had, which is how it first surfaced: the
+ * simulation sent eleven questions in a tick and only the device refused them.
+ * Raising it is nearly free — every region it sizes is linear or Q*R, while the
+ * arena is dominated by the token-squared attention terms. Measured: 8 -> 128
+ * grows the whole arena from 194.7 MB to 200.4 MB.
+ */
+export const KRYSTAL_MAX_QUERIES = 128;
 export const KRYSTAL_MAX_ROUTE_KINDS = 8; // typed decision-head classes (capacity, not ABI)
 export const KRYSTAL_MAX_BLOCKS = 2; // shared capacity for encoder + mixer block stacks
 
@@ -347,7 +356,7 @@ export const KRYSTAL_FORWARD_ARENA_ELEMENTS = KRYSTAL_FORWARD_ARENA.elements;
 //
 // Fixed capacity constants, not ABI limits: shaders read actual dims from
 // OpParams. Gradients live here so a later composed KrystalBackward runner
-// mirrors KrystalForward's one-submit structure (WEBGPU_BACKWARD_PLAN.md §17
+// mirrors KrystalForward's one-submit structure (docs/archive/WEBGPU_BACKWARD_PLAN.md §17
 // items 6-8).
 
 export interface KrystalBackwardArenaLayout {
@@ -532,23 +541,15 @@ export type KrystalShaderName = (typeof KRYSTAL_SHADER_NAMES)[number];
  * artifact so trainStep reuses the existing pass.run orchestration.
  */
 export const TRAINING_SHADER_NAMES = [
-  "embedding_f32",
   "zero_f32",
   "cross_entropy_forward_backward",
   "loss_reduce",
   "matmul_backward_input",
   "matmul_backward_weight",
-  "embedding_backward",
   "sgd_step",
-  // Attention (§17 item 6): forward saves probs, backward splits into the
-  // softmax-score gradient and the Q/K/V gradients.
-  "attention_forward",
-  "attention_backward_scores",
-  "attention_backward_qkv",
 ] as const;
 
 export type TrainingShaderName = (typeof TRAINING_SHADER_NAMES)[number];
-export type TrainingPassName = TrainingShaderName;
 
 /**
  * M2b Krystal forward shaders (record/query encoder + mixer): one file per
@@ -705,8 +706,6 @@ export function defineKrystalPasses(
     // Shader contracts are documented in each training/*.wgsl file; workgroup
     // geometry mirrors the existing per-op conventions (gid-linear for
     // elementwise, one workgroup per row for reductions).
-    embedding_f32: definePass(programs.embedding_f32, "f32", (op) =>
-      linear(required(op.tokenCount, "tokenCount") * required(op.outputDim, "outputDim"), 256)),
 
     zero_f32: definePass(programs.zero_f32, "none", (op) =>
       linear(required(op.tokenCount, "tokenCount"), 256)),
@@ -722,20 +721,10 @@ export function defineKrystalPasses(
     matmul_backward_weight: definePass(programs.matmul_backward_weight, "none", (op) =>
       linear(required(op.inputDim, "inputDim") * required(op.outputDim, "outputDim"), 256)),
 
-    embedding_backward: definePass(programs.embedding_backward, "none", (op) =>
-      linear(required(op.inputDim, "inputDim") * required(op.outputDim, "outputDim"), 256)),
 
     sgd_step: definePass(programs.sgd_step, "f32", (op) =>
       linear(required(op.tokenCount, "tokenCount"), 256)),
 
-    attention_forward: definePass(programs.attention_forward, "none", (op) =>
-      [required(op.u0, "u0"), required(op.tokenCount, "tokenCount"), 1]),
-
-    attention_backward_scores: definePass(programs.attention_backward_scores, "none", (op) =>
-      [required(op.u0, "u0"), required(op.tokenCount, "tokenCount"), 1]),
-
-    attention_backward_qkv: definePass(programs.attention_backward_qkv, "none", (op) =>
-      linear(3 * required(op.tokenCount, "tokenCount") * required(op.inputDim, "inputDim"), 256)),
 
     // --- M2b Krystal forward passes ---
     // Shader contracts are documented in each training/*.wgsl file.

@@ -13,6 +13,12 @@
 //   pointerLossGrad[i,j] = p[i,j] - onehot(j == gold[i])
 //                          when gold[i] is valid (not 0xffffffff)
 //
+// A gold with its top bit set (0x80000000 | row) is pushed AWAY from: the
+// unlikelihood loss -log(1 - p[i,row]), whose gradient is
+//   pointerLossGrad[i,j] = s * (onehot(j == row) - p[i,j]),
+//   s = p[i,row] / max(1 - p[i,row], 1e-6)
+// Mirrors selectorBackwardScores in the CPU oracle exactly.
+//
 // p is the persisted softmax distribution from the forward; masked positions
 // carry p == 0, so their dScore gradient is exactly the pointer-loss term (0
 // when that slot is not the gold). dScore [Q, R] is row-owned, so it is
@@ -66,8 +72,16 @@
   workgroupBarrier();
 
   // Pass 2: dScore = p * (dP - rowSum) + pointer-loss gradient.
-  let gold = bitcast<u32>(arena[op.aux3Offset + i]);
-  if (op.u1 != 0u && gold == 0xffffffffu) {
+  let raw = bitcast<u32>(arena[op.aux3Offset + i]);
+  let valid = raw != 0xffffffffu;
+  let away = valid && (raw & 0x80000000u) != 0u;
+  let gold = raw & 0x7fffffffu;
+  var scale = 0.0;
+  if (away) {
+    let pAway = arena[op.aux2Offset + i * R + gold];
+    scale = pAway / max(1.0 - pAway, 1e-6);
+  }
+  if (op.u1 != 0u && !valid) {
     // No pointer target: the branch contributes exactly zero gradient.
     j = lid.x;
     loop {
@@ -82,8 +96,11 @@
     if (j >= R) { break; }
     let p = arena[op.aux2Offset + i * R + j];
     var pointerGrad = 0.0;
-    if (gold != 0xffffffffu && j == gold) { pointerGrad = p - 1.0; }
-    else if (gold != 0xffffffffu) { pointerGrad = p; }
+    if (valid) {
+      let oneHot = select(0.0, 1.0, j == gold);
+      if (away) { pointerGrad = scale * (oneHot - p); }
+      else { pointerGrad = p - oneHot; }
+    }
     arena[op.outputOffset + i * R + j] = p * (attentionScores[j] - rowSum) + pointerGrad;
     j += WG;
   }

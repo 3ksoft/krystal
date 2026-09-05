@@ -53,7 +53,7 @@ test("composed forward: encoder, mixer and selection match the CPU oracle", asyn
   // attend to while it thinks is not what it may choose.
   const mixer = new Float32Array(q * r);
 
-  const cpu = brainForwardOracle(frame, active, weights, config, recordMask, mixer);
+  const cpu = brainForwardOracle(frame, active, weights, config, undefined, mixer);
   const cpuSel = selectorOracle(cpu.queryOutput, cpu.bankKeys, cpu.bankValues, selection, weights.selector, H);
 
   const runner = new KrystalForward(weights, config);
@@ -87,7 +87,7 @@ test("the available context is the mean bank value over what the grammar allows"
   const selection = grammar(q, r);
   const mixer = new Float32Array(q * r);
 
-  const cpu = brainForwardOracle(frame, active, weights, config, recordMask, mixer);
+  const cpu = brainForwardOracle(frame, active, weights, config, undefined, mixer);
   const runner = new KrystalForward(weights, config);
   runner.forward(frame, { mixer, selection, context: "available" });
   await h.device.queue.onSubmittedWorkDone();
@@ -121,7 +121,6 @@ test("composed backward: gradients match the CPU oracle on the host's shape", as
 
   const cpu = brainBackwardOracle({
     frame, active, weights, config,
-    recordMask,
     mixerMask: mixer,
     intentMask: selection,
     argMask: new Float32Array(q * r),
@@ -206,7 +205,7 @@ test("the second slot and the route-kind head still work when a host asks for th
 
   const cpu = brainBackwardOracle({
     frame, active, weights, config,
-    recordMask, mixerMask: mixer,
+    mixerMask: mixer,
     intentMask: selection, argMask: argument,
     intentTargets: [1], argumentTargets: argumentTargets[0],
     routeKinds,

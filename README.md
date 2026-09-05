@@ -1,28 +1,65 @@
 # Krystal
 
-Krystal is an experimental, record-based brain engine for simulations and interactive worlds. It is designed to learn semantic decisions—such as which record, action, or argument is relevant—while leaving exact logic, type checking, arithmetic, and world-state updates to the runtime.
-
-The project is built around a compiled ABI for world data:
+Krystal is an experimental, record-based brain engine for simulations and
+interactive worlds. It learns one thing — **which record is relevant** — and
+leaves exact logic, type checking, arithmetic and world state to whoever owns
+the world.
 
 ```text
-encode records → encode query → select → soft gather → decide → emit a typed plan
+records in → one pointer per question out
 ```
+
+A frame is a list of records, each up to eight tokens. Some are marked as
+questions; the rest form the bank. For every question the model returns one bank
+record and the distribution it came from. There is no generated text, no opcode,
+no plan structure and no exact reference.
+
+A relation is an ordinary record. Its roles are ordinary questions. The engine
+has no special construct for either — which is the whole architecture in one
+sentence.
+
+```ts
+import { BrainSession } from "@krystal/krystal/host";
+
+const brain = new BrainSession({ tokenRows });
+
+const { selections } = await brain.think([
+  { schemaId: 1, band: 3, tokens: [APPLE, RED] },
+  { schemaId: 1, band: 3, tokens: [STONE, GREY] },
+  { schemaId: 9, query: true, tokens: [EAT, PATIENT] },
+]);
+
+selections[0].record;  // 0 or 1 — the slot it chose, as you numbered them
+```
+
+It can be shown what one does (`teach`), and it can live with what happened
+(`learn`). It runs on the CPU, or on WebGPU behind the same API.
+
+## Documentation
+
+- **[docs/ENGINE.md](docs/ENGINE.md)** — how the engine works: the frame, the
+  model graph, masks, learning, the CPU/GPU seam, invariants, and an honest
+  inventory of what is in the tree but not wired.
+- **[docs/API.md](docs/API.md)** — how to drive it from a simulation.
+- [docs/archive/](docs/archive/README.md) — superseded designs and milestone
+  notes. Nothing there is a contract.
 
 ## Packages
 
-- `@krystal/krystal` — the model graph, CPU forward/backward implementation, masks, and host session API.
-- `@krystal/schema` — schemas and generated layouts used to describe the engine ABI.
-- `@krystal/webgpu` — WebGPU forward and training support, including WGSL shaders.
-
+| Package | What it is |
+|---|---|
+| `@krystal/krystal` | The model graph, the CPU forward/backward oracle, the masks — and, under `/host`, the session a simulation actually calls |
+| `@krystal/schema` | ABI constants, frame layout and the generated types |
+| `@krystal/webgpu` | WGSL shaders, the compiled artifact, and a device backend that plugs into a session unchanged |
 
 ## Development
 
-This is a TypeScript monorepo using Bun.
+A TypeScript monorepo on Bun.
 
 ```bash
 bun install
-bun run build
-bun test
+bun run build     # schema codegen, then the WebGPU artifact
+bun test packages
 ```
 
-The project is still under active development; the API and architecture may change.
+Still under active development; the API and the architecture change.

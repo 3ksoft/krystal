@@ -3,7 +3,6 @@ import path from "node:path";
 import { fromModule, SchemaAnalyzer } from "@schema-pop/core";
 import { exportPlan } from "@schema-pop/exporter";
 import { schema as krystalSchema } from "./krystal-engine-schema";
-import { world as worldSchema } from "./world";
 
 const HEADER = `// THIS FILE IS AUTO-GENERATED - DO NOT CHANGE\n\n`;
 
@@ -167,17 +166,6 @@ buildTarget("krystal", krystalSchema, {
   hostTypesPath: "./../webgpu/src/krystal-types.ts",
   plainTypesPath: "./generated/krystal.types.ts",
   codecPath: "./generated/krystal.codec.ts",
-  soaBuffers: { structName: "BrainFrameGpu", destPath: "./generated/krystal.buffers.ts" },
-});
-
-// ---------------------------------------------------------------------------
-// World contract — what a simulation sends. JSON on the wire, so no layout and
-// no codec: the generated plain interfaces are the whole point.
-// ---------------------------------------------------------------------------
-
-buildTarget("world", worldSchema, {
-  tsExportsImport: `import { world as $ } from "../../schema/src/world";\n\n`,
-  plainTypesPath: "./generated/world.types.ts",
 });
 
 console.log("🐏 Schema build complete.");

@@ -20,7 +20,9 @@ import {
   type BrainForwardWeights,
 } from "../forward/model.ts";
 import { brainForwardOracle, selectorOracle } from "../forward/oracle.ts";
+import type { BrainBackend, BrainBackendFactory, EncodedFrame } from "./backend.ts";
 import { decodeCheckpoint, encodeCheckpoint, type CheckpointRefusal } from "./checkpoint.ts";
+import { cpuGradients, type GradientSource } from "./gradients.ts";
 import { teachFromDemonstration, type HostDemonstration, type TeachOptions, type TeachReport } from "./teach.ts";
 import { packHostFrame, type HostFrame, type HostRecord } from "./frame.ts";
 import {
@@ -43,6 +45,15 @@ export interface HostSessionOptions {
   readonly seed?: number;
   readonly weights?: BrainForwardWeights;
   readonly config?: BrainForwardConfig;
+  /**
+   * Where to encode frames. Absent means here, on the CPU.
+   *
+   * A factory rather than a backend, because the weights it must encode with
+   * are the ones this session is about to create. `@krystal/webgpu` exports one
+   * that takes a `GPUDevice`; this package never imports it, which is what
+   * keeps a CPU-only host free of shaders.
+   */
+  readonly backend?: BrainBackendFactory;
 }
 
 export interface HostSelection {
@@ -73,7 +84,8 @@ export interface ThinkResult {
  */
 export interface Deliberation {
   readonly frame: HostFrame;
-  /** Ask this frame a question. Cheap: only the selector runs. */
+  /** Ask this frame a question. Cheap, and synchronous even when the frame was
+   *  encoded on a device: the encoded frame is already here. */
   choose(options?: ThinkOptions): ThinkResult;
 }
 
@@ -94,11 +106,13 @@ export interface ThinkOptions {
 export class BrainSession {
   readonly config: BrainForwardConfig;
   readonly weights: BrainForwardWeights;
+  private readonly backend: BrainBackend | undefined;
 
   constructor(options: HostSessionOptions) {
     this.config = { ...(options.config ?? BRAIN_FORWARD_CONFIG), tokenRows: options.tokenRows };
     this.weights = options.weights ?? createBrainForwardWeights(this.config, options.seed ?? 1337);
     validateBrainForwardWeights(this.config, this.weights);
+    this.backend = options.backend?.(this.config, this.weights);
   }
 
   /**
@@ -106,34 +120,40 @@ export class BrainSession {
    *
    * The expensive half of thinking happens here and happens once; every
    * question asked of the result costs a selector pass and nothing else.
+   *
+   * Asynchronous whichever backend runs it, so that choosing where to encode
+   * does not change the shape of the call. On the CPU the promise is already
+   * resolved; on a device it is the readback, and there is no way around it.
    */
-  consider(records: readonly HostRecord[]): Deliberation {
+  async consider(records: readonly HostRecord[]): Promise<Deliberation> {
     const frame = packHostFrame(records);
     const { active } = frame;
     const queries = active.queryRecords.length;
     const bank = active.bankRecords.length;
     if (!queries || !bank) return { frame, choose: () => ({ selections: [], frame }) };
 
-    // The mixer is unconstrained here: what a question may attend to while it
-    // thinks is not the same as what it may CHOOSE, and only the second is the
-    // host's grammar.
-    const forward = brainForwardOracle(
-      frame.gpu,
-      active,
-      this.weights,
-      this.config,
-      frame.recordMask,
-      new Float32Array(queries * bank),
-    );
+    const encoded = this.backend
+      ? await this.backend.encode(frame)
+      // The mixer is unconstrained here: what a question may attend to while it
+      // thinks is not the same as what it may CHOOSE, and only the second is the
+      // host's grammar.
+      : brainForwardOracle(
+        frame.gpu,
+        active,
+        this.weights,
+        this.config,
+        undefined,
+        new Float32Array(queries * bank),
+      ) as EncodedFrame;
 
     const choose = (options: ThinkOptions = {}): ThinkResult => {
       // Built by the same function the update uses, because a mask that
       // differed between choosing and learning would compute the gradient of a
       // distribution the creature never sampled from.
       const selection = selectorOracle(
-        forward.queryOutput,
-        forward.bankKeys,
-        forward.bankValues,
+        encoded.queryOutput,
+        encoded.bankKeys,
+        encoded.bankValues,
         selectionMask(active, options.allows),
         this.weights.selector,
         this.config.hiddenSize,
@@ -156,8 +176,8 @@ export class BrainSession {
   }
 
   /** One pass: records in, one choice per question out. */
-  think(records: readonly HostRecord[], options: ThinkOptions = {}): ThinkResult {
-    return this.consider(records).choose(options);
+  async think(records: readonly HostRecord[], options: ThinkOptions = {}): Promise<ThinkResult> {
+    return (await this.consider(records)).choose(options);
   }
 
   /**
@@ -166,9 +186,14 @@ export class BrainSession {
    * Mutates this session's weights in place — a brain is not a value, and
    * copying one to hand back a new brain would make every update a decision
    * about which of two brains the creature is.
+   *
+   * Asynchronous whichever backend runs it, as `consider` is: on a device the
+   * gradients have to come back before the update can be applied, and on the
+   * CPU the promise is already resolved. One shape, so choosing where to
+   * differentiate does not change the shape of the call.
    */
-  learn(experiences: readonly HostExperience[], options: LearnOptions = {}): LearnReport {
-    return learnFromExperience(experiences, this.weights, this.config, options);
+  learn(experiences: readonly HostExperience[], options: LearnOptions = {}): Promise<LearnReport> {
+    return learnFromExperience(experiences, this.weights, this.config, options, this.gradients());
   }
 
   /**
@@ -177,8 +202,26 @@ export class BrainSession {
    * A separate mechanism from `learn` on purpose: this teaches what the frame
    * ADMITS, not what turned out well. No reward, no baseline, no critic.
    */
-  teach(demonstrations: readonly HostDemonstration[], options: TeachOptions = {}): TeachReport {
-    return teachFromDemonstration(demonstrations, this.weights, this.config, options);
+  teach(demonstrations: readonly HostDemonstration[], options: TeachOptions = {}): Promise<TeachReport> {
+    return teachFromDemonstration(demonstrations, this.weights, this.config, options, this.gradients());
+  }
+
+  /**
+   * Where an update gets its gradients, and who is told when it writes.
+   *
+   * A backend that can differentiate a frame does; one that only encodes
+   * leaves that to the CPU oracle on these arrays. Either way it is told
+   * exactly which arrays an update changed, because it holds a copy of them
+   * and would otherwise go on thinking with the brain the creature had before.
+   */
+  private gradients(): GradientSource {
+    const cpu = cpuGradients(this.weights, this.config);
+    const backend = this.backend;
+    if (!backend) return cpu;
+    return {
+      backward: backend.backward ? (frame, request) => backend.backward!(frame, request) : cpu.backward,
+      wrote: (changes) => backend.sync(this.weights, changes),
+    };
   }
 
   /**
@@ -200,7 +243,14 @@ export class BrainSession {
    * the creature is now thinking with. Null means it was taken up.
    */
   restore(bytes: Uint8Array): CheckpointRefusal | null {
-    return decodeCheckpoint(bytes, this.weights, this.config, this.config.tokenRows);
+    const refusal = decodeCheckpoint(bytes, this.weights, this.config, this.config.tokenRows);
+    if (!refusal) this.backend?.sync(this.weights);
+    return refusal;
+  }
+
+  /** Release whatever the backend holds. Nothing to do on the CPU. */
+  destroy(): void {
+    this.backend?.destroy?.();
   }
 }
 

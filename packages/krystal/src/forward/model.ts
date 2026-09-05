@@ -314,15 +314,4 @@ export function validateBrainForwardWeights(
   require(weights.valueHeadWv.length === 3 * h, "value head weight size");
 }
 
-/** Typed brain-stream id list per record slot (from band id). */
-export function compileStreamIds(
-  bandIds: readonly number[],
-  queryBandIndex: number,
-): Uint32Array {
-  const streamIds = new Uint32Array(bandIds.length);
-  for (let slot = 0; slot < bandIds.length; slot++) {
-    streamIds[slot] = bandIds[slot] === queryBandIndex ? STREAM_QUERY : STREAM_RECORD;
-  }
-  return streamIds;
-}
 

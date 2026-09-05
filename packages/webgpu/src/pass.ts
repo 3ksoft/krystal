@@ -18,7 +18,7 @@ import {
  * Shader resources, includes, entry points and dispatch geometry stay in
  * krystal.ts; this module deals in semantic pass requests.
  */
-export interface KrystalPassRequest {
+interface KrystalPassRequest {
   readonly name: KrystalPassName;
   readonly program: KrystalPassSpec["program"];
   readonly op: Readonly<KrystalOpParams>;
@@ -27,7 +27,7 @@ export interface KrystalPassRequest {
 }
 
 /** Resolve one semantic runtime operation into a concrete GPU pass request. */
-export function krystalPass(
+function krystalPass(
   name: KrystalPassName,
   op: Readonly<KrystalOpParams>,
 ): KrystalPassRequest {
@@ -125,7 +125,7 @@ class KrystalParamWriter {
   }
 }
 
-export type KrystalWeightPage = GPUBuffer | { readonly buffer: GPUBuffer };
+type KrystalWeightPage = GPUBuffer | { readonly buffer: GPUBuffer };
 
 function gpuBuffer(page: KrystalWeightPage): GPUBuffer {
   return "buffer" in page ? page.buffer : page;
@@ -204,7 +204,7 @@ export class KrystalExecutor {
     // past it become out-of-bounds and training silently degrades to
     // garbage/NaN instead of failing loudly.
     for (const programName of [
-      "embedding_f32", "matmul_backward_input", "sgd_step",
+      "krystal_field_embed", "matmul_backward_input", "sgd_step",
     ] as const) {
       const manifest = krystal.programs[programName].manifest;
       for (const binding of manifest.bindings) {

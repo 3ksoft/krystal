@@ -35,6 +35,18 @@ export {
 } from "./teach.ts";
 
 export {
+  NO_TARGET,
+  type BackwardRequest,
+  type BackwardResult,
+  type BrainBackend,
+  type BrainBackendFactory,
+  type EncodedFrame,
+  type WeightChanges,
+} from "./backend.ts";
+
+export { cpuGradients, type GradientSource } from "./gradients.ts";
+
+export {
   BrainSession,
   createBrainForwardWeights,
   type BrainForwardConfig,

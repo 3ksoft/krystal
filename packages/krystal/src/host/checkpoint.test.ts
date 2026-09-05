@@ -23,16 +23,16 @@ const small = {
 };
 
 describe("writing a brain down", () => {
-  test("a restored brain answers exactly as the one that was written", () => {
+  test("a restored brain answers exactly as the one that was written", async () => {
     const trained = new BrainSession({ tokenRows: rows(4096), seed: 7, config: small });
     // Move it off its seed, so the test is about the checkpoint and not about
     // two sessions built from the same number.
-    trained.learn([{ records: world(), chosen: [0], reward: 0.5 }]);
-    const before = trained.think(world()).selections[0]!;
+    await trained.learn([{ records: world(), chosen: [0], reward: 0.5 }]);
+    const before = (await trained.think(world())).selections[0]!;
 
     const cold = new BrainSession({ tokenRows: rows(4096), seed: 99, config: small });
     expect(cold.restore(trained.snapshot())).toBeNull();
-    const after = cold.think(world()).selections[0]!;
+    const after = (await cold.think(world())).selections[0]!;
     expect(after.record).toBe(before.record);
     expect([...after.distribution]).toEqual([...before.distribution]);
   });

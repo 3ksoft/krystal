@@ -17,57 +17,12 @@
  * exploration decays on its own. There is no temperature to schedule and no
  * epsilon to decay — the policy's own certainty is the schedule.
  *
- * The randomness is counter-based rather than a stateful generator, so a run
- * stays reproducible: the same (seed, tick, slot, row) always draws the same
- * number, no matter what else the process did in between.
+ * Where the numbers come from is the HOST's business: `choose` takes a
+ * `sample` closure and this module only turns one of its uniforms into a
+ * choice. A generator lived here once, counter-based so a run stayed
+ * reproducible — and reproducibility is exactly why it belongs to whoever owns
+ * the run, not to the brain being replayed.
  */
-
-/** Counter-based 32-bit mixer (the one the simulation uses). */
-export function mix32(value: number): number {
-  let x = value >>> 0;
-  x ^= x >>> 16;
-  x = Math.imul(x, 0x7feb352d) >>> 0;
-  x ^= x >>> 15;
-  x = Math.imul(x, 0x846ca68b) >>> 0;
-  return (x ^ (x >>> 16)) >>> 0;
-}
-
-/** Stable 32-bit hash of a string, for turning an agent id into a seed. */
-export function hashString(text: string): number {
-  let hash = 0x811c9dc5;
-  for (let i = 0; i < text.length; i++) {
-    hash = Math.imul(hash ^ text.charCodeAt(i), 0x01000193) >>> 0;
-  }
-  return hash >>> 0;
-}
-
-/** Which selector a draw belongs to, so the two never share a number. */
-export const SAMPLE_STREAM = {
-  intent: 0x1,
-  /**
-   * Base for the per-role selection streams; a role's stream is this plus its
-   * index in `RELATION_ROLES`.
-   *
-   * Separate streams per role on purpose: sharing one would correlate the agent
-   * and the patient draws, so a relation would tend to pick both from the same
-   * region of the distribution and the pair would explore far less than either
-   * head alone.
-   */
-  role: 0x10,
-} as const;
-
-/**
- * A uniform in [0, 1) for one (stream, row) of one decision.
- *
- * Pure in its arguments on purpose. Threading a mutable generator through the
- * forward pass would make a decision depend on how many draws happened before
- * it, and a replayed frame would then diverge from the frame it replays.
- */
-export function drawUniform(seed: number, stream: number, row: number): number {
-  const mixed = mix32((seed >>> 0) ^ mix32(Math.imul(stream, 0x9e3779b1) ^ row));
-  // 2^-32, so the result is in [0, 1) and never exactly 1.
-  return mixed * 2.3283064365386963e-10;
-}
 
 /**
  * Inverse-CDF sample from one row of a [Q, R] distribution.
@@ -76,6 +31,12 @@ export function drawUniform(seed: number, stream: number, row: number): number {
  * the rounding case where the row's probabilities sum to slightly under the
  * drawn uniform. Returning the argmax there would quietly bias the sample
  * toward the mode exactly when the distribution is flattest.
+ *
+ * A weight that is not a number is not a weight: skipped like a zero, so a
+ * row of NaN chooses nothing (-1) rather than its last entry. Measured in a
+ * world: a brain with NaN in it "chose" the last record of every frame, which
+ * happened to be the one act nothing may do, a hundred and twenty times over,
+ * and looked like a decision.
  */
 export function sampleRow(
   p: Float32Array,
@@ -87,7 +48,7 @@ export function sampleRow(
   let last = -1;
   for (let j = 0; j < count; j++) {
     const weight = p[offset + j]!;
-    if (weight <= 0) continue;
+    if (!(weight > 0)) continue;
     last = j;
     cumulative += weight;
     if (uniform < cumulative) return j;

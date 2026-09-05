@@ -11,9 +11,7 @@
  */
 import type { v1_0_0 } from "../../../schema/generated/krystal.types.ts";
 import { sampleRow } from "./sampling.ts";
-import type {
-  ActiveFrame,
-} from "./masks.ts";
+import { recordRanges, type ActiveFrame, type RecordRanges } from "./masks.ts";
 import {
   BRAIN_FORWARD_CONFIG,
   embeddingTableBases,
@@ -50,17 +48,30 @@ export function softmaxRow(values: Float32Array | number[], start: number, count
   for (let i = 0; i < count; i++) values[start + i] = values[start + i]! * inv;
 }
 
-/** Multi-head masked attention; Q [q,H], K/V [k,H], out [q,H]. */
+/**
+ * Multi-head masked attention; Q [q,H], K/V [k,H], out [q,H].
+ *
+ * `local` restricts each query row to its own record's key range, which is
+ * what the encoder's block-diagonal mask means. It is not an approximation:
+ * a masked cell contributes `exp(-1e30 - max)`, which is exactly zero, so the
+ * rows it would have visited add nothing to the softmax or to the gather.
+ * Without it the pass computes a full T x T score matrix for a frame whose
+ * blocks are at most eight tokens wide — quadratic work to produce zeros.
+ *
+ * `mask` may be omitted in local mode, where every in-record cell is 0 unless a
+ * same-word bias was compiled into it.
+ */
 export function attentionOracle(
   q: Float32Array,
   k: Float32Array,
   v: Float32Array,
-  mask: Float32Array,
+  mask: Float32Array | undefined,
   qRows: number,
   kRows: number,
   h: number,
   heads: number,
   headDim: number,
+  local?: RecordRanges,
 ): Float32Array {
   const out = new Float32Array(qRows * h);
   const scores = new Float32Array(kRows);
@@ -68,19 +79,22 @@ export function attentionOracle(
   for (let head = 0; head < heads; head++) {
     const hb = head * headDim;
     for (let i = 0; i < qRows; i++) {
-      for (let j = 0; j < kRows; j++) {
+      const from = local ? local.start[i]! : 0;
+      const to = local ? from + local.count[i]! : kRows;
+      for (let j = from; j < to; j++) {
         let s = 0;
         for (let d = 0; d < headDim; d++) {
           s += q[i * h + hb + d]! * k[j * h + hb + d]!;
         }
-        scores[j] = s * scale + mask[i * kRows + j]!;
+        scores[j] = s * scale + (mask ? mask[i * kRows + j]! : 0);
       }
-      const allBlocked = scores.every((score) => score < -1e29);
-      if (allBlocked) scores.fill(0);
-      else softmaxRow(scores, 0, kRows);
+      let allBlocked = true;
+      for (let j = from; j < to; j++) if (scores[j]! >= -1e29) { allBlocked = false; break; }
+      if (allBlocked) scores.fill(0, from, to);
+      else softmaxRow(scores, from, to - from);
       for (let d = 0; d < headDim; d++) {
         let value = 0;
-        for (let j = 0; j < kRows; j++) {
+        for (let j = from; j < to; j++) {
           value += scores[j]! * v[j * h + hb + d]!;
         }
         out[i * h + hb + d] = value;
@@ -219,11 +233,14 @@ export function brainForwardOracle(
   active: ActiveFrame,
   weights: BrainForwardWeights,
   config: BrainForwardConfig = BRAIN_FORWARD_CONFIG,
-  recordMask: Float32Array,
+  recordMask: Float32Array | undefined,
   mixerMask: Float32Array,
 ): BrainForwardResult {
   const { hiddenSize: h, ffnSize: ffn, headCount: heads, headDim, encoderBlocks, mixerBlocks } = config;
   const t = active.activeTokens.length;
+  // No token attends across a record boundary, so the attention visits only
+  // its own record instead of the whole frame.
+  const ranges = recordRanges(active);
 
   // 1. Field embedding.
   let x = fieldEmbed(frame, active, config, weights);
@@ -235,7 +252,7 @@ export function brainForwardOracle(
     const q = matmulOracle(x, block.wq, h, h);
     const k = matmulOracle(x, block.wk, h, h);
     const v = matmulOracle(x, block.wv, h, h);
-    const attn = attentionOracle(q, k, v, recordMask, t, t, h, heads, headDim);
+    const attn = attentionOracle(q, k, v, recordMask, t, t, h, heads, headDim, ranges);
     addInPlace(x, attn);
     const ff = ffnOracle(x, block, h, ffn);
     addInPlace(x, ff);
@@ -301,10 +318,6 @@ export interface SelectionSlotResult {
   readonly index: Uint32Array;
 }
 
-export interface BrainSelectionResult {
-  readonly intent: SelectionSlotResult;
-  readonly argument: SelectionSlotResult;
-}
 
 /**
  * One typed selector slot: score = dot(Wq*query, Wk*key)/sqrt(H) + mask,
@@ -368,27 +381,6 @@ export function selectorOracle(
   return { p, gather, index };
 }
 
-/**
- * Catalog selection for the first fixture: one intent slot (masked to
- * ActionIntent catalog records) and one required reference argument slot
- * (masked to accepted schemas/bands). The IntentSet emission that consumes
- * these comes next; the first forward may share one selector projection pair
- * across slots (per-slot projections are a later ablation).
- */
-export function brainSelectionOracle(
-  queryOutput: Float32Array, // [Q, H] mixed query output
-  bankKeys: Float32Array, // [R, H]
-  bankValues: Float32Array, // [R, H]
-  intentMask: Float32Array, // [Q, R]
-  argMask: Float32Array, // [Q, R]
-  selector: { readonly wq: Float32Array; readonly wk: Float32Array },
-  h: number,
-): BrainSelectionResult {
-  return {
-    intent: selectorOracle(queryOutput, bankKeys, bankValues, intentMask, selector, h),
-    argument: selectorOracle(queryOutput, bankKeys, bankValues, argMask, selector, h),
-  };
-}
 
 export { NEG_INF };
 

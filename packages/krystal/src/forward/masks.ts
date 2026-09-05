@@ -14,21 +14,29 @@
  *   - the block-diagonal record mask for the local encoder attention.
  */
 import {
+  BRAIN_FRAME_BANDS,
   BRAIN_LIMITS,
-  INVALID_U32,
   KRYSTAL_SENTINEL_TOKENS,
-  RECORD_FLAGS,
-  RELATION_ROLE_FLAGS,
-  RELATION_ROLE_INDEX,
-  type RelationRoleName,
 } from "../../../schema/src/krystal-engine-schema.ts";
 import type { v1_0_0 } from "../../../schema/generated/krystal.types.ts";
-import { bandIndex } from "../binary-layout-plan.ts";
 // The pad sentinel is an ABI fact, taken from the schema that defines it — the
 // old frame packer merely re-exported it, and importing it from there is what
 // tied every mask to the fixed-geometry world.
 const PAD_TOKEN_ID = KRYSTAL_SENTINEL_TOKENS.pad;
 import { STREAM_QUERY } from "./model.ts";
+
+/**
+ * A band kind's stable id: its index in the frame's band list.
+ *
+ * Lived in the binary-layout module until that module turned out to be a plan
+ * nobody executed. This is the one thing anything asked of it, and it is asked
+ * exactly once — the query band is what tells a question from a fact.
+ */
+export function bandIndex(kind: (typeof BRAIN_FRAME_BANDS)[number]["kind"]): number {
+  const index = BRAIN_FRAME_BANDS.findIndex((band) => band.kind === kind);
+  if (index < 0) throw new Error(`Unknown BrainBandKind: ${kind}`);
+  return index;
+}
 
 export const QUERY_BAND_INDEX = bandIndex("query");
 const RECORD_WIDTH = BRAIN_LIMITS.recordWidth;
@@ -93,15 +101,51 @@ export function compileActiveFrame(frame: v1_0_0.BrainFrameGpu): ActiveFrame {
 }
 
 /**
+ * Each compact token's own record, as a range into the compact list.
+ *
+ * The encoder's attention is block-diagonal by construction, and the blocks are
+ * eight tokens wide at most. Handing the ranges to the attention lets it visit
+ * only the keys that can matter, instead of computing a full T x T score matrix
+ * and then adding -1e30 to almost all of it — which is what the device shader
+ * has always done, and what made the CPU oracle quadratic in a frame's size for
+ * no reason a reader could see.
+ */
+export interface RecordRanges {
+  /** First compact index of this token's record. */
+  readonly start: Uint32Array;
+  /** How many tokens that record has. */
+  readonly count: Uint32Array;
+}
+
+export function recordRanges(active: ActiveFrame): RecordRanges {
+  const t = active.activeTokens.length;
+  const start = new Uint32Array(t);
+  const count = new Uint32Array(t);
+  for (const slot of active.activeRecords) {
+    const from = active.recordCompactOffset[slot]!;
+    const size = active.recordCompactCount[slot]!;
+    for (let i = from; i < from + size; i++) {
+      start[i] = from;
+      count[i] = size;
+    }
+  }
+  return { start, count };
+}
+
+/**
  * Compile the block-diagonal record mask for the local encoder attention over
  * T_active compacted tokens: 0.0 when two tokens belong to the same record,
  * -1e30 otherwise (no token ever attends across a record boundary). The
  * padding positions are already absent from the compact list.
+ *
+ * Only the device path builds this now: given the ranges above, the CPU never
+ * looks across a record boundary, so every cell it would have read is zero.
+ * The mask survives because the same-word bias rides in it (see WordBias).
  */
 export const INVALID_WORD_ID = 0xffff_ffff;
 
 /**
- * Optional same-word structural bias (docs/word_attention_bias.md).
+ * Optional same-word structural bias (docs/archive/word_attention_bias.md).
  *
  * `wordIds` is indexed by FRAME token index, exactly like the entries of
  * `activeTokens`, and carries an arbitrary local label per token;
@@ -153,159 +197,11 @@ export function compileRecordMask(
   return { mask, tokenRecords };
 }
 
-/**
- * Compile the typed mixer cross-attention mask [Q, R] (S2-S10 contract,
- * FOLLOW_UP.md §5): the query mixer may attend only to dynamic bank records
- * that carry an exact runtime-ref binding — real world entities relevant to
- * current state, needs and perception. Static ActionIntent catalog records
- * and unrelated distractor/noise records (no runtime ref) do not participate
- * in query-state mixing, so their bulk cannot dilute the decision-relevant
- * signal in the query state.
- *
- * This filters only the query-state mixing: intent selection still addresses
- * the ActionIntent catalog (`compileIntentMask`) and argument selection its
- * normal candidate bank (`argMaskFor`); neither is feasibility-masked as a
- * workaround.
- */
-export function compileMixerMask(
-  frame: v1_0_0.BrainFrameGpu,
-  active: ActiveFrame,
-): Float32Array {
-  const q = active.queryRecords.length;
-  const r = active.bankRecords.length;
-  const maxRefs = BRAIN_LIMITS.maxReferencesPerRecord;
-  const mask = new Float32Array(q * r); // zeros by default; fill blocked cells
-  for (let i = 0; i < q; i++) {
-    for (let j = 0; j < r; j++) {
-      const slot = active.bankRecords[j]!;
-      if (frame.runtimeRefs[slot * maxRefs] === INVALID_U32) mask[i * r + j] = -1e30;
-    }
-  }
-  return mask;
-}
-
-/**
- * Compile the intent-selector mask [Q, R] (architecture v2 §7, answer 15):
- * 0.0 for bank records that are ActionIntent catalog records (matching
- * `intentSchemaId`), -1e30 otherwise. The selector must never point to
- * padding, truncated or invalid types.
- */
-export function compileIntentMask(
-  frame: v1_0_0.BrainFrameGpu,
-  active: ActiveFrame,
-  intentSchemaId: number,
-): Float32Array {
-  const q = active.queryRecords.length;
-  const r = active.bankRecords.length;
-  const mask = new Float32Array(q * r); // zeros by default; fill blocked cells
-  for (let i = 0; i < q; i++) {
-    for (let j = 0; j < r; j++) {
-      const slot = active.bankRecords[j]!;
-      if (frame.schemaIds[slot] !== intentSchemaId) mask[i * r + j] = -1e30;
-    }
-  }
-  return mask;
-}
-
-/**
- * A role's constraints, resolved once so nobody re-derives them.
- *
- * `undefined` means unconstrained — and it is a distinct value rather than an
- * empty set on purpose. An empty constraint reads identically to a total
- * prohibition when the check is a bare `set.has(...)`, and that ambiguity has
- * now cost four separate bugs in this file and the emitter: every role a world
- * left open resolved to no candidate at all, silently. Making "no constraint"
- * unrepresentable as an empty set is what stops the fifth.
- */
-export interface RoleFilter {
-  readonly bands: ReadonlySet<number> | undefined;
-  /**
-   * Whether a candidate must carry a live runtime reference.
-   *
-   * True for a role that names a world entity (`context_ref`), because such a
-   * role is filled by an exact handle read from the record's sidecar and a
-   * record without one cannot be acted upon. Leaving it out of the mask let
-   * the selector score candidates that could never become a proposal: the
-   * choice was made, the emitter then refused it, and the creature spent the
-   * tick doing nothing for a reason no one could see from the policy. A
-   * structural role (`record_ref` — Self, a body part) is addressed by slot
-   * and legitimately has no sidecar, so it is exempt.
-   */
-  readonly requiresReference: boolean;
-}
-
-export function roleFilter(
-  candidateBandIds: readonly number[],
-  valueKind?: v1_0_0.BrainValueKind,
-): RoleFilter {
-  return {
-    bands: candidateBandIds.length === 0 ? undefined : new Set(candidateBandIds),
-    requiresReference: valueKind !== undefined && valueKind !== "record_ref",
-  };
-}
-
-/**
- * Does this role admit the record in `slot`?
- *
- * The single definition of acceptance, shared by the mask compiler and the
- * emitter. They used to decide it separately and had drifted: the mask opened
- * every record for an unconstrained role while the emitter rejected every one,
- * so the selector was trained on candidates whose selection could never be
- * turned into a proposal.
- *
- * Acceptance is matched against the record's TOKENS, not its schema id. A
- * record carries its identity in `tokens[0]` and its categories after it, so
- * one rule covers both: `accepts: ["resource:Apple"]` names an individual,
- * `accepts: ["category:Edible"]` names a class, and an unseen berry that
- * carries the category is admitted without anyone touching the catalog.
- */
-export function roleAdmitsRecord(
-  frame: v1_0_0.BrainFrameGpu,
-  slot: number,
-  filter: RoleFilter,
-): boolean {
-  if (filter.bands && !filter.bands.has(frame.bandIds[slot]!)) return false;
-  // A participant is a thing, never an event. Nothing in the engine binds a
-  // relation as a participant — WANT is an operator rather than a relation
-  // taking one — so a relation record in a role could only produce "eat the
-  // eating". Grammar, not physics: the stone stays admissible.
-  if ((frame.recordFlags[slot]! & RECORD_FLAGS.relation) !== 0) return false;
-  if (filter.requiresReference && frame.runtimeRefs[slot * BRAIN_LIMITS.maxReferencesPerRecord] === INVALID_U32) {
-    return false;
-  }
-  return true;
-}
-
-/**
- * Compile the argument-selector mask [Q, R] for a typed reference slot: 0.0
- * for bank records the role admits, -1e30 otherwise. `acceptedTokens` /
- * `candidateBandIds` come from the relation role descriptor (host-compiled
- * from ABI metadata).
- */
-export function compileArgumentMask(
-  frame: v1_0_0.BrainFrameGpu,
-  active: ActiveFrame,
-  candidateBandIds: readonly number[],
-  valueKind?: v1_0_0.BrainValueKind,
-): Float32Array {
-  const q = active.queryRecords.length;
-  const r = active.bankRecords.length;
-  const filter = roleFilter(candidateBandIds, valueKind);
-  const mask = new Float32Array(q * r);
-  for (let i = 0; i < q; i++) {
-    for (let j = 0; j < r; j++) {
-      const slot = active.bankRecords[j]!;
-      if (!roleAdmitsRecord(frame, slot, filter)) mask[i * r + j] = -1e30;
-    }
-  }
-  return mask;
-}
-
 // ---------------------------------------------------------------------------
 // Selected-intent conditional argument masks (S2-S10 contract)
 // ---------------------------------------------------------------------------
 //
-// The three-part supervision contract (S2_S10_CURRICULUM_TASK.md):
+// The three-part supervision contract (docs/archive/S2_S10_CURRICULUM_TASK.md, historical):
 //   intentMask        structural legality only (ActionIntent catalog records);
 //   argMask           conditioned on (selectedIntent, argumentIndex) and the
 //                     catalog argument descriptor — it must exclude Mother,
@@ -325,18 +221,4 @@ export function allBlocked(q: number, r: number): Float32Array {
   return new Float32Array(q * r).fill(-1e30);
 }
 
-/** Band ids (bit positions) set in a compiled candidateBandMask. */
-export function bandIdsFromMask(candidateBandMask: number): number[] {
-  const ids: number[] = [];
-  for (let bit = 0; bit < 32; bit++) {
-    if ((candidateBandMask >>> bit) & 1) ids.push(bit);
-  }
-  return ids;
-}
 
-export class ForwardMasksError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "ForwardMasksError";
-  }
-}

@@ -1,5 +1,5 @@
 // M2b forward tests: the packed SoA BrainFrameGpu (M2a) wired into the
-// record/query encoder and query-to-record mixer (WEBGPU_BACKWARD_PLAN.md §17
+// record/query encoder and query-to-record mixer (docs/archive/WEBGPU_BACKWARD_PLAN.md §17
 // item 7, first half). Per-op GPU-vs-CPU checks for the four new shaders,
 // then a composed CPU/GPU parity comparison on the canonical fixture frame.
 import { expect, test } from "bun:test";

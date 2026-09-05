@@ -24,11 +24,12 @@
  * policy is worse than no baseline: it reports stale expectations as surprise,
  * and the policy chases its own shadow.
  */
-import { brainBackwardOracle } from "../forward/backward.ts";
 import type { ActiveFrame } from "../forward/masks.ts";
 import { embeddingTableBases, type BrainForwardConfig, type BrainForwardWeights } from "../forward/model.ts";
 import type { v1_0_0 } from "../../../schema/generated/krystal.types.ts";
+import { NO_TARGET } from "./backend.ts";
 import { packHostFrame, type HostRecord } from "./frame.ts";
+import { cpuGradients, type GradientSource } from "./gradients.ts";
 
 /**
  * One remembered turn: what was shown, what was chosen, and what followed.
@@ -172,8 +173,6 @@ export interface ParameterHealth {
 }
 
 const NEG_INF = -1e30;
-/** No target for this row. */
-const NO_TARGET = 0xffff_ffff;
 
 function maxAbs(values: Float32Array, start = 0, end = values.length): number {
   let max = 0;
@@ -272,13 +271,24 @@ function scatterEmbeddings(
  * well-being happens to use. Standardising across the batch is what makes one
  * learning rate work for a world where eating is worth 0.35 and for one where
  * it is worth 3.5.
+ *
+ * Asynchronous because the gradients may come from a device, and the update
+ * cannot be applied before they are back. On the CPU every await resolves at
+ * once; the shape of the call is the same either way, which is what lets a
+ * host choose a backend without choosing a different `learn`.
  */
-export function learnFromExperience(
+export async function learnFromExperience(
   experiences: readonly HostExperience[],
   weights: BrainForwardWeights,
   config: BrainForwardConfig,
   options: LearnOptions = {},
-): LearnReport {
+  /**
+   * Where the gradients come from: the CPU oracle on these very arrays unless
+   * a session hands over its backend. The update is the same either way; only
+   * who differentiates the frame changes.
+   */
+  source: GradientSource = cpuGradients(weights, config),
+): Promise<LearnReport> {
   const lr = options.learningRate ?? 0.05;
   const policyScale = options.policyScale ?? 1;
   const clip = options.advantageClip ?? 3;
@@ -327,24 +337,9 @@ export function learnFromExperience(
     }
 
     const mask = selectionMask(active, experience.allows);
-    const result = brainBackwardOracle({
-      frame: frame.gpu,
-      active,
-      weights,
-      config,
-      recordMask: frame.recordMask,
-      // Unconstrained, exactly as `think` runs it: what a question may attend to
-      // while it thinks is not what it may CHOOSE.
-      mixerMask: new Float32Array(queries * bank),
-      intentMask: mask,
-      // There is one selector question here, not an intent and an argument. The
-      // second slot is given nothing to aim at, and does not run at all.
-      argMask: new Float32Array(queries * bank),
-      ...(answered ? { intentTargets: targets } : {}),
-      // The third block of the critic's context is what this question was
-      // allowed to choose from, not a soft gather under a slot with no mask —
-      // which averaged the whole bank, forbidden records included.
-      context: "available",
+    const result = await source.backward(frame, {
+      selection: mask,
+      ...(answered ? { targets } : {}),
       valenceTarget: experience.reward,
     });
 
@@ -441,6 +436,7 @@ export function learnFromExperience(
 
   let reinforced = 0;
   let discouraged = 0;
+  let actorMoved = false;
   if (pending.length) {
     const mean = pending.reduce((sum, item) => sum + item.advantage, 0) / pending.length;
     const variance = pending.reduce((sum, item) => sum + (item.advantage - mean) ** 2, 0) / pending.length;
@@ -449,6 +445,7 @@ export function learnFromExperience(
     // was responsible, so it must not push at all — a guard rather than a small
     // epsilon, which would amplify noise into confidence.
     if (deviation > 1e-6) {
+      actorMoved = true;
       for (const item of pending) {
         const standardised = Math.max(-clip, Math.min(clip, (item.advantage - mean) / deviation));
         const step = (lr * policyScale * standardised) / pending.length;
@@ -494,6 +491,17 @@ export function learnFromExperience(
     weights.selector.wq.set(before.selectorWq);
     weights.selector.wk.set(before.selectorWk);
     weights.valueHeadWv.set(before.value);
+  } else if (seen) {
+    // Exactly what this transaction wrote, and nothing it left alone: a backend
+    // holding a copy takes up two projections and a handful of rows, not the
+    // whole brain. Nothing is said after a rollback — the arrays are as the
+    // backend last saw them.
+    source.wrote?.({
+      valueHead: true,
+      ...(actorMoved ? { selector: true } : {}),
+      ...(actorMoved && unfreezePool ? { pool: true } : {}),
+      ...(actorMoved && touchedEmbeddingRows.length ? { embeddingRows: touchedEmbeddingRows } : {}),
+    });
   }
   return {
     ...report,

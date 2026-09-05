@@ -96,33 +96,28 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 				<span class="dot compute"></span>matmul_f32</a><a href="#program-compute-1">
 				<span class="dot compute"></span>residual_add</a><a href="#program-compute-2">
 				<span class="dot compute"></span>arena_copy</a><a href="#program-compute-3">
-				<span class="dot compute"></span>embedding_f32</a><a href="#program-compute-4">
-				<span class="dot compute"></span>zero_f32</a><a href="#program-compute-5">
-				<span class="dot compute"></span>cross_entropy_forward_backward</a><a href="#program-compute-6">
-				<span class="dot compute"></span>loss_reduce</a><a href="#program-compute-7">
-				<span class="dot compute"></span>matmul_backward_input</a><a href="#program-compute-8">
-				<span class="dot compute"></span>matmul_backward_weight</a><a href="#program-compute-9">
-				<span class="dot compute"></span>embedding_backward</a><a href="#program-compute-10">
-				<span class="dot compute"></span>sgd_step</a><a href="#program-compute-11">
-				<span class="dot compute"></span>attention_forward</a><a href="#program-compute-12">
-				<span class="dot compute"></span>attention_backward_scores</a><a href="#program-compute-13">
-				<span class="dot compute"></span>attention_backward_qkv</a><a href="#program-compute-14">
-				<span class="dot compute"></span>krystal_field_embed</a><a href="#program-compute-15">
-				<span class="dot compute"></span>krystal_attention_forward</a><a href="#program-compute-16">
-				<span class="dot compute"></span>relu</a><a href="#program-compute-17">
-				<span class="dot compute"></span>krystal_pool</a><a href="#program-compute-18">
-				<span class="dot compute"></span>krystal_selector</a><a href="#program-compute-19">
-				<span class="dot compute"></span>krystal_decision_head</a><a href="#program-compute-20">
-				<span class="dot compute"></span>relu_backward</a><a href="#program-compute-21">
-				<span class="dot compute"></span>krystal_attention_backward_scores</a><a href="#program-compute-22">
-				<span class="dot compute"></span>krystal_attention_backward_qkv</a><a href="#program-compute-23">
-				<span class="dot compute"></span>krystal_field_embed_backward</a><a href="#program-compute-24">
-				<span class="dot compute"></span>krystal_field_embed_sgd</a><a href="#program-compute-25">
-				<span class="dot compute"></span>krystal_pool_backward</a><a href="#program-compute-26">
-				<span class="dot compute"></span>krystal_pool_dpool</a><a href="#program-compute-27">
-				<span class="dot compute"></span>krystal_selector_backward_scores</a><a href="#program-compute-28">
-				<span class="dot compute"></span>krystal_selector_backward_qkv</a><a href="#program-compute-29">
-				<span class="dot compute"></span>krystal_decision_head_backward</a><a href="#program-compute-30">
+				<span class="dot compute"></span>zero_f32</a><a href="#program-compute-4">
+				<span class="dot compute"></span>cross_entropy_forward_backward</a><a href="#program-compute-5">
+				<span class="dot compute"></span>loss_reduce</a><a href="#program-compute-6">
+				<span class="dot compute"></span>matmul_backward_input</a><a href="#program-compute-7">
+				<span class="dot compute"></span>matmul_backward_weight</a><a href="#program-compute-8">
+				<span class="dot compute"></span>sgd_step</a><a href="#program-compute-9">
+				<span class="dot compute"></span>krystal_field_embed</a><a href="#program-compute-10">
+				<span class="dot compute"></span>krystal_attention_forward</a><a href="#program-compute-11">
+				<span class="dot compute"></span>relu</a><a href="#program-compute-12">
+				<span class="dot compute"></span>krystal_pool</a><a href="#program-compute-13">
+				<span class="dot compute"></span>krystal_selector</a><a href="#program-compute-14">
+				<span class="dot compute"></span>krystal_decision_head</a><a href="#program-compute-15">
+				<span class="dot compute"></span>relu_backward</a><a href="#program-compute-16">
+				<span class="dot compute"></span>krystal_attention_backward_scores</a><a href="#program-compute-17">
+				<span class="dot compute"></span>krystal_attention_backward_qkv</a><a href="#program-compute-18">
+				<span class="dot compute"></span>krystal_field_embed_backward</a><a href="#program-compute-19">
+				<span class="dot compute"></span>krystal_field_embed_sgd</a><a href="#program-compute-20">
+				<span class="dot compute"></span>krystal_pool_backward</a><a href="#program-compute-21">
+				<span class="dot compute"></span>krystal_pool_dpool</a><a href="#program-compute-22">
+				<span class="dot compute"></span>krystal_selector_backward_scores</a><a href="#program-compute-23">
+				<span class="dot compute"></span>krystal_selector_backward_qkv</a><a href="#program-compute-24">
+				<span class="dot compute"></span>krystal_decision_head_backward</a><a href="#program-compute-25">
 				<span class="dot compute"></span>krystal_value_head_loss</a></div><div class="nav-group"><p class="nav-label">Buffers</p><a href="#buffer-0">
 				<span class="dot buffer"></span>krystal.op</a><a href="#buffer-1">
 				<span class="dot buffer"></span>krystal.tokens</a><a href="#buffer-2">
@@ -133,10 +128,10 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 				<span class="dot buffer"></span>krystal.probe-weight32</a></div></nav>
 </aside>
 <main class="content" id="top">
-<dl class="kv"><div><dt>format</dt><dd><code>sandblaster</code> v1</dd></div><div><dt>programs</dt><dd>31 <span class="muted">(31 compute, 0 render)</span></dd></div><div><dt>buffers</dt><dd>7</dd></div><div><dt>generated WGSL</dt><dd>4273 lines</dd></div><div><dt>reported at</dt><dd>2026-08-21T16:44:50.372Z</dd></div></dl>
+<dl class="kv"><div><dt>format</dt><dd><code>sandblaster</code> v1</dd></div><div><dt>programs</dt><dd>26 <span class="muted">(26 compute, 0 render)</span></dd></div><div><dt>buffers</dt><dd>7</dd></div><div><dt>generated WGSL</dt><dd>3587 lines</dd></div><div><dt>reported at</dt><dd>2026-09-05T08:44:41.262Z</dd></div></dl>
 
 <h2 id="bindings">Bindings</h2><table class="grid matrix">
-		<thead><tr><th></th><th><a href="#program-compute-0">matmul_f32</a></th><th><a href="#program-compute-1">residual_add</a></th><th><a href="#program-compute-2">arena_copy</a></th><th><a href="#program-compute-3">embedding_f32</a></th><th><a href="#program-compute-4">zero_f32</a></th><th><a href="#program-compute-5">cross_entropy_forward_backward</a></th><th><a href="#program-compute-6">loss_reduce</a></th><th><a href="#program-compute-7">matmul_backward_input</a></th><th><a href="#program-compute-8">matmul_backward_weight</a></th><th><a href="#program-compute-9">embedding_backward</a></th><th><a href="#program-compute-10">sgd_step</a></th><th><a href="#program-compute-11">attention_forward</a></th><th><a href="#program-compute-12">attention_backward_scores</a></th><th><a href="#program-compute-13">attention_backward_qkv</a></th><th><a href="#program-compute-14">krystal_field_embed</a></th><th><a href="#program-compute-15">krystal_attention_forward</a></th><th><a href="#program-compute-16">relu</a></th><th><a href="#program-compute-17">krystal_pool</a></th><th><a href="#program-compute-18">krystal_selector</a></th><th><a href="#program-compute-19">krystal_decision_head</a></th><th><a href="#program-compute-20">relu_backward</a></th><th><a href="#program-compute-21">krystal_attention_backward_scores</a></th><th><a href="#program-compute-22">krystal_attention_backward_qkv</a></th><th><a href="#program-compute-23">krystal_field_embed_backward</a></th><th><a href="#program-compute-24">krystal_field_embed_sgd</a></th><th><a href="#program-compute-25">krystal_pool_backward</a></th><th><a href="#program-compute-26">krystal_pool_dpool</a></th><th><a href="#program-compute-27">krystal_selector_backward_scores</a></th><th><a href="#program-compute-28">krystal_selector_backward_qkv</a></th><th><a href="#program-compute-29">krystal_decision_head_backward</a></th><th><a href="#program-compute-30">krystal_value_head_loss</a></th></tr></thead>
+		<thead><tr><th></th><th><a href="#program-compute-0">matmul_f32</a></th><th><a href="#program-compute-1">residual_add</a></th><th><a href="#program-compute-2">arena_copy</a></th><th><a href="#program-compute-3">zero_f32</a></th><th><a href="#program-compute-4">cross_entropy_forward_backward</a></th><th><a href="#program-compute-5">loss_reduce</a></th><th><a href="#program-compute-6">matmul_backward_input</a></th><th><a href="#program-compute-7">matmul_backward_weight</a></th><th><a href="#program-compute-8">sgd_step</a></th><th><a href="#program-compute-9">krystal_field_embed</a></th><th><a href="#program-compute-10">krystal_attention_forward</a></th><th><a href="#program-compute-11">relu</a></th><th><a href="#program-compute-12">krystal_pool</a></th><th><a href="#program-compute-13">krystal_selector</a></th><th><a href="#program-compute-14">krystal_decision_head</a></th><th><a href="#program-compute-15">relu_backward</a></th><th><a href="#program-compute-16">krystal_attention_backward_scores</a></th><th><a href="#program-compute-17">krystal_attention_backward_qkv</a></th><th><a href="#program-compute-18">krystal_field_embed_backward</a></th><th><a href="#program-compute-19">krystal_field_embed_sgd</a></th><th><a href="#program-compute-20">krystal_pool_backward</a></th><th><a href="#program-compute-21">krystal_pool_dpool</a></th><th><a href="#program-compute-22">krystal_selector_backward_scores</a></th><th><a href="#program-compute-23">krystal_selector_backward_qkv</a></th><th><a href="#program-compute-24">krystal_decision_head_backward</a></th><th><a href="#program-compute-25">krystal_value_head_loss</a></th></tr></thead>
 		<tbody><tr><th class="row"><a href="#buffer-0">krystal.op</a></th><td class="hit uniform">
 				<code>0.0</code>
 				<span class="muted">uniform</span>
@@ -215,50 +210,14 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 			</td><td class="hit uniform">
 				<code>0.0</code>
 				<span class="muted">uniform</span>
-			</td><td class="hit uniform">
-				<code>0.0</code>
-				<span class="muted">uniform</span>
-			</td><td class="hit uniform">
-				<code>0.0</code>
-				<span class="muted">uniform</span>
-			</td><td class="hit uniform">
-				<code>0.0</code>
-				<span class="muted">uniform</span>
-			</td><td class="hit uniform">
-				<code>0.0</code>
-				<span class="muted">uniform</span>
-			</td><td class="hit uniform">
-				<code>0.0</code>
-				<span class="muted">uniform</span>
-			</td></tr><tr><th class="row"><a href="#buffer-1">krystal.tokens</a></th><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="hit read_write">
+			</td></tr><tr><th class="row"><a href="#buffer-1">krystal.tokens</a></th><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr><tr><th class="row"><a href="#buffer-2">krystal.targets</a></th><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="hit read_write">
 				<code>0.1</code>
 				<span class="muted">read_write</span>
-			</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="hit read_write">
-				<code>0.1</code>
-				<span class="muted">read_write</span>
-			</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr><tr><th class="row"><a href="#buffer-2">krystal.targets</a></th><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="hit read_write">
-				<code>0.1</code>
-				<span class="muted">read_write</span>
-			</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr><tr><th class="row"><a href="#buffer-3">krystal.loss-telemetry</a></th><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="hit read_write">
+			</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr><tr><th class="row"><a href="#buffer-3">krystal.loss-telemetry</a></th><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="hit read_write">
 				<code>0.2</code>
 				<span class="muted">read_write</span>
-			</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr><tr><th class="row"><a href="#buffer-4">krystal.training-readback</a></th><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr><tr><th class="row"><a href="#buffer-5">krystal.arena</a></th><td class="hit read_write">
+			</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr><tr><th class="row"><a href="#buffer-4">krystal.training-readback</a></th><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr><tr><th class="row"><a href="#buffer-5">krystal.arena</a></th><td class="hit read_write">
 				<code>0.1</code>
-				<span class="muted">read_write</span>
-			</td><td class="hit read_write">
-				<code>0.1</code>
-				<span class="muted">read_write</span>
-			</td><td class="hit read_write">
-				<code>0.1</code>
-				<span class="muted">read_write</span>
-			</td><td class="hit read_write">
-				<code>0.2</code>
-				<span class="muted">read_write</span>
-			</td><td class="hit read_write">
-				<code>0.1</code>
-				<span class="muted">read_write</span>
-			</td><td class="hit read_write">
-				<code>0.2</code>
 				<span class="muted">read_write</span>
 			</td><td class="hit read_write">
 				<code>0.1</code>
@@ -338,16 +297,13 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 			</td></tr><tr><th class="row"><a href="#buffer-6">krystal.probe-weight32</a></th><td class="hit read">
 				<code>1.0</code>
 				<span class="muted">read</span>
-			</td><td class="empty"></td><td class="empty"></td><td class="hit read">
+			</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="hit read">
 				<code>1.0</code>
 				<span class="muted">read</span>
-			</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="hit read">
-				<code>1.0</code>
-				<span class="muted">read</span>
-			</td><td class="empty"></td><td class="empty"></td><td class="hit read_write">
+			</td><td class="empty"></td><td class="hit read_write">
 				<code>1.0</code>
 				<span class="muted">read_write</span>
-			</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="hit read">
+			</td><td class="hit read">
 				<code>1.0</code>
 				<span class="muted">read</span>
 			</td><td class="empty"></td><td class="empty"></td><td class="hit read">
@@ -379,7 +335,7 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 		<table class="grid">
 		<thead><tr>
 			<th class="num">Group</th><th class="num">Binding</th><th>Name</th>
-			<th>Buffer</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
+			<th>Resource</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
 		</tr></thead>
 		<tbody><tr>
 				<td class="num">0</td>
@@ -453,9 +409,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln"> 39</span>};
 <span class="ln"> 40</span>
 <span class="ln"> 41</span>
-<span class="ln"> 42</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;_buffer_6, <span class="n">51028257</span>&gt;;
+<span class="ln"> 42</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;_buffer_6, <span class="n">52522977</span>&gt;;
 <span class="ln"> 43</span>
-<span class="ln"> 44</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">51028257u</span>;
+<span class="ln"> 44</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">52522977u</span>;
 <span class="ln"> 45</span>
 <span class="ln"> 46</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln"> 47</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
@@ -536,7 +492,7 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 		<table class="grid">
 		<thead><tr>
 			<th class="num">Group</th><th class="num">Binding</th><th>Name</th>
-			<th>Buffer</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
+			<th>Resource</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
 		</tr></thead>
 		<tbody><tr>
 				<td class="num">0</td>
@@ -599,9 +555,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln">37</span>};
 <span class="ln">38</span>
 <span class="ln">39</span>
-<span class="ln">40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">51028257</span>&gt;;
+<span class="ln">40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">52522977</span>&gt;;
 <span class="ln">41</span>
-<span class="ln">42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">51028257u</span>;
+<span class="ln">42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">52522977u</span>;
 <span class="ln">43</span>
 <span class="ln">44</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln">45</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
@@ -638,7 +594,7 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 		<table class="grid">
 		<thead><tr>
 			<th class="num">Group</th><th class="num">Binding</th><th>Name</th>
-			<th>Buffer</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
+			<th>Resource</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
 		</tr></thead>
 		<tbody><tr>
 				<td class="num">0</td>
@@ -701,9 +657,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln">37</span>};
 <span class="ln">38</span>
 <span class="ln">39</span>
-<span class="ln">40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">51028257</span>&gt;;
+<span class="ln">40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">52522977</span>&gt;;
 <span class="ln">41</span>
-<span class="ln">42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">51028257u</span>;
+<span class="ln">42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">52522977u</span>;
 <span class="ln">43</span>
 <span class="ln">44</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln">45</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
@@ -732,180 +688,15 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 		</details>
 	</section><section class="card" id="program-compute-3">
 		<h3><span class="tag compute">compute</span>
-			<code class="ident">embedding_f32</code></h3>
-		<dl class="kv"><div><dt>kind</dt><dd><code>compute</code></dd></div><div><dt>id</dt><dd>3</dd></div><div><dt>groups</dt><dd><code>0</code>, <code>1</code></dd></div><div><dt>type roots</dt><dd><a href="#type-opparams"><code>OpParams</code></a>, <a href="#type-_buffer_1"><code>_buffer_1</code></a>, <a href="#type-_buffer_5"><code>_buffer_5</code></a>, <a href="#type-_buffer_6"><code>_buffer_6</code></a></dd></div><div><dt>entry point</dt><dd><code>embedding_f32</code></dd></div><div><dt>workgroup size</dt><dd><code>256 × 1 × 1</code>
-			<span class="muted">= 256 invocations</span></dd></div></dl>
-		
-		<h4>Bindings</h4>
-		<table class="grid">
-		<thead><tr>
-			<th class="num">Group</th><th class="num">Binding</th><th>Name</th>
-			<th>Buffer</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
-		</tr></thead>
-		<tbody><tr>
-				<td class="num">0</td>
-				<td class="num">0</td>
-				<td><code class="ident">op</code></td>
-				<td><a href="#buffer-0">krystal.op</a></td>
-				<td><code>uniform</code></td>
-				<td><code>OpParams</code></td>
-				<td>COMPUTE</td>
-				<td> <span class="tag">dynamic offset</span> <span class="tag">range 0 +96</span> <span class="tag">min 96 B</span></td>
-			</tr><tr>
-				<td class="num">0</td>
-				<td class="num">1</td>
-				<td><code class="ident">tokens</code></td>
-				<td><a href="#buffer-1">krystal.tokens</a></td>
-				<td><code>storage</code></td>
-				<td><code>_buffer_1</code></td>
-				<td>COMPUTE</td>
-				<td>   </td>
-			</tr><tr>
-				<td class="num">0</td>
-				<td class="num">2</td>
-				<td><code class="ident">arena</code></td>
-				<td><a href="#buffer-5">krystal.arena</a></td>
-				<td><code>storage</code></td>
-				<td><code>_buffer_5</code></td>
-				<td>COMPUTE</td>
-				<td>   </td>
-			</tr><tr>
-				<td class="num">1</td>
-				<td class="num">0</td>
-				<td><code class="ident">weight32</code></td>
-				<td><a href="#buffer-6">krystal.probe-weight32</a></td>
-				<td><code>read-only-storage</code></td>
-				<td><code>array&lt;_buffer_6&gt;</code></td>
-				<td>COMPUTE</td>
-				<td>   </td>
-			</tr></tbody>
-	</table>
-		<details class="source">
-			<summary>Generated WGSL <span class="muted">113 lines</span></summary>
-			<pre class="wgsl"><code><span class="ln">  1</span><span class="c">// Generated by Sandblaster</span>
-<span class="ln">  2</span>
-<span class="ln">  3</span><span class="k">const</span> SMB_continuation: <span class="t">u32</span> = <span class="n">0u</span>;
-<span class="ln">  4</span><span class="k">const</span> SMB_decode: <span class="t">u32</span> = <span class="n">1u</span>;
-<span class="ln">  5</span><span class="k">const</span> SMB_prefill: <span class="t">u32</span> = <span class="n">2u</span>;
-<span class="ln">  6</span>
-<span class="ln">  7</span><span class="k">alias</span> _buffer_6 = <span class="t">f32</span>;
-<span class="ln">  8</span>
-<span class="ln">  9</span><span class="k">alias</span> KrystalMode = <span class="t">u32</span>;
-<span class="ln"> 10</span><span class="k">const</span> KrystalMode_prefill: KrystalMode = <span class="n">0u</span>;
-<span class="ln"> 11</span><span class="k">const</span> KrystalMode_decode: KrystalMode = <span class="n">1u</span>;
-<span class="ln"> 12</span><span class="k">const</span> KrystalMode_continuation: KrystalMode = <span class="n">2u</span>;
-<span class="ln"> 13</span>
-<span class="ln"> 14</span><span class="k">struct</span> OpParams {
-<span class="ln"> 15</span>	inputOffset: <span class="t">u32</span>,
-<span class="ln"> 16</span>	outputOffset: <span class="t">u32</span>,
-<span class="ln"> 17</span>	auxOffset: <span class="t">u32</span>,
-<span class="ln"> 18</span>	aux2Offset: <span class="t">u32</span>,
-<span class="ln"> 19</span>	aux3Offset: <span class="t">u32</span>,
-<span class="ln"> 20</span>	aux4Offset: <span class="t">u32</span>,
-<span class="ln"> 21</span>	aux5Offset: <span class="t">u32</span>,
-<span class="ln"> 22</span>	aux6Offset: <span class="t">u32</span>,
-<span class="ln"> 23</span>	tokenCount: <span class="t">u32</span>,
-<span class="ln"> 24</span>	inputDim: <span class="t">u32</span>,
-<span class="ln"> 25</span>	outputDim: <span class="t">u32</span>,
-<span class="ln"> 26</span>	rowStart: <span class="t">u32</span>,
-<span class="ln"> 27</span>	rowCount: <span class="t">u32</span>,
-<span class="ln"> 28</span>	layerIndex: <span class="t">u32</span>,
-<span class="ln"> 29</span>	attentionSlot: <span class="t">u32</span>,
-<span class="ln"> 30</span>	f0: _buffer_6,
-<span class="ln"> 31</span>	f1: _buffer_6,
-<span class="ln"> 32</span>	u0: <span class="t">u32</span>,
-<span class="ln"> 33</span>	u1: <span class="t">u32</span>,
-<span class="ln"> 34</span>	u2: <span class="t">u32</span>,
-<span class="ln"> 35</span>	u3: <span class="t">u32</span>,
-<span class="ln"> 36</span>	u4: <span class="t">u32</span>,
-<span class="ln"> 37</span>	u5: <span class="t">u32</span>,
-<span class="ln"> 38</span>	mode: KrystalMode,
-<span class="ln"> 39</span>};
-<span class="ln"> 40</span>
-<span class="ln"> 41</span>
-<span class="ln"> 42</span><span class="k">alias</span> _buffer_1 = <span class="t">array</span>&lt;<span class="t">u32</span>, <span class="n">2048</span>&gt;;
-<span class="ln"> 43</span>
-<span class="ln"> 44</span><span class="k">const</span> _BUFFER_1_LEN: <span class="t">u32</span> = <span class="n">2048u</span>;
-<span class="ln"> 45</span>
-<span class="ln"> 46</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;_buffer_6, <span class="n">51028257</span>&gt;;
-<span class="ln"> 47</span>
-<span class="ln"> 48</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">51028257u</span>;
-<span class="ln"> 49</span>
-<span class="ln"> 50</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
-<span class="ln"> 51</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; tokens: _buffer_1;
-<span class="ln"> 52</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">2</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
-<span class="ln"> 53</span><span class="a">@group</span>(<span class="n">1</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read</span>&gt; weight32: <span class="t">array</span>&lt;_buffer_6&gt;;
-<span class="ln"> 54</span>
-<span class="ln"> 55</span><span class="k">fn</span> arena_index(base: <span class="t">u32</span>, tokenIndex: <span class="t">u32</span>, dim: <span class="t">u32</span>, stride: <span class="t">u32</span>) -&gt; <span class="t">u32</span> {
-<span class="ln"> 56</span>  <span class="k">return</span> base + tokenIndex * stride + dim;
-<span class="ln"> 57</span>}
-<span class="ln"> 58</span>
-<span class="ln"> 59</span><span class="k">const</span> WG: <span class="t">u32</span> = <span class="n">64u</span>;
-<span class="ln"> 60</span><span class="c">// MATMUL_ROWS lives in the matmul-rows / matmul-rows-wide includes, because it</span>
-<span class="ln"> 61</span><span class="c">// is the one constant that differs between two programs built from the same</span>
-<span class="ln"> 62</span><span class="c">// matmul_wq4 body.</span>
-<span class="ln"> 63</span><span class="k">const</span> ARGMAX_WG: <span class="t">u32</span> = <span class="n">256u</span>;
-<span class="ln"> 64</span><span class="k">const</span> MAX_CONTEXT: <span class="t">u32</span> = <span class="n">1024u</span>;
-<span class="ln"> 65</span><span class="k">const</span> HEAD_DIM: <span class="t">u32</span> = <span class="n">64u</span>;
-<span class="ln"> 66</span><span class="k">const</span> KV_HEADS: <span class="t">u32</span> = <span class="n">8u</span>;
-<span class="ln"> 67</span><span class="k">const</span> QUERY_HEADS: <span class="t">u32</span> = <span class="n">32u</span>;
-<span class="ln"> 68</span><span class="k">const</span> KV_DIM: <span class="t">u32</span> = KV_HEADS * HEAD_DIM;
-<span class="ln"> 69</span>
-<span class="ln"> 70</span>
-<span class="ln"> 71</span><span class="a">@compute</span>
-<span class="ln"> 72</span>
-<span class="ln"> 73</span><span class="a">@workgroup_size</span>(<span class="n">256</span>, <span class="n">1</span>, <span class="n">1</span>)
-<span class="ln"> 74</span>
-<span class="ln"> 75</span><span class="k">fn</span> embedding_f32(
-<span class="ln"> 76</span>	<span class="a">@builtin</span>(global_invocation_id) gid: <span class="t">vec3u</span>
-<span class="ln"> 77</span>) {
-<span class="ln"> 78</span>
-<span class="ln"> 79</span>	<span class="c">// Body-only compute shader source.</span>
-<span class="ln"> 80</span>	<span class="c">// Sandblaster owns @compute, @workgroup_size and the entry-point signature.</span>
-<span class="ln"> 81</span>	<span class="c">// entryPoint: embedding_f32</span>
-<span class="ln"> 82</span>	<span class="c">// workgroupSize: [256, 1, 1]</span>
-<span class="ln"> 83</span>	<span class="c">// builtins: global_invocation_id -&gt; gid</span>
-<span class="ln"> 84</span>	<span class="c">//</span>
-<span class="ln"> 85</span>	<span class="c">// f32 embedding lookup for training (the legacy embedding.wgsl reads f16/WQ4</span>
-<span class="ln"> 86</span>	<span class="c">// weight pages, which is the inference path; training keeps f32 parameters).</span>
-<span class="ln"> 87</span>	<span class="c">//</span>
-<span class="ln"> 88</span>	<span class="c">//   hidden[m,h] = embedding[tokens[u0 + m], h]</span>
-<span class="ln"> 89</span>	<span class="c">//</span>
-<span class="ln"> 90</span>	<span class="c">// OpParams:</span>
-<span class="ln"> 91</span>	<span class="c">//   tokenCount = M, inputDim = V, outputDim = H</span>
-<span class="ln"> 92</span>	<span class="c">//   outputOffset = hidden [M,H]</span>
-<span class="ln"> 93</span>	<span class="c">//   u0 = token-id base offset inside the tokens buffer</span>
-<span class="ln"> 94</span>	<span class="c">//   weight32 = embedding table [V,H] f32 (row-major)</span>
-<span class="ln"> 95</span>	<span class="c">//</span>
-<span class="ln"> 96</span>	<span class="c">// Out-of-range token ids write 0 so the row is deterministic, not stale.</span>
-<span class="ln"> 97</span>
-<span class="ln"> 98</span>	  <span class="k">let</span> total = op.tokenCount * op.outputDim;
-<span class="ln"> 99</span>	  <span class="k">let</span> linear = gid.x;
-<span class="ln">100</span>	  <span class="k">if</span> (linear &gt;= total) { <span class="k">return</span>; }
-<span class="ln">101</span>
-<span class="ln">102</span>	  <span class="k">let</span> m = linear / op.outputDim;
-<span class="ln">103</span>	  <span class="k">let</span> h = linear % op.outputDim;
-<span class="ln">104</span>	  <span class="k">let</span> tokenId = tokens[op.u0 + m];
-<span class="ln">105</span>	  <span class="k">if</span> (tokenId &lt; op.inputDim) {
-<span class="ln">106</span>	    arena[op.outputOffset + linear] = weight32[tokenId * op.outputDim + h];
-<span class="ln">107</span>	  } <span class="k">else</span> {
-<span class="ln">108</span>	    arena[op.outputOffset + linear] = <span class="n">0.0</span>;
-<span class="ln">109</span>	  }
-<span class="ln">110</span>
-<span class="ln">111</span>
-<span class="ln">112</span>}</code></pre>
-		</details>
-	</section><section class="card" id="program-compute-4">
-		<h3><span class="tag compute">compute</span>
 			<code class="ident">zero_f32</code></h3>
-		<dl class="kv"><div><dt>kind</dt><dd><code>compute</code></dd></div><div><dt>id</dt><dd>4</dd></div><div><dt>groups</dt><dd><code>0</code></dd></div><div><dt>type roots</dt><dd><a href="#type-opparams"><code>OpParams</code></a>, <a href="#type-_buffer_5"><code>_buffer_5</code></a></dd></div><div><dt>entry point</dt><dd><code>zero_f32</code></dd></div><div><dt>workgroup size</dt><dd><code>256 × 1 × 1</code>
+		<dl class="kv"><div><dt>kind</dt><dd><code>compute</code></dd></div><div><dt>id</dt><dd>3</dd></div><div><dt>groups</dt><dd><code>0</code></dd></div><div><dt>type roots</dt><dd><a href="#type-opparams"><code>OpParams</code></a>, <a href="#type-_buffer_5"><code>_buffer_5</code></a></dd></div><div><dt>entry point</dt><dd><code>zero_f32</code></dd></div><div><dt>workgroup size</dt><dd><code>256 × 1 × 1</code>
 			<span class="muted">= 256 invocations</span></dd></div></dl>
 		
 		<h4>Bindings</h4>
 		<table class="grid">
 		<thead><tr>
 			<th class="num">Group</th><th class="num">Binding</th><th>Name</th>
-			<th>Buffer</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
+			<th>Resource</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
 		</tr></thead>
 		<tbody><tr>
 				<td class="num">0</td>
@@ -968,9 +759,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln">37</span>};
 <span class="ln">38</span>
 <span class="ln">39</span>
-<span class="ln">40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">51028257</span>&gt;;
+<span class="ln">40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">52522977</span>&gt;;
 <span class="ln">41</span>
-<span class="ln">42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">51028257u</span>;
+<span class="ln">42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">52522977u</span>;
 <span class="ln">43</span>
 <span class="ln">44</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln">45</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
@@ -1019,17 +810,17 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln">88</span>
 <span class="ln">89</span>}</code></pre>
 		</details>
-	</section><section class="card" id="program-compute-5">
+	</section><section class="card" id="program-compute-4">
 		<h3><span class="tag compute">compute</span>
 			<code class="ident">cross_entropy_forward_backward</code></h3>
-		<dl class="kv"><div><dt>kind</dt><dd><code>compute</code></dd></div><div><dt>id</dt><dd>5</dd></div><div><dt>groups</dt><dd><code>0</code></dd></div><div><dt>type roots</dt><dd><a href="#type-opparams"><code>OpParams</code></a>, <a href="#type-_buffer_2"><code>_buffer_2</code></a>, <a href="#type-_buffer_5"><code>_buffer_5</code></a></dd></div><div><dt>entry point</dt><dd><code>cross_entropy_forward_backward</code></dd></div><div><dt>workgroup size</dt><dd><code>64 × 1 × 1</code>
+		<dl class="kv"><div><dt>kind</dt><dd><code>compute</code></dd></div><div><dt>id</dt><dd>4</dd></div><div><dt>groups</dt><dd><code>0</code></dd></div><div><dt>type roots</dt><dd><a href="#type-opparams"><code>OpParams</code></a>, <a href="#type-_buffer_2"><code>_buffer_2</code></a>, <a href="#type-_buffer_5"><code>_buffer_5</code></a></dd></div><div><dt>entry point</dt><dd><code>cross_entropy_forward_backward</code></dd></div><div><dt>workgroup size</dt><dd><code>64 × 1 × 1</code>
 			<span class="muted">= 64 invocations</span></dd></div></dl>
 		
 		<h4>Bindings</h4>
 		<table class="grid">
 		<thead><tr>
 			<th class="num">Group</th><th class="num">Binding</th><th>Name</th>
-			<th>Buffer</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
+			<th>Resource</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
 		</tr></thead>
 		<tbody><tr>
 				<td class="num">0</td>
@@ -1105,9 +896,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln"> 41</span>
 <span class="ln"> 42</span><span class="k">const</span> _BUFFER_2_LEN: <span class="t">u32</span> = <span class="n">2048u</span>;
 <span class="ln"> 43</span>
-<span class="ln"> 44</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">51028257</span>&gt;;
+<span class="ln"> 44</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">52522977</span>&gt;;
 <span class="ln"> 45</span>
-<span class="ln"> 46</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">51028257u</span>;
+<span class="ln"> 46</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">52522977u</span>;
 <span class="ln"> 47</span>
 <span class="ln"> 48</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln"> 49</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; targets: _buffer_2;
@@ -1235,17 +1026,17 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln">171</span>
 <span class="ln">172</span>}</code></pre>
 		</details>
-	</section><section class="card" id="program-compute-6">
+	</section><section class="card" id="program-compute-5">
 		<h3><span class="tag compute">compute</span>
 			<code class="ident">loss_reduce</code></h3>
-		<dl class="kv"><div><dt>kind</dt><dd><code>compute</code></dd></div><div><dt>id</dt><dd>6</dd></div><div><dt>groups</dt><dd><code>0</code></dd></div><div><dt>type roots</dt><dd><a href="#type-opparams"><code>OpParams</code></a>, <a href="#type-_buffer_5"><code>_buffer_5</code></a>, <a href="#type-_buffer_3"><code>_buffer_3</code></a></dd></div><div><dt>entry point</dt><dd><code>loss_reduce</code></dd></div><div><dt>workgroup size</dt><dd><code>64 × 1 × 1</code>
+		<dl class="kv"><div><dt>kind</dt><dd><code>compute</code></dd></div><div><dt>id</dt><dd>5</dd></div><div><dt>groups</dt><dd><code>0</code></dd></div><div><dt>type roots</dt><dd><a href="#type-opparams"><code>OpParams</code></a>, <a href="#type-_buffer_5"><code>_buffer_5</code></a>, <a href="#type-_buffer_3"><code>_buffer_3</code></a></dd></div><div><dt>entry point</dt><dd><code>loss_reduce</code></dd></div><div><dt>workgroup size</dt><dd><code>64 × 1 × 1</code>
 			<span class="muted">= 64 invocations</span></dd></div></dl>
 		
 		<h4>Bindings</h4>
 		<table class="grid">
 		<thead><tr>
 			<th class="num">Group</th><th class="num">Binding</th><th>Name</th>
-			<th>Buffer</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
+			<th>Resource</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
 		</tr></thead>
 		<tbody><tr>
 				<td class="num">0</td>
@@ -1317,9 +1108,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln"> 37</span>};
 <span class="ln"> 38</span>
 <span class="ln"> 39</span>
-<span class="ln"> 40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">51028257</span>&gt;;
+<span class="ln"> 40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">52522977</span>&gt;;
 <span class="ln"> 41</span>
-<span class="ln"> 42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">51028257u</span>;
+<span class="ln"> 42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">52522977u</span>;
 <span class="ln"> 43</span>
 <span class="ln"> 44</span><span class="k">alias</span> _buffer_3 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">1</span>&gt;;
 <span class="ln"> 45</span>
@@ -1401,17 +1192,17 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln">121</span>
 <span class="ln">122</span>}</code></pre>
 		</details>
-	</section><section class="card" id="program-compute-7">
+	</section><section class="card" id="program-compute-6">
 		<h3><span class="tag compute">compute</span>
 			<code class="ident">matmul_backward_input</code></h3>
-		<dl class="kv"><div><dt>kind</dt><dd><code>compute</code></dd></div><div><dt>id</dt><dd>7</dd></div><div><dt>groups</dt><dd><code>0</code>, <code>1</code></dd></div><div><dt>type roots</dt><dd><a href="#type-opparams"><code>OpParams</code></a>, <a href="#type-_buffer_5"><code>_buffer_5</code></a>, <a href="#type-_buffer_6"><code>_buffer_6</code></a></dd></div><div><dt>entry point</dt><dd><code>matmul_backward_input</code></dd></div><div><dt>workgroup size</dt><dd><code>256 × 1 × 1</code>
+		<dl class="kv"><div><dt>kind</dt><dd><code>compute</code></dd></div><div><dt>id</dt><dd>6</dd></div><div><dt>groups</dt><dd><code>0</code>, <code>1</code></dd></div><div><dt>type roots</dt><dd><a href="#type-opparams"><code>OpParams</code></a>, <a href="#type-_buffer_5"><code>_buffer_5</code></a>, <a href="#type-_buffer_6"><code>_buffer_6</code></a></dd></div><div><dt>entry point</dt><dd><code>matmul_backward_input</code></dd></div><div><dt>workgroup size</dt><dd><code>256 × 1 × 1</code>
 			<span class="muted">= 256 invocations</span></dd></div></dl>
 		
 		<h4>Bindings</h4>
 		<table class="grid">
 		<thead><tr>
 			<th class="num">Group</th><th class="num">Binding</th><th>Name</th>
-			<th>Buffer</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
+			<th>Resource</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
 		</tr></thead>
 		<tbody><tr>
 				<td class="num">0</td>
@@ -1485,9 +1276,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln"> 39</span>};
 <span class="ln"> 40</span>
 <span class="ln"> 41</span>
-<span class="ln"> 42</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;_buffer_6, <span class="n">51028257</span>&gt;;
+<span class="ln"> 42</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;_buffer_6, <span class="n">52522977</span>&gt;;
 <span class="ln"> 43</span>
-<span class="ln"> 44</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">51028257u</span>;
+<span class="ln"> 44</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">52522977u</span>;
 <span class="ln"> 45</span>
 <span class="ln"> 46</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln"> 47</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
@@ -1550,17 +1341,17 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln">104</span>
 <span class="ln">105</span>}</code></pre>
 		</details>
-	</section><section class="card" id="program-compute-8">
+	</section><section class="card" id="program-compute-7">
 		<h3><span class="tag compute">compute</span>
 			<code class="ident">matmul_backward_weight</code></h3>
-		<dl class="kv"><div><dt>kind</dt><dd><code>compute</code></dd></div><div><dt>id</dt><dd>8</dd></div><div><dt>groups</dt><dd><code>0</code></dd></div><div><dt>type roots</dt><dd><a href="#type-opparams"><code>OpParams</code></a>, <a href="#type-_buffer_5"><code>_buffer_5</code></a></dd></div><div><dt>entry point</dt><dd><code>matmul_backward_weight</code></dd></div><div><dt>workgroup size</dt><dd><code>256 × 1 × 1</code>
+		<dl class="kv"><div><dt>kind</dt><dd><code>compute</code></dd></div><div><dt>id</dt><dd>7</dd></div><div><dt>groups</dt><dd><code>0</code></dd></div><div><dt>type roots</dt><dd><a href="#type-opparams"><code>OpParams</code></a>, <a href="#type-_buffer_5"><code>_buffer_5</code></a></dd></div><div><dt>entry point</dt><dd><code>matmul_backward_weight</code></dd></div><div><dt>workgroup size</dt><dd><code>256 × 1 × 1</code>
 			<span class="muted">= 256 invocations</span></dd></div></dl>
 		
 		<h4>Bindings</h4>
 		<table class="grid">
 		<thead><tr>
 			<th class="num">Group</th><th class="num">Binding</th><th>Name</th>
-			<th>Buffer</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
+			<th>Resource</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
 		</tr></thead>
 		<tbody><tr>
 				<td class="num">0</td>
@@ -1623,9 +1414,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln"> 37</span>};
 <span class="ln"> 38</span>
 <span class="ln"> 39</span>
-<span class="ln"> 40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">51028257</span>&gt;;
+<span class="ln"> 40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">52522977</span>&gt;;
 <span class="ln"> 41</span>
-<span class="ln"> 42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">51028257u</span>;
+<span class="ln"> 42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">52522977u</span>;
 <span class="ln"> 43</span>
 <span class="ln"> 44</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln"> 45</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
@@ -1689,172 +1480,17 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln">103</span>
 <span class="ln">104</span>}</code></pre>
 		</details>
-	</section><section class="card" id="program-compute-9">
-		<h3><span class="tag compute">compute</span>
-			<code class="ident">embedding_backward</code></h3>
-		<dl class="kv"><div><dt>kind</dt><dd><code>compute</code></dd></div><div><dt>id</dt><dd>9</dd></div><div><dt>groups</dt><dd><code>0</code></dd></div><div><dt>type roots</dt><dd><a href="#type-opparams"><code>OpParams</code></a>, <a href="#type-_buffer_1"><code>_buffer_1</code></a>, <a href="#type-_buffer_5"><code>_buffer_5</code></a></dd></div><div><dt>entry point</dt><dd><code>embedding_backward</code></dd></div><div><dt>workgroup size</dt><dd><code>256 × 1 × 1</code>
-			<span class="muted">= 256 invocations</span></dd></div></dl>
-		
-		<h4>Bindings</h4>
-		<table class="grid">
-		<thead><tr>
-			<th class="num">Group</th><th class="num">Binding</th><th>Name</th>
-			<th>Buffer</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
-		</tr></thead>
-		<tbody><tr>
-				<td class="num">0</td>
-				<td class="num">0</td>
-				<td><code class="ident">op</code></td>
-				<td><a href="#buffer-0">krystal.op</a></td>
-				<td><code>uniform</code></td>
-				<td><code>OpParams</code></td>
-				<td>COMPUTE</td>
-				<td> <span class="tag">dynamic offset</span> <span class="tag">range 0 +96</span> <span class="tag">min 96 B</span></td>
-			</tr><tr>
-				<td class="num">0</td>
-				<td class="num">1</td>
-				<td><code class="ident">tokens</code></td>
-				<td><a href="#buffer-1">krystal.tokens</a></td>
-				<td><code>storage</code></td>
-				<td><code>_buffer_1</code></td>
-				<td>COMPUTE</td>
-				<td>   </td>
-			</tr><tr>
-				<td class="num">0</td>
-				<td class="num">2</td>
-				<td><code class="ident">arena</code></td>
-				<td><a href="#buffer-5">krystal.arena</a></td>
-				<td><code>storage</code></td>
-				<td><code>_buffer_5</code></td>
-				<td>COMPUTE</td>
-				<td>   </td>
-			</tr></tbody>
-	</table>
-		<details class="source">
-			<summary>Generated WGSL <span class="muted">112 lines</span></summary>
-			<pre class="wgsl"><code><span class="ln">  1</span><span class="c">// Generated by Sandblaster</span>
-<span class="ln">  2</span>
-<span class="ln">  3</span><span class="k">const</span> SMB_continuation: <span class="t">u32</span> = <span class="n">0u</span>;
-<span class="ln">  4</span><span class="k">const</span> SMB_decode: <span class="t">u32</span> = <span class="n">1u</span>;
-<span class="ln">  5</span><span class="k">const</span> SMB_prefill: <span class="t">u32</span> = <span class="n">2u</span>;
-<span class="ln">  6</span>
-<span class="ln">  7</span><span class="k">alias</span> KrystalMode = <span class="t">u32</span>;
-<span class="ln">  8</span><span class="k">const</span> KrystalMode_prefill: KrystalMode = <span class="n">0u</span>;
-<span class="ln">  9</span><span class="k">const</span> KrystalMode_decode: KrystalMode = <span class="n">1u</span>;
-<span class="ln"> 10</span><span class="k">const</span> KrystalMode_continuation: KrystalMode = <span class="n">2u</span>;
-<span class="ln"> 11</span>
-<span class="ln"> 12</span><span class="k">struct</span> OpParams {
-<span class="ln"> 13</span>	inputOffset: <span class="t">u32</span>,
-<span class="ln"> 14</span>	outputOffset: <span class="t">u32</span>,
-<span class="ln"> 15</span>	auxOffset: <span class="t">u32</span>,
-<span class="ln"> 16</span>	aux2Offset: <span class="t">u32</span>,
-<span class="ln"> 17</span>	aux3Offset: <span class="t">u32</span>,
-<span class="ln"> 18</span>	aux4Offset: <span class="t">u32</span>,
-<span class="ln"> 19</span>	aux5Offset: <span class="t">u32</span>,
-<span class="ln"> 20</span>	aux6Offset: <span class="t">u32</span>,
-<span class="ln"> 21</span>	tokenCount: <span class="t">u32</span>,
-<span class="ln"> 22</span>	inputDim: <span class="t">u32</span>,
-<span class="ln"> 23</span>	outputDim: <span class="t">u32</span>,
-<span class="ln"> 24</span>	rowStart: <span class="t">u32</span>,
-<span class="ln"> 25</span>	rowCount: <span class="t">u32</span>,
-<span class="ln"> 26</span>	layerIndex: <span class="t">u32</span>,
-<span class="ln"> 27</span>	attentionSlot: <span class="t">u32</span>,
-<span class="ln"> 28</span>	f0: <span class="t">f32</span>,
-<span class="ln"> 29</span>	f1: <span class="t">f32</span>,
-<span class="ln"> 30</span>	u0: <span class="t">u32</span>,
-<span class="ln"> 31</span>	u1: <span class="t">u32</span>,
-<span class="ln"> 32</span>	u2: <span class="t">u32</span>,
-<span class="ln"> 33</span>	u3: <span class="t">u32</span>,
-<span class="ln"> 34</span>	u4: <span class="t">u32</span>,
-<span class="ln"> 35</span>	u5: <span class="t">u32</span>,
-<span class="ln"> 36</span>	mode: KrystalMode,
-<span class="ln"> 37</span>};
-<span class="ln"> 38</span>
-<span class="ln"> 39</span>
-<span class="ln"> 40</span><span class="k">alias</span> _buffer_1 = <span class="t">array</span>&lt;<span class="t">u32</span>, <span class="n">2048</span>&gt;;
-<span class="ln"> 41</span>
-<span class="ln"> 42</span><span class="k">const</span> _BUFFER_1_LEN: <span class="t">u32</span> = <span class="n">2048u</span>;
-<span class="ln"> 43</span>
-<span class="ln"> 44</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">51028257</span>&gt;;
-<span class="ln"> 45</span>
-<span class="ln"> 46</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">51028257u</span>;
-<span class="ln"> 47</span>
-<span class="ln"> 48</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
-<span class="ln"> 49</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; tokens: _buffer_1;
-<span class="ln"> 50</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">2</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
-<span class="ln"> 51</span>
-<span class="ln"> 52</span><span class="k">fn</span> arena_index(base: <span class="t">u32</span>, tokenIndex: <span class="t">u32</span>, dim: <span class="t">u32</span>, stride: <span class="t">u32</span>) -&gt; <span class="t">u32</span> {
-<span class="ln"> 53</span>  <span class="k">return</span> base + tokenIndex * stride + dim;
-<span class="ln"> 54</span>}
-<span class="ln"> 55</span>
-<span class="ln"> 56</span><span class="k">const</span> WG: <span class="t">u32</span> = <span class="n">64u</span>;
-<span class="ln"> 57</span><span class="c">// MATMUL_ROWS lives in the matmul-rows / matmul-rows-wide includes, because it</span>
-<span class="ln"> 58</span><span class="c">// is the one constant that differs between two programs built from the same</span>
-<span class="ln"> 59</span><span class="c">// matmul_wq4 body.</span>
-<span class="ln"> 60</span><span class="k">const</span> ARGMAX_WG: <span class="t">u32</span> = <span class="n">256u</span>;
-<span class="ln"> 61</span><span class="k">const</span> MAX_CONTEXT: <span class="t">u32</span> = <span class="n">1024u</span>;
-<span class="ln"> 62</span><span class="k">const</span> HEAD_DIM: <span class="t">u32</span> = <span class="n">64u</span>;
-<span class="ln"> 63</span><span class="k">const</span> KV_HEADS: <span class="t">u32</span> = <span class="n">8u</span>;
-<span class="ln"> 64</span><span class="k">const</span> QUERY_HEADS: <span class="t">u32</span> = <span class="n">32u</span>;
-<span class="ln"> 65</span><span class="k">const</span> KV_DIM: <span class="t">u32</span> = KV_HEADS * HEAD_DIM;
-<span class="ln"> 66</span>
-<span class="ln"> 67</span>
-<span class="ln"> 68</span><span class="a">@compute</span>
-<span class="ln"> 69</span>
-<span class="ln"> 70</span><span class="a">@workgroup_size</span>(<span class="n">256</span>, <span class="n">1</span>, <span class="n">1</span>)
-<span class="ln"> 71</span>
-<span class="ln"> 72</span><span class="k">fn</span> embedding_backward(
-<span class="ln"> 73</span>	<span class="a">@builtin</span>(global_invocation_id) gid: <span class="t">vec3u</span>
-<span class="ln"> 74</span>) {
-<span class="ln"> 75</span>
-<span class="ln"> 76</span>	<span class="c">// Body-only compute shader source.</span>
-<span class="ln"> 77</span>	<span class="c">// Sandblaster owns @compute, @workgroup_size and the entry-point signature.</span>
-<span class="ln"> 78</span>	<span class="c">// entryPoint: embedding_backward</span>
-<span class="ln"> 79</span>	<span class="c">// workgroupSize: [256, 1, 1]</span>
-<span class="ln"> 80</span>	<span class="c">// builtins: global_invocation_id -&gt; gid</span>
-<span class="ln"> 81</span>	<span class="c">//</span>
-<span class="ln"> 82</span>	<span class="c">// Scatter-add embedding gradient:</span>
-<span class="ln"> 83</span>	<span class="c">//</span>
-<span class="ln"> 84</span>	<span class="c">//   dEmbedding[v,h] = sum_(m where tokens[u0 + m] == v) dHidden[m,h]</span>
-<span class="ln"> 85</span>	<span class="c">//</span>
-<span class="ln"> 86</span>	<span class="c">// OpParams:</span>
-<span class="ln"> 87</span>	<span class="c">//   tokenCount = M, inputDim = V, outputDim = H</span>
-<span class="ln"> 88</span>	<span class="c">//   inputOffset  = dHidden [M,H]</span>
-<span class="ln"> 89</span>	<span class="c">//   outputOffset = dEmbedding [V,H]</span>
-<span class="ln"> 90</span>	<span class="c">//   u0 = token-id base offset inside the tokens buffer</span>
-<span class="ln"> 91</span>	<span class="c">//</span>
-<span class="ln"> 92</span>	<span class="c">// Deterministic MVP: one invocation owns (v,h), scans all m, writes exactly one</span>
-<span class="ln"> 93</span>	<span class="c">// dEmbedding element (including 0 for unused vocabulary rows). Repeated token</span>
-<span class="ln"> 94</span>	<span class="c">// ids accumulate correctly without floating-point atomics.</span>
-<span class="ln"> 95</span>
-<span class="ln"> 96</span>	  <span class="k">let</span> total = op.inputDim * op.outputDim;
-<span class="ln"> 97</span>	  <span class="k">let</span> linear = gid.x;
-<span class="ln"> 98</span>	  <span class="k">if</span> (linear &gt;= total) { <span class="k">return</span>; }
-<span class="ln"> 99</span>
-<span class="ln">100</span>	  <span class="k">let</span> v = linear / op.outputDim;
-<span class="ln">101</span>	  <span class="k">let</span> h = linear % op.outputDim;
-<span class="ln">102</span>	  <span class="k">var</span> sum = <span class="n">0.0</span>;
-<span class="ln">103</span>	  <span class="k">for</span> (<span class="k">var</span> m = <span class="n">0u</span>; m &lt; op.tokenCount; m++) {
-<span class="ln">104</span>	    <span class="k">if</span> (tokens[op.u0 + m] == v) {
-<span class="ln">105</span>	      sum += arena[op.inputOffset + m * op.outputDim + h];
-<span class="ln">106</span>	    }
-<span class="ln">107</span>	  }
-<span class="ln">108</span>	  arena[op.outputOffset + linear] = sum;
-<span class="ln">109</span>
-<span class="ln">110</span>
-<span class="ln">111</span>}</code></pre>
-		</details>
-	</section><section class="card" id="program-compute-10">
+	</section><section class="card" id="program-compute-8">
 		<h3><span class="tag compute">compute</span>
 			<code class="ident">sgd_step</code></h3>
-		<dl class="kv"><div><dt>kind</dt><dd><code>compute</code></dd></div><div><dt>id</dt><dd>10</dd></div><div><dt>groups</dt><dd><code>0</code>, <code>1</code></dd></div><div><dt>type roots</dt><dd><a href="#type-opparams"><code>OpParams</code></a>, <a href="#type-_buffer_5"><code>_buffer_5</code></a>, <a href="#type-_buffer_6"><code>_buffer_6</code></a></dd></div><div><dt>entry point</dt><dd><code>sgd_step</code></dd></div><div><dt>workgroup size</dt><dd><code>256 × 1 × 1</code>
+		<dl class="kv"><div><dt>kind</dt><dd><code>compute</code></dd></div><div><dt>id</dt><dd>8</dd></div><div><dt>groups</dt><dd><code>0</code>, <code>1</code></dd></div><div><dt>type roots</dt><dd><a href="#type-opparams"><code>OpParams</code></a>, <a href="#type-_buffer_5"><code>_buffer_5</code></a>, <a href="#type-_buffer_6"><code>_buffer_6</code></a></dd></div><div><dt>entry point</dt><dd><code>sgd_step</code></dd></div><div><dt>workgroup size</dt><dd><code>256 × 1 × 1</code>
 			<span class="muted">= 256 invocations</span></dd></div></dl>
 		
 		<h4>Bindings</h4>
 		<table class="grid">
 		<thead><tr>
 			<th class="num">Group</th><th class="num">Binding</th><th>Name</th>
-			<th>Buffer</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
+			<th>Resource</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
 		</tr></thead>
 		<tbody><tr>
 				<td class="num">0</td>
@@ -1928,9 +1564,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln">39</span>};
 <span class="ln">40</span>
 <span class="ln">41</span>
-<span class="ln">42</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;_buffer_6, <span class="n">51028257</span>&gt;;
+<span class="ln">42</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;_buffer_6, <span class="n">52522977</span>&gt;;
 <span class="ln">43</span>
-<span class="ln">44</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">51028257u</span>;
+<span class="ln">44</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">52522977u</span>;
 <span class="ln">45</span>
 <span class="ln">46</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln">47</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
@@ -1987,597 +1623,17 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln">98</span>
 <span class="ln">99</span>}</code></pre>
 		</details>
-	</section><section class="card" id="program-compute-11">
-		<h3><span class="tag compute">compute</span>
-			<code class="ident">attention_forward</code></h3>
-		<dl class="kv"><div><dt>kind</dt><dd><code>compute</code></dd></div><div><dt>id</dt><dd>11</dd></div><div><dt>groups</dt><dd><code>0</code></dd></div><div><dt>type roots</dt><dd><a href="#type-opparams"><code>OpParams</code></a>, <a href="#type-_buffer_5"><code>_buffer_5</code></a></dd></div><div><dt>entry point</dt><dd><code>attention_forward</code></dd></div><div><dt>workgroup size</dt><dd><code>64 × 1 × 1</code>
-			<span class="muted">= 64 invocations</span></dd></div></dl>
-		
-		<h4>Bindings</h4>
-		<table class="grid">
-		<thead><tr>
-			<th class="num">Group</th><th class="num">Binding</th><th>Name</th>
-			<th>Buffer</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
-		</tr></thead>
-		<tbody><tr>
-				<td class="num">0</td>
-				<td class="num">0</td>
-				<td><code class="ident">op</code></td>
-				<td><a href="#buffer-0">krystal.op</a></td>
-				<td><code>uniform</code></td>
-				<td><code>OpParams</code></td>
-				<td>COMPUTE</td>
-				<td> <span class="tag">dynamic offset</span> <span class="tag">range 0 +96</span> <span class="tag">min 96 B</span></td>
-			</tr><tr>
-				<td class="num">0</td>
-				<td class="num">1</td>
-				<td><code class="ident">arena</code></td>
-				<td><a href="#buffer-5">krystal.arena</a></td>
-				<td><code>storage</code></td>
-				<td><code>_buffer_5</code></td>
-				<td>COMPUTE</td>
-				<td>   </td>
-			</tr></tbody>
-	</table>
-		<details class="source">
-			<summary>Generated WGSL <span class="muted">169 lines</span></summary>
-			<pre class="wgsl"><code><span class="ln">  1</span><span class="c">// Generated by Sandblaster</span>
-<span class="ln">  2</span>
-<span class="ln">  3</span><span class="k">const</span> SMB_continuation: <span class="t">u32</span> = <span class="n">0u</span>;
-<span class="ln">  4</span><span class="k">const</span> SMB_decode: <span class="t">u32</span> = <span class="n">1u</span>;
-<span class="ln">  5</span><span class="k">const</span> SMB_prefill: <span class="t">u32</span> = <span class="n">2u</span>;
-<span class="ln">  6</span>
-<span class="ln">  7</span><span class="k">alias</span> KrystalMode = <span class="t">u32</span>;
-<span class="ln">  8</span><span class="k">const</span> KrystalMode_prefill: KrystalMode = <span class="n">0u</span>;
-<span class="ln">  9</span><span class="k">const</span> KrystalMode_decode: KrystalMode = <span class="n">1u</span>;
-<span class="ln"> 10</span><span class="k">const</span> KrystalMode_continuation: KrystalMode = <span class="n">2u</span>;
-<span class="ln"> 11</span>
-<span class="ln"> 12</span><span class="k">struct</span> OpParams {
-<span class="ln"> 13</span>	inputOffset: <span class="t">u32</span>,
-<span class="ln"> 14</span>	outputOffset: <span class="t">u32</span>,
-<span class="ln"> 15</span>	auxOffset: <span class="t">u32</span>,
-<span class="ln"> 16</span>	aux2Offset: <span class="t">u32</span>,
-<span class="ln"> 17</span>	aux3Offset: <span class="t">u32</span>,
-<span class="ln"> 18</span>	aux4Offset: <span class="t">u32</span>,
-<span class="ln"> 19</span>	aux5Offset: <span class="t">u32</span>,
-<span class="ln"> 20</span>	aux6Offset: <span class="t">u32</span>,
-<span class="ln"> 21</span>	tokenCount: <span class="t">u32</span>,
-<span class="ln"> 22</span>	inputDim: <span class="t">u32</span>,
-<span class="ln"> 23</span>	outputDim: <span class="t">u32</span>,
-<span class="ln"> 24</span>	rowStart: <span class="t">u32</span>,
-<span class="ln"> 25</span>	rowCount: <span class="t">u32</span>,
-<span class="ln"> 26</span>	layerIndex: <span class="t">u32</span>,
-<span class="ln"> 27</span>	attentionSlot: <span class="t">u32</span>,
-<span class="ln"> 28</span>	f0: <span class="t">f32</span>,
-<span class="ln"> 29</span>	f1: <span class="t">f32</span>,
-<span class="ln"> 30</span>	u0: <span class="t">u32</span>,
-<span class="ln"> 31</span>	u1: <span class="t">u32</span>,
-<span class="ln"> 32</span>	u2: <span class="t">u32</span>,
-<span class="ln"> 33</span>	u3: <span class="t">u32</span>,
-<span class="ln"> 34</span>	u4: <span class="t">u32</span>,
-<span class="ln"> 35</span>	u5: <span class="t">u32</span>,
-<span class="ln"> 36</span>	mode: KrystalMode,
-<span class="ln"> 37</span>};
-<span class="ln"> 38</span>
-<span class="ln"> 39</span>
-<span class="ln"> 40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">51028257</span>&gt;;
-<span class="ln"> 41</span>
-<span class="ln"> 42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">51028257u</span>;
-<span class="ln"> 43</span>
-<span class="ln"> 44</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
-<span class="ln"> 45</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
-<span class="ln"> 46</span>
-<span class="ln"> 47</span><span class="k">fn</span> arena_index(base: <span class="t">u32</span>, tokenIndex: <span class="t">u32</span>, dim: <span class="t">u32</span>, stride: <span class="t">u32</span>) -&gt; <span class="t">u32</span> {
-<span class="ln"> 48</span>  <span class="k">return</span> base + tokenIndex * stride + dim;
-<span class="ln"> 49</span>}
-<span class="ln"> 50</span>
-<span class="ln"> 51</span><span class="k">const</span> WG: <span class="t">u32</span> = <span class="n">64u</span>;
-<span class="ln"> 52</span><span class="c">// MATMUL_ROWS lives in the matmul-rows / matmul-rows-wide includes, because it</span>
-<span class="ln"> 53</span><span class="c">// is the one constant that differs between two programs built from the same</span>
-<span class="ln"> 54</span><span class="c">// matmul_wq4 body.</span>
-<span class="ln"> 55</span><span class="k">const</span> ARGMAX_WG: <span class="t">u32</span> = <span class="n">256u</span>;
-<span class="ln"> 56</span><span class="k">const</span> MAX_CONTEXT: <span class="t">u32</span> = <span class="n">1024u</span>;
-<span class="ln"> 57</span><span class="k">const</span> HEAD_DIM: <span class="t">u32</span> = <span class="n">64u</span>;
-<span class="ln"> 58</span><span class="k">const</span> KV_HEADS: <span class="t">u32</span> = <span class="n">8u</span>;
-<span class="ln"> 59</span><span class="k">const</span> QUERY_HEADS: <span class="t">u32</span> = <span class="n">32u</span>;
-<span class="ln"> 60</span><span class="k">const</span> KV_DIM: <span class="t">u32</span> = KV_HEADS * HEAD_DIM;
-<span class="ln"> 61</span>
-<span class="ln"> 62</span>
-<span class="ln"> 63</span><span class="k">var</span>&lt;<span class="t">workgroup</span>&gt; attentionScores: <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">1024</span>&gt;;
-<span class="ln"> 64</span>
-<span class="ln"> 65</span>
-<span class="ln"> 66</span><span class="a">@compute</span>
-<span class="ln"> 67</span>
-<span class="ln"> 68</span><span class="a">@workgroup_size</span>(<span class="n">64</span>, <span class="n">1</span>, <span class="n">1</span>)
-<span class="ln"> 69</span>
-<span class="ln"> 70</span><span class="k">fn</span> attention_forward(
-<span class="ln"> 71</span>	<span class="a">@builtin</span>(local_invocation_id) lid: <span class="t">vec3u</span>,
-<span class="ln"> 72</span>	<span class="a">@builtin</span>(workgroup_id) wid: <span class="t">vec3u</span>
-<span class="ln"> 73</span>) {
-<span class="ln"> 74</span>
-<span class="ln"> 75</span>	<span class="c">// Body-only compute shader source.</span>
-<span class="ln"> 76</span>	<span class="c">// Sandblaster owns @compute, @workgroup_size and the entry-point signature.</span>
-<span class="ln"> 77</span>	<span class="c">// entryPoint: attention_forward</span>
-<span class="ln"> 78</span>	<span class="c">// workgroupSize: [64, 1, 1]</span>
-<span class="ln"> 79</span>	<span class="c">// builtins: workgroup_id -&gt; wid, local_invocation_id -&gt; lid</span>
-<span class="ln"> 80</span>	<span class="c">//</span>
-<span class="ln"> 81</span>	<span class="c">// Masked multi-head attention forward for the Krystal encoder</span>
-<span class="ln"> 82</span>	<span class="c">// (WEBGPU_BACKWARD_PLAN.md §17 item 6). Bidirectional over the M rows, with a</span>
-<span class="ln"> 83</span>	<span class="c">// host-compiled mask: 0.0 = allowed, -1e30 = blocked. No KV cache, no GQA.</span>
-<span class="ln"> 84</span>	<span class="c">//</span>
-<span class="ln"> 85</span>	<span class="c">// Layouts (all f32 in the shared arena):</span>
-<span class="ln"> 86</span>	<span class="c">//   Q, K, V    [M, H] row-major; head h owns columns [h*headDim, (h+1)*headDim)</span>
-<span class="ln"> 87</span>	<span class="c">//   mask       [M, M] f32, mask[i*M+j]</span>
-<span class="ln"> 88</span>	<span class="c">//   out        [M, H] row-major, same head layout as Q/K/V</span>
-<span class="ln"> 89</span>	<span class="c">//   P (probs)  [headCount, M, M], P[(h*M + i)*M + j]</span>
-<span class="ln"> 90</span>	<span class="c">//</span>
-<span class="ln"> 91</span>	<span class="c">// OpParams:</span>
-<span class="ln"> 92</span>	<span class="c">//   tokenCount = M, inputDim = H, outputDim = headDim, u0 = headCount</span>
-<span class="ln"> 93</span>	<span class="c">//   inputOffset  = Q   [M,H]</span>
-<span class="ln"> 94</span>	<span class="c">//   auxOffset    = K   [M,H]</span>
-<span class="ln"> 95</span>	<span class="c">//   aux2Offset   = V   [M,H]</span>
-<span class="ln"> 96</span>	<span class="c">//   aux3Offset   = mask [M,M]</span>
-<span class="ln"> 97</span>	<span class="c">//   outputOffset = out [M,H]</span>
-<span class="ln"> 98</span>	<span class="c">//   aux4Offset   = P   [headCount,M,M]</span>
-<span class="ln"> 99</span>	<span class="c">//</span>
-<span class="ln">100</span>	<span class="c">// One workgroup per (head, query row i): lanes cover the M keys with a strided</span>
-<span class="ln">101</span>	<span class="c">// loop, then the row&#39;s softmax is computed in workgroup memory and the context</span>
-<span class="ln">102</span>	<span class="c">// vector is reduced per output dimension.</span>
-<span class="ln">103</span>	<span class="c">//</span>
-<span class="ln">104</span>	<span class="c">// scale = 1 / sqrt(headDim), computed in WGSL.</span>
-<span class="ln">105</span>
-<span class="ln">106</span>	  <span class="k">let</span> head = wid.x;
-<span class="ln">107</span>	  <span class="k">let</span> i = wid.y;
-<span class="ln">108</span>	  <span class="k">let</span> M = op.tokenCount;
-<span class="ln">109</span>	  <span class="k">let</span> H = op.inputDim;
-<span class="ln">110</span>	  <span class="k">let</span> headDim = op.outputDim;
-<span class="ln">111</span>	  <span class="k">let</span> headCount = op.u0;
-<span class="ln">112</span>	  <span class="k">if</span> (head &gt;= headCount || i &gt;= M) { <span class="k">return</span>; }
-<span class="ln">113</span>
-<span class="ln">114</span>	  <span class="k">let</span> scale = <span class="n">1.0</span> / sqrt(<span class="t">f32</span>(headDim));
-<span class="ln">115</span>	  <span class="k">let</span> qBase = op.inputOffset + i * H + head * headDim;
-<span class="ln">116</span>
-<span class="ln">117</span>	  <span class="c">// Pass 1: raw scores into workgroup memory (keys looped by lanes).</span>
-<span class="ln">118</span>	  <span class="k">var</span> j = lid.x;
-<span class="ln">119</span>	  <span class="k">loop</span> {
-<span class="ln">120</span>	    <span class="k">if</span> (j &gt;= M) { <span class="k">break</span>; }
-<span class="ln">121</span>	    <span class="k">var</span> s = <span class="n">0.0</span>;
-<span class="ln">122</span>	    <span class="k">for</span> (<span class="k">var</span> d = <span class="n">0u</span>; d &lt; headDim; d++) {
-<span class="ln">123</span>	      <span class="k">let</span> q = arena[qBase + d];
-<span class="ln">124</span>	      <span class="k">let</span> k = arena[op.auxOffset + j * H + head * headDim + d];
-<span class="ln">125</span>	      s += q * k;
-<span class="ln">126</span>	    }
-<span class="ln">127</span>	    attentionScores[j] = s * scale + arena[op.aux3Offset + i * M + j];
-<span class="ln">128</span>	    j += WG;
-<span class="ln">129</span>	  }
-<span class="ln">130</span>	  workgroupBarrier();
-<span class="ln">131</span>
-<span class="ln">132</span>	  <span class="c">// Pass 2: row max + sum-exp (single-lane reduction over the M keys).</span>
-<span class="ln">133</span>	  <span class="k">if</span> (lid.x == <span class="n">0u</span>) {
-<span class="ln">134</span>	    <span class="k">var</span> rowMax = -<span class="n">3.</span>402823466e+<span class="n">38</span>;
-<span class="ln">135</span>	    <span class="k">for</span> (<span class="k">var</span> k = <span class="n">0u</span>; k &lt; M; k++) { rowMax = max(rowMax, attentionScores[k]); }
-<span class="ln">136</span>	    <span class="k">var</span> sumExp = <span class="n">0.0</span>;
-<span class="ln">137</span>	    <span class="k">for</span> (<span class="k">var</span> k = <span class="n">0u</span>; k &lt; M; k++) {
-<span class="ln">138</span>	      <span class="k">let</span> e = exp(attentionScores[k] - rowMax);
-<span class="ln">139</span>	      attentionScores[k] = e;
-<span class="ln">140</span>	      sumExp += e;
-<span class="ln">141</span>	    }
-<span class="ln">142</span>	    <span class="k">let</span> inv = <span class="n">1.0</span> / max(sumExp, 1e-<span class="n">20</span>);
-<span class="ln">143</span>	    <span class="k">for</span> (<span class="k">var</span> k = <span class="n">0u</span>; k &lt; M; k++) { attentionScores[k] *= inv; }
-<span class="ln">144</span>	  }
-<span class="ln">145</span>	  workgroupBarrier();
-<span class="ln">146</span>
-<span class="ln">147</span>	  <span class="c">// Pass 3: persist probs (backward needs them) and reduce the context vector.</span>
-<span class="ln">148</span>	  j = lid.x;
-<span class="ln">149</span>	  <span class="k">loop</span> {
-<span class="ln">150</span>	    <span class="k">if</span> (j &gt;= M) { <span class="k">break</span>; }
-<span class="ln">151</span>	    arena[op.aux4Offset + (head * M + i) * M + j] = attentionScores[j];
-<span class="ln">152</span>	    j += WG;
-<span class="ln">153</span>	  }
-<span class="ln">154</span>	  workgroupBarrier();
-<span class="ln">155</span>
-<span class="ln">156</span>	  <span class="k">var</span> dim = lid.x;
-<span class="ln">157</span>	  <span class="k">loop</span> {
-<span class="ln">158</span>	    <span class="k">if</span> (dim &gt;= headDim) { <span class="k">break</span>; }
-<span class="ln">159</span>	    <span class="k">var</span> value = <span class="n">0.0</span>;
-<span class="ln">160</span>	    <span class="k">for</span> (<span class="k">var</span> k = <span class="n">0u</span>; k &lt; M; k++) {
-<span class="ln">161</span>	      value += attentionScores[k] * arena[op.aux2Offset + k * H + head * headDim + dim];
-<span class="ln">162</span>	    }
-<span class="ln">163</span>	    arena[op.outputOffset + i * H + head * headDim + dim] = value;
-<span class="ln">164</span>	    dim += WG;
-<span class="ln">165</span>	  }
-<span class="ln">166</span>
-<span class="ln">167</span>
-<span class="ln">168</span>}</code></pre>
-		</details>
-	</section><section class="card" id="program-compute-12">
-		<h3><span class="tag compute">compute</span>
-			<code class="ident">attention_backward_scores</code></h3>
-		<dl class="kv"><div><dt>kind</dt><dd><code>compute</code></dd></div><div><dt>id</dt><dd>12</dd></div><div><dt>groups</dt><dd><code>0</code></dd></div><div><dt>type roots</dt><dd><a href="#type-opparams"><code>OpParams</code></a>, <a href="#type-_buffer_5"><code>_buffer_5</code></a></dd></div><div><dt>entry point</dt><dd><code>attention_backward_scores</code></dd></div><div><dt>workgroup size</dt><dd><code>64 × 1 × 1</code>
-			<span class="muted">= 64 invocations</span></dd></div></dl>
-		
-		<h4>Bindings</h4>
-		<table class="grid">
-		<thead><tr>
-			<th class="num">Group</th><th class="num">Binding</th><th>Name</th>
-			<th>Buffer</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
-		</tr></thead>
-		<tbody><tr>
-				<td class="num">0</td>
-				<td class="num">0</td>
-				<td><code class="ident">op</code></td>
-				<td><a href="#buffer-0">krystal.op</a></td>
-				<td><code>uniform</code></td>
-				<td><code>OpParams</code></td>
-				<td>COMPUTE</td>
-				<td> <span class="tag">dynamic offset</span> <span class="tag">range 0 +96</span> <span class="tag">min 96 B</span></td>
-			</tr><tr>
-				<td class="num">0</td>
-				<td class="num">1</td>
-				<td><code class="ident">arena</code></td>
-				<td><a href="#buffer-5">krystal.arena</a></td>
-				<td><code>storage</code></td>
-				<td><code>_buffer_5</code></td>
-				<td>COMPUTE</td>
-				<td>   </td>
-			</tr></tbody>
-	</table>
-		<details class="source">
-			<summary>Generated WGSL <span class="muted">158 lines</span></summary>
-			<pre class="wgsl"><code><span class="ln">  1</span><span class="c">// Generated by Sandblaster</span>
-<span class="ln">  2</span>
-<span class="ln">  3</span><span class="k">const</span> SMB_continuation: <span class="t">u32</span> = <span class="n">0u</span>;
-<span class="ln">  4</span><span class="k">const</span> SMB_decode: <span class="t">u32</span> = <span class="n">1u</span>;
-<span class="ln">  5</span><span class="k">const</span> SMB_prefill: <span class="t">u32</span> = <span class="n">2u</span>;
-<span class="ln">  6</span>
-<span class="ln">  7</span><span class="k">alias</span> KrystalMode = <span class="t">u32</span>;
-<span class="ln">  8</span><span class="k">const</span> KrystalMode_prefill: KrystalMode = <span class="n">0u</span>;
-<span class="ln">  9</span><span class="k">const</span> KrystalMode_decode: KrystalMode = <span class="n">1u</span>;
-<span class="ln"> 10</span><span class="k">const</span> KrystalMode_continuation: KrystalMode = <span class="n">2u</span>;
-<span class="ln"> 11</span>
-<span class="ln"> 12</span><span class="k">struct</span> OpParams {
-<span class="ln"> 13</span>	inputOffset: <span class="t">u32</span>,
-<span class="ln"> 14</span>	outputOffset: <span class="t">u32</span>,
-<span class="ln"> 15</span>	auxOffset: <span class="t">u32</span>,
-<span class="ln"> 16</span>	aux2Offset: <span class="t">u32</span>,
-<span class="ln"> 17</span>	aux3Offset: <span class="t">u32</span>,
-<span class="ln"> 18</span>	aux4Offset: <span class="t">u32</span>,
-<span class="ln"> 19</span>	aux5Offset: <span class="t">u32</span>,
-<span class="ln"> 20</span>	aux6Offset: <span class="t">u32</span>,
-<span class="ln"> 21</span>	tokenCount: <span class="t">u32</span>,
-<span class="ln"> 22</span>	inputDim: <span class="t">u32</span>,
-<span class="ln"> 23</span>	outputDim: <span class="t">u32</span>,
-<span class="ln"> 24</span>	rowStart: <span class="t">u32</span>,
-<span class="ln"> 25</span>	rowCount: <span class="t">u32</span>,
-<span class="ln"> 26</span>	layerIndex: <span class="t">u32</span>,
-<span class="ln"> 27</span>	attentionSlot: <span class="t">u32</span>,
-<span class="ln"> 28</span>	f0: <span class="t">f32</span>,
-<span class="ln"> 29</span>	f1: <span class="t">f32</span>,
-<span class="ln"> 30</span>	u0: <span class="t">u32</span>,
-<span class="ln"> 31</span>	u1: <span class="t">u32</span>,
-<span class="ln"> 32</span>	u2: <span class="t">u32</span>,
-<span class="ln"> 33</span>	u3: <span class="t">u32</span>,
-<span class="ln"> 34</span>	u4: <span class="t">u32</span>,
-<span class="ln"> 35</span>	u5: <span class="t">u32</span>,
-<span class="ln"> 36</span>	mode: KrystalMode,
-<span class="ln"> 37</span>};
-<span class="ln"> 38</span>
-<span class="ln"> 39</span>
-<span class="ln"> 40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">51028257</span>&gt;;
-<span class="ln"> 41</span>
-<span class="ln"> 42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">51028257u</span>;
-<span class="ln"> 43</span>
-<span class="ln"> 44</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
-<span class="ln"> 45</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
-<span class="ln"> 46</span>
-<span class="ln"> 47</span><span class="k">fn</span> arena_index(base: <span class="t">u32</span>, tokenIndex: <span class="t">u32</span>, dim: <span class="t">u32</span>, stride: <span class="t">u32</span>) -&gt; <span class="t">u32</span> {
-<span class="ln"> 48</span>  <span class="k">return</span> base + tokenIndex * stride + dim;
-<span class="ln"> 49</span>}
-<span class="ln"> 50</span>
-<span class="ln"> 51</span><span class="k">const</span> WG: <span class="t">u32</span> = <span class="n">64u</span>;
-<span class="ln"> 52</span><span class="c">// MATMUL_ROWS lives in the matmul-rows / matmul-rows-wide includes, because it</span>
-<span class="ln"> 53</span><span class="c">// is the one constant that differs between two programs built from the same</span>
-<span class="ln"> 54</span><span class="c">// matmul_wq4 body.</span>
-<span class="ln"> 55</span><span class="k">const</span> ARGMAX_WG: <span class="t">u32</span> = <span class="n">256u</span>;
-<span class="ln"> 56</span><span class="k">const</span> MAX_CONTEXT: <span class="t">u32</span> = <span class="n">1024u</span>;
-<span class="ln"> 57</span><span class="k">const</span> HEAD_DIM: <span class="t">u32</span> = <span class="n">64u</span>;
-<span class="ln"> 58</span><span class="k">const</span> KV_HEADS: <span class="t">u32</span> = <span class="n">8u</span>;
-<span class="ln"> 59</span><span class="k">const</span> QUERY_HEADS: <span class="t">u32</span> = <span class="n">32u</span>;
-<span class="ln"> 60</span><span class="k">const</span> KV_DIM: <span class="t">u32</span> = KV_HEADS * HEAD_DIM;
-<span class="ln"> 61</span>
-<span class="ln"> 62</span>
-<span class="ln"> 63</span><span class="k">var</span>&lt;<span class="t">workgroup</span>&gt; attentionScores: <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">1024</span>&gt;;
-<span class="ln"> 64</span>
-<span class="ln"> 65</span>
-<span class="ln"> 66</span><span class="k">var</span>&lt;<span class="t">workgroup</span>&gt; reduceF32: <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">256</span>&gt;;
-<span class="ln"> 67</span>
-<span class="ln"> 68</span>
-<span class="ln"> 69</span><span class="a">@compute</span>
-<span class="ln"> 70</span>
-<span class="ln"> 71</span><span class="a">@workgroup_size</span>(<span class="n">64</span>, <span class="n">1</span>, <span class="n">1</span>)
-<span class="ln"> 72</span>
-<span class="ln"> 73</span><span class="k">fn</span> attention_backward_scores(
-<span class="ln"> 74</span>	<span class="a">@builtin</span>(local_invocation_id) lid: <span class="t">vec3u</span>,
-<span class="ln"> 75</span>	<span class="a">@builtin</span>(workgroup_id) wid: <span class="t">vec3u</span>
-<span class="ln"> 76</span>) {
-<span class="ln"> 77</span>
-<span class="ln"> 78</span>	<span class="c">// Body-only compute shader source.</span>
-<span class="ln"> 79</span>	<span class="c">// Sandblaster owns @compute, @workgroup_size and the entry-point signature.</span>
-<span class="ln"> 80</span>	<span class="c">// entryPoint: attention_backward_scores</span>
-<span class="ln"> 81</span>	<span class="c">// workgroupSize: [64, 1, 1]</span>
-<span class="ln"> 82</span>	<span class="c">// builtins: workgroup_id -&gt; wid, local_invocation_id -&gt; lid</span>
-<span class="ln"> 83</span>	<span class="c">//</span>
-<span class="ln"> 84</span>	<span class="c">// Softmax-score gradient of masked multi-head attention (§17 item 6).</span>
-<span class="ln"> 85</span>	<span class="c">//</span>
-<span class="ln"> 86</span>	<span class="c">// Given the saved attention probabilities P and the upstream gradient dOut:</span>
-<span class="ln"> 87</span>	<span class="c">//   dP[h][i][j]    = dot(dOut[i][h], V[j][h])</span>
-<span class="ln"> 88</span>	<span class="c">//   rowSum[h][i]   = sum_j P[h][i][j] * dP[h][i][j]</span>
-<span class="ln"> 89</span>	<span class="c">//   dScores[h][i][j] = P[h][i][j] * (dP[h][i][j] - rowSum[h][i])</span>
-<span class="ln"> 90</span>	<span class="c">//</span>
-<span class="ln"> 91</span>	<span class="c">// Masked positions carry P == 0.0, so their dScores gradient is exactly 0 and</span>
-<span class="ln"> 92</span>	<span class="c">// the mask never needs to be re-read here.</span>
-<span class="ln"> 93</span>	<span class="c">//</span>
-<span class="ln"> 94</span>	<span class="c">// Layouts (all f32 in the shared arena):</span>
-<span class="ln"> 95</span>	<span class="c">//   dOut  [M, H], head h at columns [h*headDim, (h+1)*headDim)</span>
-<span class="ln"> 96</span>	<span class="c">//   V     [M, H], same head layout</span>
-<span class="ln"> 97</span>	<span class="c">//   P     [headCount, M, M], P[(h*M + i)*M + j]</span>
-<span class="ln"> 98</span>	<span class="c">//   dScores [headCount, M, M], same layout as P</span>
-<span class="ln"> 99</span>	<span class="c">//</span>
-<span class="ln">100</span>	<span class="c">// OpParams:</span>
-<span class="ln">101</span>	<span class="c">//   tokenCount = M, inputDim = H, outputDim = headDim, u0 = headCount</span>
-<span class="ln">102</span>	<span class="c">//   inputOffset  = dOut  [M,H]</span>
-<span class="ln">103</span>	<span class="c">//   auxOffset    = V     [M,H]</span>
-<span class="ln">104</span>	<span class="c">//   aux2Offset   = P     [headCount,M,M]</span>
-<span class="ln">105</span>	<span class="c">//   outputOffset = dScores [headCount,M,M]</span>
-<span class="ln">106</span>	<span class="c">//</span>
-<span class="ln">107</span>	<span class="c">// One workgroup per (head, query row i); lanes cover the M keys.</span>
-<span class="ln">108</span>
-<span class="ln">109</span>	  <span class="k">let</span> head = wid.x;
-<span class="ln">110</span>	  <span class="k">let</span> i = wid.y;
-<span class="ln">111</span>	  <span class="k">let</span> M = op.tokenCount;
-<span class="ln">112</span>	  <span class="k">let</span> H = op.inputDim;
-<span class="ln">113</span>	  <span class="k">let</span> headDim = op.outputDim;
-<span class="ln">114</span>	  <span class="k">let</span> headCount = op.u0;
-<span class="ln">115</span>	  <span class="k">if</span> (head &gt;= headCount || i &gt;= M) { <span class="k">return</span>; }
-<span class="ln">116</span>
-<span class="ln">117</span>	  <span class="k">let</span> dOutBase = op.inputOffset + i * H + head * headDim;
-<span class="ln">118</span>
-<span class="ln">119</span>	  <span class="c">// Pass 1: dP[j] = dot(dOut[i,h], V[j,h]) into workgroup memory + rowSum.</span>
-<span class="ln">120</span>	  <span class="k">var</span> j = lid.x;
-<span class="ln">121</span>	  <span class="k">var</span> localSum = <span class="n">0.0</span>;
-<span class="ln">122</span>	  <span class="k">loop</span> {
-<span class="ln">123</span>	    <span class="k">if</span> (j &gt;= M) { <span class="k">break</span>; }
-<span class="ln">124</span>	    <span class="k">var</span> dp = <span class="n">0.0</span>;
-<span class="ln">125</span>	    <span class="k">for</span> (<span class="k">var</span> d = <span class="n">0u</span>; d &lt; headDim; d++) {
-<span class="ln">126</span>	      <span class="k">let</span> dy = arena[dOutBase + d];
-<span class="ln">127</span>	      <span class="k">let</span> v = arena[op.auxOffset + j * H + head * headDim + d];
-<span class="ln">128</span>	      dp += dy * v;
-<span class="ln">129</span>	    }
-<span class="ln">130</span>	    attentionScores[j] = dp;
-<span class="ln">131</span>	    <span class="k">let</span> p = arena[op.aux2Offset + (head * M + i) * M + j];
-<span class="ln">132</span>	    localSum += p * dp;
-<span class="ln">133</span>	    j += WG;
-<span class="ln">134</span>	  }
-<span class="ln">135</span>	  reduceF32[lid.x] = localSum;
-<span class="ln">136</span>	  workgroupBarrier();
-<span class="ln">137</span>	  <span class="k">var</span> width = WG &gt;&gt; <span class="n">1u</span>;
-<span class="ln">138</span>	  <span class="k">loop</span> {
-<span class="ln">139</span>	    <span class="k">if</span> (width == <span class="n">0u</span>) { <span class="k">break</span>; }
-<span class="ln">140</span>	    <span class="k">if</span> (lid.x &lt; width) { reduceF32[lid.x] += reduceF32[lid.x + width]; }
-<span class="ln">141</span>	    workgroupBarrier();
-<span class="ln">142</span>	    width &gt;&gt;= <span class="n">1u</span>;
-<span class="ln">143</span>	  }
-<span class="ln">144</span>	  <span class="k">let</span> rowSum = reduceF32[<span class="n">0</span>];
-<span class="ln">145</span>	  workgroupBarrier();
-<span class="ln">146</span>
-<span class="ln">147</span>	  <span class="c">// Pass 2: dScores = P * (dP - rowSum).</span>
-<span class="ln">148</span>	  j = lid.x;
-<span class="ln">149</span>	  <span class="k">loop</span> {
-<span class="ln">150</span>	    <span class="k">if</span> (j &gt;= M) { <span class="k">break</span>; }
-<span class="ln">151</span>	    <span class="k">let</span> p = arena[op.aux2Offset + (head * M + i) * M + j];
-<span class="ln">152</span>	    arena[op.outputOffset + (head * M + i) * M + j] = p * (attentionScores[j] - rowSum);
-<span class="ln">153</span>	    j += WG;
-<span class="ln">154</span>	  }
-<span class="ln">155</span>
-<span class="ln">156</span>
-<span class="ln">157</span>}</code></pre>
-		</details>
-	</section><section class="card" id="program-compute-13">
-		<h3><span class="tag compute">compute</span>
-			<code class="ident">attention_backward_qkv</code></h3>
-		<dl class="kv"><div><dt>kind</dt><dd><code>compute</code></dd></div><div><dt>id</dt><dd>13</dd></div><div><dt>groups</dt><dd><code>0</code></dd></div><div><dt>type roots</dt><dd><a href="#type-opparams"><code>OpParams</code></a>, <a href="#type-_buffer_5"><code>_buffer_5</code></a></dd></div><div><dt>entry point</dt><dd><code>attention_backward_qkv</code></dd></div><div><dt>workgroup size</dt><dd><code>256 × 1 × 1</code>
-			<span class="muted">= 256 invocations</span></dd></div></dl>
-		
-		<h4>Bindings</h4>
-		<table class="grid">
-		<thead><tr>
-			<th class="num">Group</th><th class="num">Binding</th><th>Name</th>
-			<th>Buffer</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
-		</tr></thead>
-		<tbody><tr>
-				<td class="num">0</td>
-				<td class="num">0</td>
-				<td><code class="ident">op</code></td>
-				<td><a href="#buffer-0">krystal.op</a></td>
-				<td><code>uniform</code></td>
-				<td><code>OpParams</code></td>
-				<td>COMPUTE</td>
-				<td> <span class="tag">dynamic offset</span> <span class="tag">range 0 +96</span> <span class="tag">min 96 B</span></td>
-			</tr><tr>
-				<td class="num">0</td>
-				<td class="num">1</td>
-				<td><code class="ident">arena</code></td>
-				<td><a href="#buffer-5">krystal.arena</a></td>
-				<td><code>storage</code></td>
-				<td><code>_buffer_5</code></td>
-				<td>COMPUTE</td>
-				<td>   </td>
-			</tr></tbody>
-	</table>
-		<details class="source">
-			<summary>Generated WGSL <span class="muted">151 lines</span></summary>
-			<pre class="wgsl"><code><span class="ln">  1</span><span class="c">// Generated by Sandblaster</span>
-<span class="ln">  2</span>
-<span class="ln">  3</span><span class="k">const</span> SMB_continuation: <span class="t">u32</span> = <span class="n">0u</span>;
-<span class="ln">  4</span><span class="k">const</span> SMB_decode: <span class="t">u32</span> = <span class="n">1u</span>;
-<span class="ln">  5</span><span class="k">const</span> SMB_prefill: <span class="t">u32</span> = <span class="n">2u</span>;
-<span class="ln">  6</span>
-<span class="ln">  7</span><span class="k">alias</span> KrystalMode = <span class="t">u32</span>;
-<span class="ln">  8</span><span class="k">const</span> KrystalMode_prefill: KrystalMode = <span class="n">0u</span>;
-<span class="ln">  9</span><span class="k">const</span> KrystalMode_decode: KrystalMode = <span class="n">1u</span>;
-<span class="ln"> 10</span><span class="k">const</span> KrystalMode_continuation: KrystalMode = <span class="n">2u</span>;
-<span class="ln"> 11</span>
-<span class="ln"> 12</span><span class="k">struct</span> OpParams {
-<span class="ln"> 13</span>	inputOffset: <span class="t">u32</span>,
-<span class="ln"> 14</span>	outputOffset: <span class="t">u32</span>,
-<span class="ln"> 15</span>	auxOffset: <span class="t">u32</span>,
-<span class="ln"> 16</span>	aux2Offset: <span class="t">u32</span>,
-<span class="ln"> 17</span>	aux3Offset: <span class="t">u32</span>,
-<span class="ln"> 18</span>	aux4Offset: <span class="t">u32</span>,
-<span class="ln"> 19</span>	aux5Offset: <span class="t">u32</span>,
-<span class="ln"> 20</span>	aux6Offset: <span class="t">u32</span>,
-<span class="ln"> 21</span>	tokenCount: <span class="t">u32</span>,
-<span class="ln"> 22</span>	inputDim: <span class="t">u32</span>,
-<span class="ln"> 23</span>	outputDim: <span class="t">u32</span>,
-<span class="ln"> 24</span>	rowStart: <span class="t">u32</span>,
-<span class="ln"> 25</span>	rowCount: <span class="t">u32</span>,
-<span class="ln"> 26</span>	layerIndex: <span class="t">u32</span>,
-<span class="ln"> 27</span>	attentionSlot: <span class="t">u32</span>,
-<span class="ln"> 28</span>	f0: <span class="t">f32</span>,
-<span class="ln"> 29</span>	f1: <span class="t">f32</span>,
-<span class="ln"> 30</span>	u0: <span class="t">u32</span>,
-<span class="ln"> 31</span>	u1: <span class="t">u32</span>,
-<span class="ln"> 32</span>	u2: <span class="t">u32</span>,
-<span class="ln"> 33</span>	u3: <span class="t">u32</span>,
-<span class="ln"> 34</span>	u4: <span class="t">u32</span>,
-<span class="ln"> 35</span>	u5: <span class="t">u32</span>,
-<span class="ln"> 36</span>	mode: KrystalMode,
-<span class="ln"> 37</span>};
-<span class="ln"> 38</span>
-<span class="ln"> 39</span>
-<span class="ln"> 40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">51028257</span>&gt;;
-<span class="ln"> 41</span>
-<span class="ln"> 42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">51028257u</span>;
-<span class="ln"> 43</span>
-<span class="ln"> 44</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
-<span class="ln"> 45</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
-<span class="ln"> 46</span>
-<span class="ln"> 47</span><span class="k">fn</span> arena_index(base: <span class="t">u32</span>, tokenIndex: <span class="t">u32</span>, dim: <span class="t">u32</span>, stride: <span class="t">u32</span>) -&gt; <span class="t">u32</span> {
-<span class="ln"> 48</span>  <span class="k">return</span> base + tokenIndex * stride + dim;
-<span class="ln"> 49</span>}
-<span class="ln"> 50</span>
-<span class="ln"> 51</span><span class="k">const</span> WG: <span class="t">u32</span> = <span class="n">64u</span>;
-<span class="ln"> 52</span><span class="c">// MATMUL_ROWS lives in the matmul-rows / matmul-rows-wide includes, because it</span>
-<span class="ln"> 53</span><span class="c">// is the one constant that differs between two programs built from the same</span>
-<span class="ln"> 54</span><span class="c">// matmul_wq4 body.</span>
-<span class="ln"> 55</span><span class="k">const</span> ARGMAX_WG: <span class="t">u32</span> = <span class="n">256u</span>;
-<span class="ln"> 56</span><span class="k">const</span> MAX_CONTEXT: <span class="t">u32</span> = <span class="n">1024u</span>;
-<span class="ln"> 57</span><span class="k">const</span> HEAD_DIM: <span class="t">u32</span> = <span class="n">64u</span>;
-<span class="ln"> 58</span><span class="k">const</span> KV_HEADS: <span class="t">u32</span> = <span class="n">8u</span>;
-<span class="ln"> 59</span><span class="k">const</span> QUERY_HEADS: <span class="t">u32</span> = <span class="n">32u</span>;
-<span class="ln"> 60</span><span class="k">const</span> KV_DIM: <span class="t">u32</span> = KV_HEADS * HEAD_DIM;
-<span class="ln"> 61</span>
-<span class="ln"> 62</span>
-<span class="ln"> 63</span><span class="a">@compute</span>
-<span class="ln"> 64</span>
-<span class="ln"> 65</span><span class="a">@workgroup_size</span>(<span class="n">256</span>, <span class="n">1</span>, <span class="n">1</span>)
-<span class="ln"> 66</span>
-<span class="ln"> 67</span><span class="k">fn</span> attention_backward_qkv(
-<span class="ln"> 68</span>	<span class="a">@builtin</span>(global_invocation_id) gid: <span class="t">vec3u</span>
-<span class="ln"> 69</span>) {
-<span class="ln"> 70</span>
-<span class="ln"> 71</span>	<span class="c">// Body-only compute shader source.</span>
-<span class="ln"> 72</span>	<span class="c">// Sandblaster owns @compute, @workgroup_size and the entry-point signature.</span>
-<span class="ln"> 73</span>	<span class="c">// entryPoint: attention_backward_qkv</span>
-<span class="ln"> 74</span>	<span class="c">// workgroupSize: [256, 1, 1]</span>
-<span class="ln"> 75</span>	<span class="c">// builtins: global_invocation_id -&gt; gid</span>
-<span class="ln"> 76</span>	<span class="c">//</span>
-<span class="ln"> 77</span>	<span class="c">// Q/K/V gradients of masked multi-head attention (§17 item 6).</span>
-<span class="ln"> 78</span>	<span class="c">//</span>
-<span class="ln"> 79</span>	<span class="c">//   dQ[i,h,d] = scale * sum_j dScores[h,i,j] * K[j,h,d]</span>
-<span class="ln"> 80</span>	<span class="c">//   dK[j,h,d] = scale * sum_i dScores[h,i,j] * Q[i,h,d]</span>
-<span class="ln"> 81</span>	<span class="c">//   dV[j,h,d] =        sum_i P[h,i,j]       * dOut[i,h,d]</span>
-<span class="ln"> 82</span>	<span class="c">//</span>
-<span class="ln"> 83</span>	<span class="c">// where scale = 1/sqrt(headDim). Every output element has one owner (a linear</span>
-<span class="ln"> 84</span>	<span class="c">// gid over the three [M,H] outputs), so no atomics are needed.</span>
-<span class="ln"> 85</span>	<span class="c">//</span>
-<span class="ln"> 86</span>	<span class="c">// Layouts (all f32 in the shared arena):</span>
-<span class="ln"> 87</span>	<span class="c">//   dScores [headCount, M, M], dScores[(h*M + i)*M + j]</span>
-<span class="ln"> 88</span>	<span class="c">//   P       [headCount, M, M], same layout</span>
-<span class="ln"> 89</span>	<span class="c">//   Q, K, V, dOut, dQ, dK, dV  [M, H], head h at columns [h*headDim, ...)</span>
-<span class="ln"> 90</span>	<span class="c">//</span>
-<span class="ln"> 91</span>	<span class="c">// OpParams:</span>
-<span class="ln"> 92</span>	<span class="c">//   tokenCount = M, inputDim = H, outputDim = headDim, u0 = headCount</span>
-<span class="ln"> 93</span>	<span class="c">//   inputOffset  = dScores [headCount,M,M]</span>
-<span class="ln"> 94</span>	<span class="c">//   auxOffset    = Q  [M,H]</span>
-<span class="ln"> 95</span>	<span class="c">//   aux2Offset   = K  [M,H]</span>
-<span class="ln"> 96</span>	<span class="c">//   aux3Offset   = P  [headCount,M,M]</span>
-<span class="ln"> 97</span>	<span class="c">//   aux4Offset   = dOut [M,H]</span>
-<span class="ln"> 98</span>	<span class="c">//   outputOffset = dQ  [M,H]</span>
-<span class="ln"> 99</span>	<span class="c">//   aux5Offset   = dK  [M,H]</span>
-<span class="ln">100</span>	<span class="c">//   aux6Offset   = dV  [M,H]</span>
-<span class="ln">101</span>
-<span class="ln">102</span>	  <span class="k">let</span> M = op.tokenCount;
-<span class="ln">103</span>	  <span class="k">let</span> H = op.inputDim;
-<span class="ln">104</span>	  <span class="k">let</span> headDim = op.outputDim;
-<span class="ln">105</span>	  <span class="k">let</span> headCount = op.u0;
-<span class="ln">106</span>	  <span class="k">let</span> total = M * H;
-<span class="ln">107</span>	  <span class="k">let</span> linear = gid.x;
-<span class="ln">108</span>	  <span class="k">if</span> (linear &gt;= <span class="n">3u</span> * total) { <span class="k">return</span>; }
-<span class="ln">109</span>
-<span class="ln">110</span>	  <span class="k">let</span> scale = <span class="n">1.0</span> / sqrt(<span class="t">f32</span>(headDim));
-<span class="ln">111</span>	  <span class="k">let</span> h = (linear % H) / headDim;
-<span class="ln">112</span>	  <span class="k">let</span> d = (linear % H) % headDim;
-<span class="ln">113</span>	  <span class="k">let</span> col = linear % H;        <span class="c">// h*headDim + d</span>
-<span class="ln">114</span>
-<span class="ln">115</span>	  <span class="k">if</span> (linear &lt; total) {
-<span class="ln">116</span>	    <span class="c">// dQ[i, col] = scale * sum_j dScores[h,i,j] * K[j, col]</span>
-<span class="ln">117</span>	    <span class="k">let</span> i = linear / H;
-<span class="ln">118</span>	    <span class="k">var</span> sum = <span class="n">0.0</span>;
-<span class="ln">119</span>	    <span class="k">for</span> (<span class="k">var</span> j = <span class="n">0u</span>; j &lt; M; j++) {
-<span class="ln">120</span>	      <span class="k">let</span> s = arena[op.inputOffset + (h * M + i) * M + j];
-<span class="ln">121</span>	      <span class="k">let</span> k = arena[op.aux2Offset + j * H + col];
-<span class="ln">122</span>	      sum += s * k;
-<span class="ln">123</span>	    }
-<span class="ln">124</span>	    arena[op.outputOffset + i * H + col] = sum * scale;
-<span class="ln">125</span>	    <span class="k">return</span>;
-<span class="ln">126</span>	  }
-<span class="ln">127</span>	  <span class="k">if</span> (linear &lt; <span class="n">2u</span> * total) {
-<span class="ln">128</span>	    <span class="c">// dK[j, col] = scale * sum_i dScores[h,i,j] * Q[i, col]</span>
-<span class="ln">129</span>	    <span class="k">let</span> j = (linear - total) / H;
-<span class="ln">130</span>	    <span class="k">var</span> sum = <span class="n">0.0</span>;
-<span class="ln">131</span>	    <span class="k">for</span> (<span class="k">var</span> i2 = <span class="n">0u</span>; i2 &lt; M; i2++) {
-<span class="ln">132</span>	      <span class="k">let</span> s = arena[op.inputOffset + (h * M + i2) * M + j];
-<span class="ln">133</span>	      <span class="k">let</span> q = arena[op.auxOffset + i2 * H + col];
-<span class="ln">134</span>	      sum += s * q;
-<span class="ln">135</span>	    }
-<span class="ln">136</span>	    arena[op.aux5Offset + j * H + col] = sum * scale;
-<span class="ln">137</span>	    <span class="k">return</span>;
-<span class="ln">138</span>	  }
-<span class="ln">139</span>	  <span class="c">// dV[j, col] = sum_i P[h,i,j] * dOut[i, col]</span>
-<span class="ln">140</span>	  <span class="k">let</span> j = (linear - <span class="n">2u</span> * total) / H;
-<span class="ln">141</span>	  <span class="k">var</span> sum = <span class="n">0.0</span>;
-<span class="ln">142</span>	  <span class="k">for</span> (<span class="k">var</span> i2 = <span class="n">0u</span>; i2 &lt; M; i2++) {
-<span class="ln">143</span>	    <span class="k">let</span> p = arena[op.aux3Offset + (h * M + i2) * M + j];
-<span class="ln">144</span>	    <span class="k">let</span> dy = arena[op.aux4Offset + i2 * H + col];
-<span class="ln">145</span>	    sum += p * dy;
-<span class="ln">146</span>	  }
-<span class="ln">147</span>	  arena[op.aux6Offset + j * H + col] = sum;
-<span class="ln">148</span>
-<span class="ln">149</span>
-<span class="ln">150</span>}</code></pre>
-		</details>
-	</section><section class="card" id="program-compute-14">
+	</section><section class="card" id="program-compute-9">
 		<h3><span class="tag compute">compute</span>
 			<code class="ident">krystal_field_embed</code></h3>
-		<dl class="kv"><div><dt>kind</dt><dd><code>compute</code></dd></div><div><dt>id</dt><dd>14</dd></div><div><dt>groups</dt><dd><code>0</code>, <code>1</code></dd></div><div><dt>type roots</dt><dd><a href="#type-opparams"><code>OpParams</code></a>, <a href="#type-_buffer_5"><code>_buffer_5</code></a>, <a href="#type-_buffer_6"><code>_buffer_6</code></a></dd></div><div><dt>entry point</dt><dd><code>krystal_field_embed</code></dd></div><div><dt>workgroup size</dt><dd><code>256 × 1 × 1</code>
+		<dl class="kv"><div><dt>kind</dt><dd><code>compute</code></dd></div><div><dt>id</dt><dd>9</dd></div><div><dt>groups</dt><dd><code>0</code>, <code>1</code></dd></div><div><dt>type roots</dt><dd><a href="#type-opparams"><code>OpParams</code></a>, <a href="#type-_buffer_5"><code>_buffer_5</code></a>, <a href="#type-_buffer_6"><code>_buffer_6</code></a></dd></div><div><dt>entry point</dt><dd><code>krystal_field_embed</code></dd></div><div><dt>workgroup size</dt><dd><code>256 × 1 × 1</code>
 			<span class="muted">= 256 invocations</span></dd></div></dl>
 		
 		<h4>Bindings</h4>
 		<table class="grid">
 		<thead><tr>
 			<th class="num">Group</th><th class="num">Binding</th><th>Name</th>
-			<th>Buffer</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
+			<th>Resource</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
 		</tr></thead>
 		<tbody><tr>
 				<td class="num">0</td>
@@ -2651,9 +1707,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln"> 39</span>};
 <span class="ln"> 40</span>
 <span class="ln"> 41</span>
-<span class="ln"> 42</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;_buffer_6, <span class="n">51028257</span>&gt;;
+<span class="ln"> 42</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;_buffer_6, <span class="n">52522977</span>&gt;;
 <span class="ln"> 43</span>
-<span class="ln"> 44</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">51028257u</span>;
+<span class="ln"> 44</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">52522977u</span>;
 <span class="ln"> 45</span>
 <span class="ln"> 46</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln"> 47</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
@@ -2744,17 +1800,17 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln">132</span>
 <span class="ln">133</span>}</code></pre>
 		</details>
-	</section><section class="card" id="program-compute-15">
+	</section><section class="card" id="program-compute-10">
 		<h3><span class="tag compute">compute</span>
 			<code class="ident">krystal_attention_forward</code></h3>
-		<dl class="kv"><div><dt>kind</dt><dd><code>compute</code></dd></div><div><dt>id</dt><dd>15</dd></div><div><dt>groups</dt><dd><code>0</code></dd></div><div><dt>type roots</dt><dd><a href="#type-opparams"><code>OpParams</code></a>, <a href="#type-_buffer_5"><code>_buffer_5</code></a></dd></div><div><dt>entry point</dt><dd><code>krystal_attention_forward</code></dd></div><div><dt>workgroup size</dt><dd><code>64 × 1 × 1</code>
+		<dl class="kv"><div><dt>kind</dt><dd><code>compute</code></dd></div><div><dt>id</dt><dd>10</dd></div><div><dt>groups</dt><dd><code>0</code></dd></div><div><dt>type roots</dt><dd><a href="#type-opparams"><code>OpParams</code></a>, <a href="#type-_buffer_5"><code>_buffer_5</code></a></dd></div><div><dt>entry point</dt><dd><code>krystal_attention_forward</code></dd></div><div><dt>workgroup size</dt><dd><code>64 × 1 × 1</code>
 			<span class="muted">= 64 invocations</span></dd></div></dl>
 		
 		<h4>Bindings</h4>
 		<table class="grid">
 		<thead><tr>
 			<th class="num">Group</th><th class="num">Binding</th><th>Name</th>
-			<th>Buffer</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
+			<th>Resource</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
 		</tr></thead>
 		<tbody><tr>
 				<td class="num">0</td>
@@ -2817,9 +1873,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln"> 37</span>};
 <span class="ln"> 38</span>
 <span class="ln"> 39</span>
-<span class="ln"> 40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">51028257</span>&gt;;
+<span class="ln"> 40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">52522977</span>&gt;;
 <span class="ln"> 41</span>
-<span class="ln"> 42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">51028257u</span>;
+<span class="ln"> 42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">52522977u</span>;
 <span class="ln"> 43</span>
 <span class="ln"> 44</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln"> 45</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
@@ -2968,17 +2024,17 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln">188</span>
 <span class="ln">189</span>}</code></pre>
 		</details>
-	</section><section class="card" id="program-compute-16">
+	</section><section class="card" id="program-compute-11">
 		<h3><span class="tag compute">compute</span>
 			<code class="ident">relu</code></h3>
-		<dl class="kv"><div><dt>kind</dt><dd><code>compute</code></dd></div><div><dt>id</dt><dd>16</dd></div><div><dt>groups</dt><dd><code>0</code></dd></div><div><dt>type roots</dt><dd><a href="#type-opparams"><code>OpParams</code></a>, <a href="#type-_buffer_5"><code>_buffer_5</code></a></dd></div><div><dt>entry point</dt><dd><code>relu</code></dd></div><div><dt>workgroup size</dt><dd><code>256 × 1 × 1</code>
+		<dl class="kv"><div><dt>kind</dt><dd><code>compute</code></dd></div><div><dt>id</dt><dd>11</dd></div><div><dt>groups</dt><dd><code>0</code></dd></div><div><dt>type roots</dt><dd><a href="#type-opparams"><code>OpParams</code></a>, <a href="#type-_buffer_5"><code>_buffer_5</code></a></dd></div><div><dt>entry point</dt><dd><code>relu</code></dd></div><div><dt>workgroup size</dt><dd><code>256 × 1 × 1</code>
 			<span class="muted">= 256 invocations</span></dd></div></dl>
 		
 		<h4>Bindings</h4>
 		<table class="grid">
 		<thead><tr>
 			<th class="num">Group</th><th class="num">Binding</th><th>Name</th>
-			<th>Buffer</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
+			<th>Resource</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
 		</tr></thead>
 		<tbody><tr>
 				<td class="num">0</td>
@@ -3041,9 +2097,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln">37</span>};
 <span class="ln">38</span>
 <span class="ln">39</span>
-<span class="ln">40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">51028257</span>&gt;;
+<span class="ln">40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">52522977</span>&gt;;
 <span class="ln">41</span>
-<span class="ln">42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">51028257u</span>;
+<span class="ln">42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">52522977u</span>;
 <span class="ln">43</span>
 <span class="ln">44</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln">45</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
@@ -3094,17 +2150,17 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln">90</span>
 <span class="ln">91</span>}</code></pre>
 		</details>
-	</section><section class="card" id="program-compute-17">
+	</section><section class="card" id="program-compute-12">
 		<h3><span class="tag compute">compute</span>
 			<code class="ident">krystal_pool</code></h3>
-		<dl class="kv"><div><dt>kind</dt><dd><code>compute</code></dd></div><div><dt>id</dt><dd>17</dd></div><div><dt>groups</dt><dd><code>0</code>, <code>1</code></dd></div><div><dt>type roots</dt><dd><a href="#type-opparams"><code>OpParams</code></a>, <a href="#type-_buffer_5"><code>_buffer_5</code></a>, <a href="#type-_buffer_6"><code>_buffer_6</code></a></dd></div><div><dt>entry point</dt><dd><code>krystal_pool</code></dd></div><div><dt>workgroup size</dt><dd><code>64 × 1 × 1</code>
+		<dl class="kv"><div><dt>kind</dt><dd><code>compute</code></dd></div><div><dt>id</dt><dd>12</dd></div><div><dt>groups</dt><dd><code>0</code>, <code>1</code></dd></div><div><dt>type roots</dt><dd><a href="#type-opparams"><code>OpParams</code></a>, <a href="#type-_buffer_5"><code>_buffer_5</code></a>, <a href="#type-_buffer_6"><code>_buffer_6</code></a></dd></div><div><dt>entry point</dt><dd><code>krystal_pool</code></dd></div><div><dt>workgroup size</dt><dd><code>64 × 1 × 1</code>
 			<span class="muted">= 64 invocations</span></dd></div></dl>
 		
 		<h4>Bindings</h4>
 		<table class="grid">
 		<thead><tr>
 			<th class="num">Group</th><th class="num">Binding</th><th>Name</th>
-			<th>Buffer</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
+			<th>Resource</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
 		</tr></thead>
 		<tbody><tr>
 				<td class="num">0</td>
@@ -3178,9 +2234,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln"> 39</span>};
 <span class="ln"> 40</span>
 <span class="ln"> 41</span>
-<span class="ln"> 42</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;_buffer_6, <span class="n">51028257</span>&gt;;
+<span class="ln"> 42</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;_buffer_6, <span class="n">52522977</span>&gt;;
 <span class="ln"> 43</span>
-<span class="ln"> 44</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">51028257u</span>;
+<span class="ln"> 44</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">52522977u</span>;
 <span class="ln"> 45</span>
 <span class="ln"> 46</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln"> 47</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
@@ -3325,17 +2381,17 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln">186</span>
 <span class="ln">187</span>}</code></pre>
 		</details>
-	</section><section class="card" id="program-compute-18">
+	</section><section class="card" id="program-compute-13">
 		<h3><span class="tag compute">compute</span>
 			<code class="ident">krystal_selector</code></h3>
-		<dl class="kv"><div><dt>kind</dt><dd><code>compute</code></dd></div><div><dt>id</dt><dd>18</dd></div><div><dt>groups</dt><dd><code>0</code></dd></div><div><dt>type roots</dt><dd><a href="#type-opparams"><code>OpParams</code></a>, <a href="#type-_buffer_5"><code>_buffer_5</code></a></dd></div><div><dt>entry point</dt><dd><code>krystal_selector</code></dd></div><div><dt>workgroup size</dt><dd><code>64 × 1 × 1</code>
+		<dl class="kv"><div><dt>kind</dt><dd><code>compute</code></dd></div><div><dt>id</dt><dd>13</dd></div><div><dt>groups</dt><dd><code>0</code></dd></div><div><dt>type roots</dt><dd><a href="#type-opparams"><code>OpParams</code></a>, <a href="#type-_buffer_5"><code>_buffer_5</code></a></dd></div><div><dt>entry point</dt><dd><code>krystal_selector</code></dd></div><div><dt>workgroup size</dt><dd><code>64 × 1 × 1</code>
 			<span class="muted">= 64 invocations</span></dd></div></dl>
 		
 		<h4>Bindings</h4>
 		<table class="grid">
 		<thead><tr>
 			<th class="num">Group</th><th class="num">Binding</th><th>Name</th>
-			<th>Buffer</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
+			<th>Resource</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
 		</tr></thead>
 		<tbody><tr>
 				<td class="num">0</td>
@@ -3398,9 +2454,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln"> 37</span>};
 <span class="ln"> 38</span>
 <span class="ln"> 39</span>
-<span class="ln"> 40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">51028257</span>&gt;;
+<span class="ln"> 40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">52522977</span>&gt;;
 <span class="ln"> 41</span>
-<span class="ln"> 42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">51028257u</span>;
+<span class="ln"> 42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">52522977u</span>;
 <span class="ln"> 43</span>
 <span class="ln"> 44</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln"> 45</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
@@ -3540,17 +2596,17 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln">179</span>
 <span class="ln">180</span>}</code></pre>
 		</details>
-	</section><section class="card" id="program-compute-19">
+	</section><section class="card" id="program-compute-14">
 		<h3><span class="tag compute">compute</span>
 			<code class="ident">krystal_decision_head</code></h3>
-		<dl class="kv"><div><dt>kind</dt><dd><code>compute</code></dd></div><div><dt>id</dt><dd>19</dd></div><div><dt>groups</dt><dd><code>0</code>, <code>1</code></dd></div><div><dt>type roots</dt><dd><a href="#type-opparams"><code>OpParams</code></a>, <a href="#type-_buffer_5"><code>_buffer_5</code></a>, <a href="#type-_buffer_6"><code>_buffer_6</code></a></dd></div><div><dt>entry point</dt><dd><code>krystal_decision_head</code></dd></div><div><dt>workgroup size</dt><dd><code>64 × 1 × 1</code>
+		<dl class="kv"><div><dt>kind</dt><dd><code>compute</code></dd></div><div><dt>id</dt><dd>14</dd></div><div><dt>groups</dt><dd><code>0</code>, <code>1</code></dd></div><div><dt>type roots</dt><dd><a href="#type-opparams"><code>OpParams</code></a>, <a href="#type-_buffer_5"><code>_buffer_5</code></a>, <a href="#type-_buffer_6"><code>_buffer_6</code></a></dd></div><div><dt>entry point</dt><dd><code>krystal_decision_head</code></dd></div><div><dt>workgroup size</dt><dd><code>64 × 1 × 1</code>
 			<span class="muted">= 64 invocations</span></dd></div></dl>
 		
 		<h4>Bindings</h4>
 		<table class="grid">
 		<thead><tr>
 			<th class="num">Group</th><th class="num">Binding</th><th>Name</th>
-			<th>Buffer</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
+			<th>Resource</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
 		</tr></thead>
 		<tbody><tr>
 				<td class="num">0</td>
@@ -3624,9 +2680,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln"> 39</span>};
 <span class="ln"> 40</span>
 <span class="ln"> 41</span>
-<span class="ln"> 42</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;_buffer_6, <span class="n">51028257</span>&gt;;
+<span class="ln"> 42</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;_buffer_6, <span class="n">52522977</span>&gt;;
 <span class="ln"> 43</span>
-<span class="ln"> 44</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">51028257u</span>;
+<span class="ln"> 44</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">52522977u</span>;
 <span class="ln"> 45</span>
 <span class="ln"> 46</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln"> 47</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
@@ -3709,17 +2765,17 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln">124</span>
 <span class="ln">125</span>}</code></pre>
 		</details>
-	</section><section class="card" id="program-compute-20">
+	</section><section class="card" id="program-compute-15">
 		<h3><span class="tag compute">compute</span>
 			<code class="ident">relu_backward</code></h3>
-		<dl class="kv"><div><dt>kind</dt><dd><code>compute</code></dd></div><div><dt>id</dt><dd>20</dd></div><div><dt>groups</dt><dd><code>0</code></dd></div><div><dt>type roots</dt><dd><a href="#type-opparams"><code>OpParams</code></a>, <a href="#type-_buffer_5"><code>_buffer_5</code></a></dd></div><div><dt>entry point</dt><dd><code>relu_backward</code></dd></div><div><dt>workgroup size</dt><dd><code>256 × 1 × 1</code>
+		<dl class="kv"><div><dt>kind</dt><dd><code>compute</code></dd></div><div><dt>id</dt><dd>15</dd></div><div><dt>groups</dt><dd><code>0</code></dd></div><div><dt>type roots</dt><dd><a href="#type-opparams"><code>OpParams</code></a>, <a href="#type-_buffer_5"><code>_buffer_5</code></a></dd></div><div><dt>entry point</dt><dd><code>relu_backward</code></dd></div><div><dt>workgroup size</dt><dd><code>256 × 1 × 1</code>
 			<span class="muted">= 256 invocations</span></dd></div></dl>
 		
 		<h4>Bindings</h4>
 		<table class="grid">
 		<thead><tr>
 			<th class="num">Group</th><th class="num">Binding</th><th>Name</th>
-			<th>Buffer</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
+			<th>Resource</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
 		</tr></thead>
 		<tbody><tr>
 				<td class="num">0</td>
@@ -3782,9 +2838,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln">37</span>};
 <span class="ln">38</span>
 <span class="ln">39</span>
-<span class="ln">40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">51028257</span>&gt;;
+<span class="ln">40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">52522977</span>&gt;;
 <span class="ln">41</span>
-<span class="ln">42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">51028257u</span>;
+<span class="ln">42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">52522977u</span>;
 <span class="ln">43</span>
 <span class="ln">44</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln">45</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
@@ -3842,17 +2898,17 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln">97</span>
 <span class="ln">98</span>}</code></pre>
 		</details>
-	</section><section class="card" id="program-compute-21">
+	</section><section class="card" id="program-compute-16">
 		<h3><span class="tag compute">compute</span>
 			<code class="ident">krystal_attention_backward_scores</code></h3>
-		<dl class="kv"><div><dt>kind</dt><dd><code>compute</code></dd></div><div><dt>id</dt><dd>21</dd></div><div><dt>groups</dt><dd><code>0</code></dd></div><div><dt>type roots</dt><dd><a href="#type-opparams"><code>OpParams</code></a>, <a href="#type-_buffer_5"><code>_buffer_5</code></a></dd></div><div><dt>entry point</dt><dd><code>krystal_attention_backward_scores</code></dd></div><div><dt>workgroup size</dt><dd><code>64 × 1 × 1</code>
+		<dl class="kv"><div><dt>kind</dt><dd><code>compute</code></dd></div><div><dt>id</dt><dd>16</dd></div><div><dt>groups</dt><dd><code>0</code></dd></div><div><dt>type roots</dt><dd><a href="#type-opparams"><code>OpParams</code></a>, <a href="#type-_buffer_5"><code>_buffer_5</code></a></dd></div><div><dt>entry point</dt><dd><code>krystal_attention_backward_scores</code></dd></div><div><dt>workgroup size</dt><dd><code>64 × 1 × 1</code>
 			<span class="muted">= 64 invocations</span></dd></div></dl>
 		
 		<h4>Bindings</h4>
 		<table class="grid">
 		<thead><tr>
 			<th class="num">Group</th><th class="num">Binding</th><th>Name</th>
-			<th>Buffer</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
+			<th>Resource</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
 		</tr></thead>
 		<tbody><tr>
 				<td class="num">0</td>
@@ -3915,9 +2971,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln"> 37</span>};
 <span class="ln"> 38</span>
 <span class="ln"> 39</span>
-<span class="ln"> 40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">51028257</span>&gt;;
+<span class="ln"> 40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">52522977</span>&gt;;
 <span class="ln"> 41</span>
-<span class="ln"> 42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">51028257u</span>;
+<span class="ln"> 42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">52522977u</span>;
 <span class="ln"> 43</span>
 <span class="ln"> 44</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln"> 45</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
@@ -4050,17 +3106,17 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln">172</span>
 <span class="ln">173</span>}</code></pre>
 		</details>
-	</section><section class="card" id="program-compute-22">
+	</section><section class="card" id="program-compute-17">
 		<h3><span class="tag compute">compute</span>
 			<code class="ident">krystal_attention_backward_qkv</code></h3>
-		<dl class="kv"><div><dt>kind</dt><dd><code>compute</code></dd></div><div><dt>id</dt><dd>22</dd></div><div><dt>groups</dt><dd><code>0</code></dd></div><div><dt>type roots</dt><dd><a href="#type-opparams"><code>OpParams</code></a>, <a href="#type-_buffer_5"><code>_buffer_5</code></a></dd></div><div><dt>entry point</dt><dd><code>krystal_attention_backward_qkv</code></dd></div><div><dt>workgroup size</dt><dd><code>256 × 1 × 1</code>
+		<dl class="kv"><div><dt>kind</dt><dd><code>compute</code></dd></div><div><dt>id</dt><dd>17</dd></div><div><dt>groups</dt><dd><code>0</code></dd></div><div><dt>type roots</dt><dd><a href="#type-opparams"><code>OpParams</code></a>, <a href="#type-_buffer_5"><code>_buffer_5</code></a></dd></div><div><dt>entry point</dt><dd><code>krystal_attention_backward_qkv</code></dd></div><div><dt>workgroup size</dt><dd><code>256 × 1 × 1</code>
 			<span class="muted">= 256 invocations</span></dd></div></dl>
 		
 		<h4>Bindings</h4>
 		<table class="grid">
 		<thead><tr>
 			<th class="num">Group</th><th class="num">Binding</th><th>Name</th>
-			<th>Buffer</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
+			<th>Resource</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
 		</tr></thead>
 		<tbody><tr>
 				<td class="num">0</td>
@@ -4123,9 +3179,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln"> 37</span>};
 <span class="ln"> 38</span>
 <span class="ln"> 39</span>
-<span class="ln"> 40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">51028257</span>&gt;;
+<span class="ln"> 40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">52522977</span>&gt;;
 <span class="ln"> 41</span>
-<span class="ln"> 42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">51028257u</span>;
+<span class="ln"> 42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">52522977u</span>;
 <span class="ln"> 43</span>
 <span class="ln"> 44</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln"> 45</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
@@ -4271,17 +3327,17 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln">185</span>
 <span class="ln">186</span>}</code></pre>
 		</details>
-	</section><section class="card" id="program-compute-23">
+	</section><section class="card" id="program-compute-18">
 		<h3><span class="tag compute">compute</span>
 			<code class="ident">krystal_field_embed_backward</code></h3>
-		<dl class="kv"><div><dt>kind</dt><dd><code>compute</code></dd></div><div><dt>id</dt><dd>23</dd></div><div><dt>groups</dt><dd><code>0</code></dd></div><div><dt>type roots</dt><dd><a href="#type-opparams"><code>OpParams</code></a>, <a href="#type-_buffer_5"><code>_buffer_5</code></a></dd></div><div><dt>entry point</dt><dd><code>krystal_field_embed_backward</code></dd></div><div><dt>workgroup size</dt><dd><code>256 × 1 × 1</code>
+		<dl class="kv"><div><dt>kind</dt><dd><code>compute</code></dd></div><div><dt>id</dt><dd>18</dd></div><div><dt>groups</dt><dd><code>0</code></dd></div><div><dt>type roots</dt><dd><a href="#type-opparams"><code>OpParams</code></a>, <a href="#type-_buffer_5"><code>_buffer_5</code></a></dd></div><div><dt>entry point</dt><dd><code>krystal_field_embed_backward</code></dd></div><div><dt>workgroup size</dt><dd><code>256 × 1 × 1</code>
 			<span class="muted">= 256 invocations</span></dd></div></dl>
 		
 		<h4>Bindings</h4>
 		<table class="grid">
 		<thead><tr>
 			<th class="num">Group</th><th class="num">Binding</th><th>Name</th>
-			<th>Buffer</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
+			<th>Resource</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
 		</tr></thead>
 		<tbody><tr>
 				<td class="num">0</td>
@@ -4344,9 +3400,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln"> 37</span>};
 <span class="ln"> 38</span>
 <span class="ln"> 39</span>
-<span class="ln"> 40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">51028257</span>&gt;;
+<span class="ln"> 40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">52522977</span>&gt;;
 <span class="ln"> 41</span>
-<span class="ln"> 42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">51028257u</span>;
+<span class="ln"> 42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">52522977u</span>;
 <span class="ln"> 43</span>
 <span class="ln"> 44</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln"> 45</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
@@ -4464,17 +3520,17 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln">157</span>
 <span class="ln">158</span>}</code></pre>
 		</details>
-	</section><section class="card" id="program-compute-24">
+	</section><section class="card" id="program-compute-19">
 		<h3><span class="tag compute">compute</span>
 			<code class="ident">krystal_field_embed_sgd</code></h3>
-		<dl class="kv"><div><dt>kind</dt><dd><code>compute</code></dd></div><div><dt>id</dt><dd>24</dd></div><div><dt>groups</dt><dd><code>0</code>, <code>1</code></dd></div><div><dt>type roots</dt><dd><a href="#type-opparams"><code>OpParams</code></a>, <a href="#type-_buffer_5"><code>_buffer_5</code></a>, <a href="#type-_buffer_6"><code>_buffer_6</code></a></dd></div><div><dt>entry point</dt><dd><code>krystal_field_embed_sgd</code></dd></div><div><dt>workgroup size</dt><dd><code>256 × 1 × 1</code>
+		<dl class="kv"><div><dt>kind</dt><dd><code>compute</code></dd></div><div><dt>id</dt><dd>19</dd></div><div><dt>groups</dt><dd><code>0</code>, <code>1</code></dd></div><div><dt>type roots</dt><dd><a href="#type-opparams"><code>OpParams</code></a>, <a href="#type-_buffer_5"><code>_buffer_5</code></a>, <a href="#type-_buffer_6"><code>_buffer_6</code></a></dd></div><div><dt>entry point</dt><dd><code>krystal_field_embed_sgd</code></dd></div><div><dt>workgroup size</dt><dd><code>256 × 1 × 1</code>
 			<span class="muted">= 256 invocations</span></dd></div></dl>
 		
 		<h4>Bindings</h4>
 		<table class="grid">
 		<thead><tr>
 			<th class="num">Group</th><th class="num">Binding</th><th>Name</th>
-			<th>Buffer</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
+			<th>Resource</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
 		</tr></thead>
 		<tbody><tr>
 				<td class="num">0</td>
@@ -4548,9 +3604,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln"> 39</span>};
 <span class="ln"> 40</span>
 <span class="ln"> 41</span>
-<span class="ln"> 42</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;_buffer_6, <span class="n">51028257</span>&gt;;
+<span class="ln"> 42</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;_buffer_6, <span class="n">52522977</span>&gt;;
 <span class="ln"> 43</span>
-<span class="ln"> 44</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">51028257u</span>;
+<span class="ln"> 44</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">52522977u</span>;
 <span class="ln"> 45</span>
 <span class="ln"> 46</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln"> 47</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
@@ -4652,17 +3708,17 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln">143</span>
 <span class="ln">144</span>}</code></pre>
 		</details>
-	</section><section class="card" id="program-compute-25">
+	</section><section class="card" id="program-compute-20">
 		<h3><span class="tag compute">compute</span>
 			<code class="ident">krystal_pool_backward</code></h3>
-		<dl class="kv"><div><dt>kind</dt><dd><code>compute</code></dd></div><div><dt>id</dt><dd>25</dd></div><div><dt>groups</dt><dd><code>0</code>, <code>1</code></dd></div><div><dt>type roots</dt><dd><a href="#type-opparams"><code>OpParams</code></a>, <a href="#type-_buffer_5"><code>_buffer_5</code></a>, <a href="#type-_buffer_6"><code>_buffer_6</code></a></dd></div><div><dt>entry point</dt><dd><code>krystal_pool_backward</code></dd></div><div><dt>workgroup size</dt><dd><code>64 × 1 × 1</code>
+		<dl class="kv"><div><dt>kind</dt><dd><code>compute</code></dd></div><div><dt>id</dt><dd>20</dd></div><div><dt>groups</dt><dd><code>0</code>, <code>1</code></dd></div><div><dt>type roots</dt><dd><a href="#type-opparams"><code>OpParams</code></a>, <a href="#type-_buffer_5"><code>_buffer_5</code></a>, <a href="#type-_buffer_6"><code>_buffer_6</code></a></dd></div><div><dt>entry point</dt><dd><code>krystal_pool_backward</code></dd></div><div><dt>workgroup size</dt><dd><code>64 × 1 × 1</code>
 			<span class="muted">= 64 invocations</span></dd></div></dl>
 		
 		<h4>Bindings</h4>
 		<table class="grid">
 		<thead><tr>
 			<th class="num">Group</th><th class="num">Binding</th><th>Name</th>
-			<th>Buffer</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
+			<th>Resource</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
 		</tr></thead>
 		<tbody><tr>
 				<td class="num">0</td>
@@ -4736,9 +3792,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln"> 39</span>};
 <span class="ln"> 40</span>
 <span class="ln"> 41</span>
-<span class="ln"> 42</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;_buffer_6, <span class="n">51028257</span>&gt;;
+<span class="ln"> 42</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;_buffer_6, <span class="n">52522977</span>&gt;;
 <span class="ln"> 43</span>
-<span class="ln"> 44</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">51028257u</span>;
+<span class="ln"> 44</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">52522977u</span>;
 <span class="ln"> 45</span>
 <span class="ln"> 46</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln"> 47</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
@@ -4921,17 +3977,17 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln">224</span>
 <span class="ln">225</span>}</code></pre>
 		</details>
-	</section><section class="card" id="program-compute-26">
+	</section><section class="card" id="program-compute-21">
 		<h3><span class="tag compute">compute</span>
 			<code class="ident">krystal_pool_dpool</code></h3>
-		<dl class="kv"><div><dt>kind</dt><dd><code>compute</code></dd></div><div><dt>id</dt><dd>26</dd></div><div><dt>groups</dt><dd><code>0</code></dd></div><div><dt>type roots</dt><dd><a href="#type-opparams"><code>OpParams</code></a>, <a href="#type-_buffer_5"><code>_buffer_5</code></a></dd></div><div><dt>entry point</dt><dd><code>krystal_pool_dpool</code></dd></div><div><dt>workgroup size</dt><dd><code>256 × 1 × 1</code>
+		<dl class="kv"><div><dt>kind</dt><dd><code>compute</code></dd></div><div><dt>id</dt><dd>21</dd></div><div><dt>groups</dt><dd><code>0</code></dd></div><div><dt>type roots</dt><dd><a href="#type-opparams"><code>OpParams</code></a>, <a href="#type-_buffer_5"><code>_buffer_5</code></a></dd></div><div><dt>entry point</dt><dd><code>krystal_pool_dpool</code></dd></div><div><dt>workgroup size</dt><dd><code>256 × 1 × 1</code>
 			<span class="muted">= 256 invocations</span></dd></div></dl>
 		
 		<h4>Bindings</h4>
 		<table class="grid">
 		<thead><tr>
 			<th class="num">Group</th><th class="num">Binding</th><th>Name</th>
-			<th>Buffer</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
+			<th>Resource</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
 		</tr></thead>
 		<tbody><tr>
 				<td class="num">0</td>
@@ -4994,9 +4050,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln"> 37</span>};
 <span class="ln"> 38</span>
 <span class="ln"> 39</span>
-<span class="ln"> 40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">51028257</span>&gt;;
+<span class="ln"> 40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">52522977</span>&gt;;
 <span class="ln"> 41</span>
-<span class="ln"> 42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">51028257u</span>;
+<span class="ln"> 42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">52522977u</span>;
 <span class="ln"> 43</span>
 <span class="ln"> 44</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln"> 45</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
@@ -5058,17 +4114,17 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln">101</span>
 <span class="ln">102</span>}</code></pre>
 		</details>
-	</section><section class="card" id="program-compute-27">
+	</section><section class="card" id="program-compute-22">
 		<h3><span class="tag compute">compute</span>
 			<code class="ident">krystal_selector_backward_scores</code></h3>
-		<dl class="kv"><div><dt>kind</dt><dd><code>compute</code></dd></div><div><dt>id</dt><dd>27</dd></div><div><dt>groups</dt><dd><code>0</code></dd></div><div><dt>type roots</dt><dd><a href="#type-opparams"><code>OpParams</code></a>, <a href="#type-_buffer_5"><code>_buffer_5</code></a></dd></div><div><dt>entry point</dt><dd><code>krystal_selector_backward_scores</code></dd></div><div><dt>workgroup size</dt><dd><code>64 × 1 × 1</code>
+		<dl class="kv"><div><dt>kind</dt><dd><code>compute</code></dd></div><div><dt>id</dt><dd>22</dd></div><div><dt>groups</dt><dd><code>0</code></dd></div><div><dt>type roots</dt><dd><a href="#type-opparams"><code>OpParams</code></a>, <a href="#type-_buffer_5"><code>_buffer_5</code></a></dd></div><div><dt>entry point</dt><dd><code>krystal_selector_backward_scores</code></dd></div><div><dt>workgroup size</dt><dd><code>64 × 1 × 1</code>
 			<span class="muted">= 64 invocations</span></dd></div></dl>
 		
 		<h4>Bindings</h4>
 		<table class="grid">
 		<thead><tr>
 			<th class="num">Group</th><th class="num">Binding</th><th>Name</th>
-			<th>Buffer</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
+			<th>Resource</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
 		</tr></thead>
 		<tbody><tr>
 				<td class="num">0</td>
@@ -5091,7 +4147,7 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 			</tr></tbody>
 	</table>
 		<details class="source">
-			<summary>Generated WGSL <span class="muted">170 lines</span></summary>
+			<summary>Generated WGSL <span class="muted">187 lines</span></summary>
 			<pre class="wgsl"><code><span class="ln">  1</span><span class="c">// Generated by Sandblaster</span>
 <span class="ln">  2</span>
 <span class="ln">  3</span><span class="k">const</span> SMB_continuation: <span class="t">u32</span> = <span class="n">0u</span>;
@@ -5131,9 +4187,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln"> 37</span>};
 <span class="ln"> 38</span>
 <span class="ln"> 39</span>
-<span class="ln"> 40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">51028257</span>&gt;;
+<span class="ln"> 40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">52522977</span>&gt;;
 <span class="ln"> 41</span>
-<span class="ln"> 42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">51028257u</span>;
+<span class="ln"> 42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">52522977u</span>;
 <span class="ln"> 43</span>
 <span class="ln"> 44</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln"> 45</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
@@ -5184,95 +4240,112 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln"> 90</span>	<span class="c">//   pointerLossGrad[i,j] = p[i,j] - onehot(j == gold[i])</span>
 <span class="ln"> 91</span>	<span class="c">//                          when gold[i] is valid (not 0xffffffff)</span>
 <span class="ln"> 92</span>	<span class="c">//</span>
-<span class="ln"> 93</span>	<span class="c">// p is the persisted softmax distribution from the forward; masked positions</span>
-<span class="ln"> 94</span>	<span class="c">// carry p == 0, so their dScore gradient is exactly the pointer-loss term (0</span>
-<span class="ln"> 95</span>	<span class="c">// when that slot is not the gold). dScore [Q, R] is row-owned, so it is</span>
-<span class="ln"> 96</span>	<span class="c">// written directly here; dQProj/dKProj/dValue are computed by the companion</span>
-<span class="ln"> 97</span>	<span class="c">// krystal_selector_backward_qkv pass.</span>
+<span class="ln"> 93</span>	<span class="c">// A gold with its top bit set (0x80000000 | row) is pushed AWAY from: the</span>
+<span class="ln"> 94</span>	<span class="c">// unlikelihood loss -log(1 - p[i,row]), whose gradient is</span>
+<span class="ln"> 95</span>	<span class="c">//   pointerLossGrad[i,j] = s * (onehot(j == row) - p[i,j]),</span>
+<span class="ln"> 96</span>	<span class="c">//   s = p[i,row] / max(1 - p[i,row], 1e-6)</span>
+<span class="ln"> 97</span>	<span class="c">// Mirrors selectorBackwardScores in the CPU oracle exactly.</span>
 <span class="ln"> 98</span>	<span class="c">//</span>
-<span class="ln"> 99</span>	<span class="c">// OpParams:</span>
-<span class="ln">100</span>	<span class="c">//   tokenCount = Q, inputDim = H, u0 = R, u1 = zeroInvalidRows (0/1)</span>
-<span class="ln">101</span>	<span class="c">//   inputOffset  = dGather [Q, H]</span>
-<span class="ln">102</span>	<span class="c">//   auxOffset    = value   [R, H]</span>
-<span class="ln">103</span>	<span class="c">//   aux2Offset   = p       [Q, R]</span>
-<span class="ln">104</span>	<span class="c">//   aux3Offset   = gold    [Q] (u32 payloads; 0xffffffff = no pointer loss)</span>
-<span class="ln">105</span>	<span class="c">//   outputOffset = dScore  [Q, R]</span>
-<span class="ln">106</span>	<span class="c">//</span>
-<span class="ln">107</span>	<span class="c">// One workgroup per query row (mirrors krystal_selector). When</span>
-<span class="ln">108</span>	<span class="c">// zeroInvalidRows is set, rows with an INVALID target contribute exactly</span>
-<span class="ln">109</span>	<span class="c">// zero gradient (FOLLOW_UP2): an arity-0 / unlabelled argument row must not</span>
-<span class="ln">110</span>	<span class="c">// push the shared selector parameters through its degenerate all-masked</span>
-<span class="ln">111</span>	<span class="c">// softmax-backprop term.</span>
-<span class="ln">112</span>
-<span class="ln">113</span>	  <span class="k">let</span> i = wid.y;
-<span class="ln">114</span>	  <span class="k">let</span> Q = op.tokenCount;
-<span class="ln">115</span>	  <span class="k">let</span> R = op.u0;
-<span class="ln">116</span>	  <span class="k">let</span> H = op.inputDim;
-<span class="ln">117</span>	  <span class="k">if</span> (i &gt;= Q) { <span class="k">return</span>; }
+<span class="ln"> 99</span>	<span class="c">// p is the persisted softmax distribution from the forward; masked positions</span>
+<span class="ln">100</span>	<span class="c">// carry p == 0, so their dScore gradient is exactly the pointer-loss term (0</span>
+<span class="ln">101</span>	<span class="c">// when that slot is not the gold). dScore [Q, R] is row-owned, so it is</span>
+<span class="ln">102</span>	<span class="c">// written directly here; dQProj/dKProj/dValue are computed by the companion</span>
+<span class="ln">103</span>	<span class="c">// krystal_selector_backward_qkv pass.</span>
+<span class="ln">104</span>	<span class="c">//</span>
+<span class="ln">105</span>	<span class="c">// OpParams:</span>
+<span class="ln">106</span>	<span class="c">//   tokenCount = Q, inputDim = H, u0 = R, u1 = zeroInvalidRows (0/1)</span>
+<span class="ln">107</span>	<span class="c">//   inputOffset  = dGather [Q, H]</span>
+<span class="ln">108</span>	<span class="c">//   auxOffset    = value   [R, H]</span>
+<span class="ln">109</span>	<span class="c">//   aux2Offset   = p       [Q, R]</span>
+<span class="ln">110</span>	<span class="c">//   aux3Offset   = gold    [Q] (u32 payloads; 0xffffffff = no pointer loss)</span>
+<span class="ln">111</span>	<span class="c">//   outputOffset = dScore  [Q, R]</span>
+<span class="ln">112</span>	<span class="c">//</span>
+<span class="ln">113</span>	<span class="c">// One workgroup per query row (mirrors krystal_selector). When</span>
+<span class="ln">114</span>	<span class="c">// zeroInvalidRows is set, rows with an INVALID target contribute exactly</span>
+<span class="ln">115</span>	<span class="c">// zero gradient (FOLLOW_UP2): an arity-0 / unlabelled argument row must not</span>
+<span class="ln">116</span>	<span class="c">// push the shared selector parameters through its degenerate all-masked</span>
+<span class="ln">117</span>	<span class="c">// softmax-backprop term.</span>
 <span class="ln">118</span>
-<span class="ln">119</span>	  <span class="c">// Pass 1: dP[j] = dot(dGather[i], value[j]) into workgroup memory + rowSum.</span>
-<span class="ln">120</span>	  <span class="k">var</span> j = lid.x;
-<span class="ln">121</span>	  <span class="k">var</span> localSum = <span class="n">0.0</span>;
-<span class="ln">122</span>	  <span class="k">loop</span> {
-<span class="ln">123</span>	    <span class="k">if</span> (j &gt;= R) { <span class="k">break</span>; }
-<span class="ln">124</span>	    <span class="k">var</span> dp = <span class="n">0.0</span>;
-<span class="ln">125</span>	    <span class="k">for</span> (<span class="k">var</span> d = <span class="n">0u</span>; d &lt; H; d++) {
-<span class="ln">126</span>	      dp += arena[op.inputOffset + i * H + d] * arena[op.auxOffset + j * H + d];
-<span class="ln">127</span>	    }
-<span class="ln">128</span>	    attentionScores[j] = dp;
-<span class="ln">129</span>	    <span class="k">let</span> p = arena[op.aux2Offset + i * R + j];
-<span class="ln">130</span>	    localSum += p * dp;
-<span class="ln">131</span>	    j += WG;
-<span class="ln">132</span>	  }
-<span class="ln">133</span>	  reduceF32[lid.x] = localSum;
-<span class="ln">134</span>	  workgroupBarrier();
-<span class="ln">135</span>	  <span class="k">var</span> width = WG &gt;&gt; <span class="n">1u</span>;
-<span class="ln">136</span>	  <span class="k">loop</span> {
-<span class="ln">137</span>	    <span class="k">if</span> (width == <span class="n">0u</span>) { <span class="k">break</span>; }
-<span class="ln">138</span>	    <span class="k">if</span> (lid.x &lt; width) { reduceF32[lid.x] += reduceF32[lid.x + width]; }
-<span class="ln">139</span>	    workgroupBarrier();
-<span class="ln">140</span>	    width &gt;&gt;= <span class="n">1u</span>;
-<span class="ln">141</span>	  }
-<span class="ln">142</span>	  <span class="k">let</span> rowSum = reduceF32[<span class="n">0</span>];
-<span class="ln">143</span>	  workgroupBarrier();
-<span class="ln">144</span>
-<span class="ln">145</span>	  <span class="c">// Pass 2: dScore = p * (dP - rowSum) + pointer-loss gradient.</span>
-<span class="ln">146</span>	  <span class="k">let</span> gold = bitcast&lt;<span class="t">u32</span>&gt;(arena[op.aux3Offset + i]);
-<span class="ln">147</span>	  <span class="k">if</span> (op.u1 != <span class="n">0u</span> &amp;&amp; gold == 0xffffffffu) {
-<span class="ln">148</span>	    <span class="c">// No pointer target: the branch contributes exactly zero gradient.</span>
-<span class="ln">149</span>	    j = lid.x;
-<span class="ln">150</span>	    <span class="k">loop</span> {
-<span class="ln">151</span>	      <span class="k">if</span> (j &gt;= R) { <span class="k">break</span>; }
-<span class="ln">152</span>	      arena[op.outputOffset + i * R + j] = <span class="n">0.0</span>;
-<span class="ln">153</span>	      j += WG;
-<span class="ln">154</span>	    }
-<span class="ln">155</span>	    <span class="k">return</span>;
-<span class="ln">156</span>	  }
-<span class="ln">157</span>	  j = lid.x;
-<span class="ln">158</span>	  <span class="k">loop</span> {
-<span class="ln">159</span>	    <span class="k">if</span> (j &gt;= R) { <span class="k">break</span>; }
-<span class="ln">160</span>	    <span class="k">let</span> p = arena[op.aux2Offset + i * R + j];
-<span class="ln">161</span>	    <span class="k">var</span> pointerGrad = <span class="n">0.0</span>;
-<span class="ln">162</span>	    <span class="k">if</span> (gold != 0xffffffffu &amp;&amp; j == gold) { pointerGrad = p - <span class="n">1.0</span>; }
-<span class="ln">163</span>	    <span class="k">else</span> <span class="k">if</span> (gold != 0xffffffffu) { pointerGrad = p; }
-<span class="ln">164</span>	    arena[op.outputOffset + i * R + j] = p * (attentionScores[j] - rowSum) + pointerGrad;
-<span class="ln">165</span>	    j += WG;
-<span class="ln">166</span>	  }
-<span class="ln">167</span>
-<span class="ln">168</span>
-<span class="ln">169</span>}</code></pre>
+<span class="ln">119</span>	  <span class="k">let</span> i = wid.y;
+<span class="ln">120</span>	  <span class="k">let</span> Q = op.tokenCount;
+<span class="ln">121</span>	  <span class="k">let</span> R = op.u0;
+<span class="ln">122</span>	  <span class="k">let</span> H = op.inputDim;
+<span class="ln">123</span>	  <span class="k">if</span> (i &gt;= Q) { <span class="k">return</span>; }
+<span class="ln">124</span>
+<span class="ln">125</span>	  <span class="c">// Pass 1: dP[j] = dot(dGather[i], value[j]) into workgroup memory + rowSum.</span>
+<span class="ln">126</span>	  <span class="k">var</span> j = lid.x;
+<span class="ln">127</span>	  <span class="k">var</span> localSum = <span class="n">0.0</span>;
+<span class="ln">128</span>	  <span class="k">loop</span> {
+<span class="ln">129</span>	    <span class="k">if</span> (j &gt;= R) { <span class="k">break</span>; }
+<span class="ln">130</span>	    <span class="k">var</span> dp = <span class="n">0.0</span>;
+<span class="ln">131</span>	    <span class="k">for</span> (<span class="k">var</span> d = <span class="n">0u</span>; d &lt; H; d++) {
+<span class="ln">132</span>	      dp += arena[op.inputOffset + i * H + d] * arena[op.auxOffset + j * H + d];
+<span class="ln">133</span>	    }
+<span class="ln">134</span>	    attentionScores[j] = dp;
+<span class="ln">135</span>	    <span class="k">let</span> p = arena[op.aux2Offset + i * R + j];
+<span class="ln">136</span>	    localSum += p * dp;
+<span class="ln">137</span>	    j += WG;
+<span class="ln">138</span>	  }
+<span class="ln">139</span>	  reduceF32[lid.x] = localSum;
+<span class="ln">140</span>	  workgroupBarrier();
+<span class="ln">141</span>	  <span class="k">var</span> width = WG &gt;&gt; <span class="n">1u</span>;
+<span class="ln">142</span>	  <span class="k">loop</span> {
+<span class="ln">143</span>	    <span class="k">if</span> (width == <span class="n">0u</span>) { <span class="k">break</span>; }
+<span class="ln">144</span>	    <span class="k">if</span> (lid.x &lt; width) { reduceF32[lid.x] += reduceF32[lid.x + width]; }
+<span class="ln">145</span>	    workgroupBarrier();
+<span class="ln">146</span>	    width &gt;&gt;= <span class="n">1u</span>;
+<span class="ln">147</span>	  }
+<span class="ln">148</span>	  <span class="k">let</span> rowSum = reduceF32[<span class="n">0</span>];
+<span class="ln">149</span>	  workgroupBarrier();
+<span class="ln">150</span>
+<span class="ln">151</span>	  <span class="c">// Pass 2: dScore = p * (dP - rowSum) + pointer-loss gradient.</span>
+<span class="ln">152</span>	  <span class="k">let</span> raw = bitcast&lt;<span class="t">u32</span>&gt;(arena[op.aux3Offset + i]);
+<span class="ln">153</span>	  <span class="k">let</span> valid = raw != 0xffffffffu;
+<span class="ln">154</span>	  <span class="k">let</span> away = valid &amp;&amp; (raw &amp; 0x80000000u) != <span class="n">0u</span>;
+<span class="ln">155</span>	  <span class="k">let</span> gold = raw &amp; 0x7fffffffu;
+<span class="ln">156</span>	  <span class="k">var</span> scale = <span class="n">0.0</span>;
+<span class="ln">157</span>	  <span class="k">if</span> (away) {
+<span class="ln">158</span>	    <span class="k">let</span> pAway = arena[op.aux2Offset + i * R + gold];
+<span class="ln">159</span>	    scale = pAway / max(<span class="n">1.0</span> - pAway, 1e-<span class="n">6</span>);
+<span class="ln">160</span>	  }
+<span class="ln">161</span>	  <span class="k">if</span> (op.u1 != <span class="n">0u</span> &amp;&amp; !valid) {
+<span class="ln">162</span>	    <span class="c">// No pointer target: the branch contributes exactly zero gradient.</span>
+<span class="ln">163</span>	    j = lid.x;
+<span class="ln">164</span>	    <span class="k">loop</span> {
+<span class="ln">165</span>	      <span class="k">if</span> (j &gt;= R) { <span class="k">break</span>; }
+<span class="ln">166</span>	      arena[op.outputOffset + i * R + j] = <span class="n">0.0</span>;
+<span class="ln">167</span>	      j += WG;
+<span class="ln">168</span>	    }
+<span class="ln">169</span>	    <span class="k">return</span>;
+<span class="ln">170</span>	  }
+<span class="ln">171</span>	  j = lid.x;
+<span class="ln">172</span>	  <span class="k">loop</span> {
+<span class="ln">173</span>	    <span class="k">if</span> (j &gt;= R) { <span class="k">break</span>; }
+<span class="ln">174</span>	    <span class="k">let</span> p = arena[op.aux2Offset + i * R + j];
+<span class="ln">175</span>	    <span class="k">var</span> pointerGrad = <span class="n">0.0</span>;
+<span class="ln">176</span>	    <span class="k">if</span> (valid) {
+<span class="ln">177</span>	      <span class="k">let</span> oneHot = select(<span class="n">0.0</span>, <span class="n">1.0</span>, j == gold);
+<span class="ln">178</span>	      <span class="k">if</span> (away) { pointerGrad = scale * (oneHot - p); }
+<span class="ln">179</span>	      <span class="k">else</span> { pointerGrad = p - oneHot; }
+<span class="ln">180</span>	    }
+<span class="ln">181</span>	    arena[op.outputOffset + i * R + j] = p * (attentionScores[j] - rowSum) + pointerGrad;
+<span class="ln">182</span>	    j += WG;
+<span class="ln">183</span>	  }
+<span class="ln">184</span>
+<span class="ln">185</span>
+<span class="ln">186</span>}</code></pre>
 		</details>
-	</section><section class="card" id="program-compute-28">
+	</section><section class="card" id="program-compute-23">
 		<h3><span class="tag compute">compute</span>
 			<code class="ident">krystal_selector_backward_qkv</code></h3>
-		<dl class="kv"><div><dt>kind</dt><dd><code>compute</code></dd></div><div><dt>id</dt><dd>28</dd></div><div><dt>groups</dt><dd><code>0</code></dd></div><div><dt>type roots</dt><dd><a href="#type-opparams"><code>OpParams</code></a>, <a href="#type-_buffer_5"><code>_buffer_5</code></a></dd></div><div><dt>entry point</dt><dd><code>krystal_selector_backward_qkv</code></dd></div><div><dt>workgroup size</dt><dd><code>256 × 1 × 1</code>
+		<dl class="kv"><div><dt>kind</dt><dd><code>compute</code></dd></div><div><dt>id</dt><dd>23</dd></div><div><dt>groups</dt><dd><code>0</code></dd></div><div><dt>type roots</dt><dd><a href="#type-opparams"><code>OpParams</code></a>, <a href="#type-_buffer_5"><code>_buffer_5</code></a></dd></div><div><dt>entry point</dt><dd><code>krystal_selector_backward_qkv</code></dd></div><div><dt>workgroup size</dt><dd><code>256 × 1 × 1</code>
 			<span class="muted">= 256 invocations</span></dd></div></dl>
 		
 		<h4>Bindings</h4>
 		<table class="grid">
 		<thead><tr>
 			<th class="num">Group</th><th class="num">Binding</th><th>Name</th>
-			<th>Buffer</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
+			<th>Resource</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
 		</tr></thead>
 		<tbody><tr>
 				<td class="num">0</td>
@@ -5335,9 +4408,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln"> 37</span>};
 <span class="ln"> 38</span>
 <span class="ln"> 39</span>
-<span class="ln"> 40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">51028257</span>&gt;;
+<span class="ln"> 40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">52522977</span>&gt;;
 <span class="ln"> 41</span>
-<span class="ln"> 42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">51028257u</span>;
+<span class="ln"> 42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">52522977u</span>;
 <span class="ln"> 43</span>
 <span class="ln"> 44</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln"> 45</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
@@ -5456,17 +4529,17 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln">158</span>
 <span class="ln">159</span>}</code></pre>
 		</details>
-	</section><section class="card" id="program-compute-29">
+	</section><section class="card" id="program-compute-24">
 		<h3><span class="tag compute">compute</span>
 			<code class="ident">krystal_decision_head_backward</code></h3>
-		<dl class="kv"><div><dt>kind</dt><dd><code>compute</code></dd></div><div><dt>id</dt><dd>29</dd></div><div><dt>groups</dt><dd><code>0</code>, <code>1</code></dd></div><div><dt>type roots</dt><dd><a href="#type-opparams"><code>OpParams</code></a>, <a href="#type-_buffer_5"><code>_buffer_5</code></a>, <a href="#type-_buffer_6"><code>_buffer_6</code></a></dd></div><div><dt>entry point</dt><dd><code>krystal_decision_head_backward</code></dd></div><div><dt>workgroup size</dt><dd><code>256 × 1 × 1</code>
+		<dl class="kv"><div><dt>kind</dt><dd><code>compute</code></dd></div><div><dt>id</dt><dd>24</dd></div><div><dt>groups</dt><dd><code>0</code>, <code>1</code></dd></div><div><dt>type roots</dt><dd><a href="#type-opparams"><code>OpParams</code></a>, <a href="#type-_buffer_5"><code>_buffer_5</code></a>, <a href="#type-_buffer_6"><code>_buffer_6</code></a></dd></div><div><dt>entry point</dt><dd><code>krystal_decision_head_backward</code></dd></div><div><dt>workgroup size</dt><dd><code>256 × 1 × 1</code>
 			<span class="muted">= 256 invocations</span></dd></div></dl>
 		
 		<h4>Bindings</h4>
 		<table class="grid">
 		<thead><tr>
 			<th class="num">Group</th><th class="num">Binding</th><th>Name</th>
-			<th>Buffer</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
+			<th>Resource</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
 		</tr></thead>
 		<tbody><tr>
 				<td class="num">0</td>
@@ -5540,9 +4613,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln"> 39</span>};
 <span class="ln"> 40</span>
 <span class="ln"> 41</span>
-<span class="ln"> 42</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;_buffer_6, <span class="n">51028257</span>&gt;;
+<span class="ln"> 42</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;_buffer_6, <span class="n">52522977</span>&gt;;
 <span class="ln"> 43</span>
-<span class="ln"> 44</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">51028257u</span>;
+<span class="ln"> 44</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">52522977u</span>;
 <span class="ln"> 45</span>
 <span class="ln"> 46</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln"> 47</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
@@ -5672,17 +4745,17 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln">171</span>
 <span class="ln">172</span>}</code></pre>
 		</details>
-	</section><section class="card" id="program-compute-30">
+	</section><section class="card" id="program-compute-25">
 		<h3><span class="tag compute">compute</span>
 			<code class="ident">krystal_value_head_loss</code></h3>
-		<dl class="kv"><div><dt>kind</dt><dd><code>compute</code></dd></div><div><dt>id</dt><dd>30</dd></div><div><dt>groups</dt><dd><code>0</code></dd></div><div><dt>type roots</dt><dd><a href="#type-opparams"><code>OpParams</code></a>, <a href="#type-_buffer_5"><code>_buffer_5</code></a></dd></div><div><dt>entry point</dt><dd><code>krystal_value_head_loss</code></dd></div><div><dt>workgroup size</dt><dd><code>256 × 1 × 1</code>
+		<dl class="kv"><div><dt>kind</dt><dd><code>compute</code></dd></div><div><dt>id</dt><dd>25</dd></div><div><dt>groups</dt><dd><code>0</code></dd></div><div><dt>type roots</dt><dd><a href="#type-opparams"><code>OpParams</code></a>, <a href="#type-_buffer_5"><code>_buffer_5</code></a></dd></div><div><dt>entry point</dt><dd><code>krystal_value_head_loss</code></dd></div><div><dt>workgroup size</dt><dd><code>256 × 1 × 1</code>
 			<span class="muted">= 256 invocations</span></dd></div></dl>
 		
 		<h4>Bindings</h4>
 		<table class="grid">
 		<thead><tr>
 			<th class="num">Group</th><th class="num">Binding</th><th>Name</th>
-			<th>Buffer</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
+			<th>Resource</th><th>Access</th><th>WGSL type</th><th>Visibility</th><th></th>
 		</tr></thead>
 		<tbody><tr>
 				<td class="num">0</td>
@@ -5745,9 +4818,9 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 <span class="ln"> 37</span>};
 <span class="ln"> 38</span>
 <span class="ln"> 39</span>
-<span class="ln"> 40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">51028257</span>&gt;;
+<span class="ln"> 40</span><span class="k">alias</span> _buffer_5 = <span class="t">array</span>&lt;<span class="t">f32</span>, <span class="n">52522977</span>&gt;;
 <span class="ln"> 41</span>
-<span class="ln"> 42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">51028257u</span>;
+<span class="ln"> 42</span><span class="k">const</span> _BUFFER_5_LEN: <span class="t">u32</span> = <span class="n">52522977u</span>;
 <span class="ln"> 43</span>
 <span class="ln"> 44</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">0</span>) <span class="k">var</span>&lt;<span class="t">uniform</span>&gt; op: OpParams;
 <span class="ln"> 45</span><span class="a">@group</span>(<span class="n">0</span>) <span class="a">@binding</span>(<span class="n">1</span>) <span class="k">var</span>&lt;<span class="t">storage</span>, <span class="t">read_write</span>&gt; arena: _buffer_5;
@@ -5837,60 +4910,50 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 				<span class="muted">as op @0.0</span><br><a href="#program-compute-2">
 					<code>arena_copy</code></a>
 				<span class="muted">as op @0.0</span><br><a href="#program-compute-3">
-					<code>embedding_f32</code></a>
-				<span class="muted">as op @0.0</span><br><a href="#program-compute-4">
 					<code>zero_f32</code></a>
-				<span class="muted">as op @0.0</span><br><a href="#program-compute-5">
+				<span class="muted">as op @0.0</span><br><a href="#program-compute-4">
 					<code>cross_entropy_forward_backward</code></a>
-				<span class="muted">as op @0.0</span><br><a href="#program-compute-6">
+				<span class="muted">as op @0.0</span><br><a href="#program-compute-5">
 					<code>loss_reduce</code></a>
-				<span class="muted">as op @0.0</span><br><a href="#program-compute-7">
+				<span class="muted">as op @0.0</span><br><a href="#program-compute-6">
 					<code>matmul_backward_input</code></a>
-				<span class="muted">as op @0.0</span><br><a href="#program-compute-8">
+				<span class="muted">as op @0.0</span><br><a href="#program-compute-7">
 					<code>matmul_backward_weight</code></a>
-				<span class="muted">as op @0.0</span><br><a href="#program-compute-9">
-					<code>embedding_backward</code></a>
-				<span class="muted">as op @0.0</span><br><a href="#program-compute-10">
+				<span class="muted">as op @0.0</span><br><a href="#program-compute-8">
 					<code>sgd_step</code></a>
-				<span class="muted">as op @0.0</span><br><a href="#program-compute-11">
-					<code>attention_forward</code></a>
-				<span class="muted">as op @0.0</span><br><a href="#program-compute-12">
-					<code>attention_backward_scores</code></a>
-				<span class="muted">as op @0.0</span><br><a href="#program-compute-13">
-					<code>attention_backward_qkv</code></a>
-				<span class="muted">as op @0.0</span><br><a href="#program-compute-14">
+				<span class="muted">as op @0.0</span><br><a href="#program-compute-9">
 					<code>krystal_field_embed</code></a>
-				<span class="muted">as op @0.0</span><br><a href="#program-compute-15">
+				<span class="muted">as op @0.0</span><br><a href="#program-compute-10">
 					<code>krystal_attention_forward</code></a>
-				<span class="muted">as op @0.0</span><br><a href="#program-compute-16">
+				<span class="muted">as op @0.0</span><br><a href="#program-compute-11">
 					<code>relu</code></a>
-				<span class="muted">as op @0.0</span><br><a href="#program-compute-17">
+				<span class="muted">as op @0.0</span><br><a href="#program-compute-12">
 					<code>krystal_pool</code></a>
-				<span class="muted">as op @0.0</span><br><a href="#program-compute-18">
+				<span class="muted">as op @0.0</span><br><a href="#program-compute-13">
 					<code>krystal_selector</code></a>
-				<span class="muted">as op @0.0</span><br><a href="#program-compute-19">
+				<span class="muted">as op @0.0</span><br><a href="#program-compute-14">
 					<code>krystal_decision_head</code></a>
-				<span class="muted">as op @0.0</span><br><a href="#program-compute-20">
+				<span class="muted">as op @0.0</span><br><a href="#program-compute-15">
 					<code>relu_backward</code></a>
-				<span class="muted">as op @0.0</span><br><a href="#program-compute-21">
+				<span class="muted">as op @0.0</span><br><a href="#program-compute-16">
 					<code>krystal_attention_backward_scores</code></a>
-				<span class="muted">as op @0.0</span><br><a href="#program-compute-22">
+				<span class="muted">as op @0.0</span><br><a href="#program-compute-17">
 					<code>krystal_attention_backward_qkv</code></a>
-				<span class="muted">as op @0.0</span><br><a href="#program-compute-23">
+				<span class="muted">as op @0.0</span><br><a href="#program-compute-18">
 					<code>krystal_field_embed_backward</code></a>
-				<span class="muted">as op @0.0</span><br><a href="#program-compute-24">
+				<span class="muted">as op @0.0</span><br><a href="#program-compute-19">
 					<code>krystal_field_embed_sgd</code></a>
-				<span class="muted">as op @0.0</span><br><a href="#program-compute-25">
+				<span class="muted">as op @0.0</span><br><a href="#program-compute-20">
 					<code>krystal_pool_backward</code></a>
-				<span class="muted">as op @0.0</span><br><a href="#program-compute-26">
+				<span class="muted">as op @0.0</span><br><a href="#program-compute-21">
 					<code>krystal_pool_dpool</code></a>
-				<span class="muted">as op @0.0</span><br><a href="#program-compute-27">
+				<span class="muted">as op @0.0</span><br><a href="#program-compute-22">
 					<code>krystal_selector_backward_scores</code></a>
-				<span class="muted">as op @0.0</span><br><a href="#program-compute-28">
+				<span class="muted">as op @0.0</span><br><a href="#program-compute-23">
 					<code>krystal_selector_backward_qkv</code></a>
-				<span class="muted">as op @0.0</span><br><a href="#program-compute-29">
+				<span class="muted">as op @0.0</span><br><a href="#program-compute-24">
 					<code>krystal_decision_head_backward</code></a>
-				<span class="muted">as op @0.0</span><br><a href="#program-compute-30">
+				<span class="muted">as op @0.0</span><br><a href="#program-compute-25">
 					<code>krystal_value_head_loss</code></a>
 				<span class="muted">as op @0.0</span></dd></div></dl>
 		
@@ -6141,11 +5204,7 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 			<code class="ident">krystal.tokens</code></h3>
 		<dl class="kv"><div><dt>resource id</dt><dd><code>1</code></dd></div><div><dt>schema type</dt><dd><a href="#type-_buffer_1"><code>_buffer_1</code></a></dd></div><div><dt>representation</dt><dd><code>native</code></dd></div><div><dt>records</dt><dd><code>1</code></dd></div><div><dt>stride</dt><dd><code>8192 B</code></dd></div><div><dt>total size</dt><dd><code>8.0 KiB</code> <span class="muted">8192 B</span></dd></div><div><dt>layout</dt><dd><code>std430</code> ·
 			<code>le</code> ·
-			word <code>32</code></dd></div><div><dt>used by</dt><dd><a href="#program-compute-3">
-					<code>embedding_f32</code></a>
-				<span class="muted">as tokens @0.1</span><br><a href="#program-compute-9">
-					<code>embedding_backward</code></a>
-				<span class="muted">as tokens @0.1</span></dd></div></dl>
+			word <code>32</code></dd></div><div><dt>used by</dt><dd><span class="tag warn">unused</span></dd></div></dl>
 		
 		<h4>Layout plan <span class="muted">1 type</span></h4>
 		<div class="types"><section class="type" id="type-_buffer_1">
@@ -6159,7 +5218,7 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 			<code class="ident">krystal.targets</code></h3>
 		<dl class="kv"><div><dt>resource id</dt><dd><code>2</code></dd></div><div><dt>schema type</dt><dd><a href="#type-_buffer_2"><code>_buffer_2</code></a></dd></div><div><dt>representation</dt><dd><code>native</code></dd></div><div><dt>records</dt><dd><code>1</code></dd></div><div><dt>stride</dt><dd><code>8192 B</code></dd></div><div><dt>total size</dt><dd><code>8.0 KiB</code> <span class="muted">8192 B</span></dd></div><div><dt>layout</dt><dd><code>std430</code> ·
 			<code>le</code> ·
-			word <code>32</code></dd></div><div><dt>used by</dt><dd><a href="#program-compute-5">
+			word <code>32</code></dd></div><div><dt>used by</dt><dd><a href="#program-compute-4">
 					<code>cross_entropy_forward_backward</code></a>
 				<span class="muted">as targets @0.1</span></dd></div></dl>
 		
@@ -6175,7 +5234,7 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 			<code class="ident">krystal.loss-telemetry</code></h3>
 		<dl class="kv"><div><dt>resource id</dt><dd><code>3</code></dd></div><div><dt>schema type</dt><dd><a href="#type-_buffer_3"><code>_buffer_3</code></a></dd></div><div><dt>representation</dt><dd><code>native</code></dd></div><div><dt>records</dt><dd><code>1</code></dd></div><div><dt>stride</dt><dd><code>4 B</code></dd></div><div><dt>total size</dt><dd><code>4 B</code> <span class="muted">4 B</span></dd></div><div><dt>layout</dt><dd><code>std430</code> ·
 			<code>le</code> ·
-			word <code>32</code></dd></div><div><dt>used by</dt><dd><a href="#program-compute-6">
+			word <code>32</code></dd></div><div><dt>used by</dt><dd><a href="#program-compute-5">
 					<code>loss_reduce</code></a>
 				<span class="muted">as lossTelemetry @0.2</span></dd></div></dl>
 		
@@ -6203,7 +5262,7 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 	</section><section class="card" id="buffer-5">
 		<h3><span class="tag buffer">buffer</span>
 			<code class="ident">krystal.arena</code></h3>
-		<dl class="kv"><div><dt>resource id</dt><dd><code>5</code></dd></div><div><dt>schema type</dt><dd><a href="#type-_buffer_5"><code>_buffer_5</code></a></dd></div><div><dt>representation</dt><dd><code>native</code></dd></div><div><dt>records</dt><dd><code>1</code></dd></div><div><dt>stride</dt><dd><code>204113028 B</code></dd></div><div><dt>total size</dt><dd><code>194.7 MiB</code> <span class="muted">204113028 B</span></dd></div><div><dt>layout</dt><dd><code>std430</code> ·
+		<dl class="kv"><div><dt>resource id</dt><dd><code>5</code></dd></div><div><dt>schema type</dt><dd><a href="#type-_buffer_5"><code>_buffer_5</code></a></dd></div><div><dt>representation</dt><dd><code>native</code></dd></div><div><dt>records</dt><dd><code>1</code></dd></div><div><dt>stride</dt><dd><code>210091908 B</code></dd></div><div><dt>total size</dt><dd><code>200.4 MiB</code> <span class="muted">210091908 B</span></dd></div><div><dt>layout</dt><dd><code>std430</code> ·
 			<code>le</code> ·
 			word <code>32</code></dd></div><div><dt>used by</dt><dd><a href="#program-compute-0">
 					<code>matmul_f32</code></a>
@@ -6212,60 +5271,50 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 				<span class="muted">as arena @0.1</span><br><a href="#program-compute-2">
 					<code>arena_copy</code></a>
 				<span class="muted">as arena @0.1</span><br><a href="#program-compute-3">
-					<code>embedding_f32</code></a>
-				<span class="muted">as arena @0.2</span><br><a href="#program-compute-4">
 					<code>zero_f32</code></a>
-				<span class="muted">as arena @0.1</span><br><a href="#program-compute-5">
+				<span class="muted">as arena @0.1</span><br><a href="#program-compute-4">
 					<code>cross_entropy_forward_backward</code></a>
-				<span class="muted">as arena @0.2</span><br><a href="#program-compute-6">
+				<span class="muted">as arena @0.2</span><br><a href="#program-compute-5">
 					<code>loss_reduce</code></a>
-				<span class="muted">as arena @0.1</span><br><a href="#program-compute-7">
+				<span class="muted">as arena @0.1</span><br><a href="#program-compute-6">
 					<code>matmul_backward_input</code></a>
-				<span class="muted">as arena @0.1</span><br><a href="#program-compute-8">
+				<span class="muted">as arena @0.1</span><br><a href="#program-compute-7">
 					<code>matmul_backward_weight</code></a>
-				<span class="muted">as arena @0.1</span><br><a href="#program-compute-9">
-					<code>embedding_backward</code></a>
-				<span class="muted">as arena @0.2</span><br><a href="#program-compute-10">
+				<span class="muted">as arena @0.1</span><br><a href="#program-compute-8">
 					<code>sgd_step</code></a>
-				<span class="muted">as arena @0.1</span><br><a href="#program-compute-11">
-					<code>attention_forward</code></a>
-				<span class="muted">as arena @0.1</span><br><a href="#program-compute-12">
-					<code>attention_backward_scores</code></a>
-				<span class="muted">as arena @0.1</span><br><a href="#program-compute-13">
-					<code>attention_backward_qkv</code></a>
-				<span class="muted">as arena @0.1</span><br><a href="#program-compute-14">
+				<span class="muted">as arena @0.1</span><br><a href="#program-compute-9">
 					<code>krystal_field_embed</code></a>
-				<span class="muted">as arena @0.1</span><br><a href="#program-compute-15">
+				<span class="muted">as arena @0.1</span><br><a href="#program-compute-10">
 					<code>krystal_attention_forward</code></a>
-				<span class="muted">as arena @0.1</span><br><a href="#program-compute-16">
+				<span class="muted">as arena @0.1</span><br><a href="#program-compute-11">
 					<code>relu</code></a>
-				<span class="muted">as arena @0.1</span><br><a href="#program-compute-17">
+				<span class="muted">as arena @0.1</span><br><a href="#program-compute-12">
 					<code>krystal_pool</code></a>
-				<span class="muted">as arena @0.1</span><br><a href="#program-compute-18">
+				<span class="muted">as arena @0.1</span><br><a href="#program-compute-13">
 					<code>krystal_selector</code></a>
-				<span class="muted">as arena @0.1</span><br><a href="#program-compute-19">
+				<span class="muted">as arena @0.1</span><br><a href="#program-compute-14">
 					<code>krystal_decision_head</code></a>
-				<span class="muted">as arena @0.1</span><br><a href="#program-compute-20">
+				<span class="muted">as arena @0.1</span><br><a href="#program-compute-15">
 					<code>relu_backward</code></a>
-				<span class="muted">as arena @0.1</span><br><a href="#program-compute-21">
+				<span class="muted">as arena @0.1</span><br><a href="#program-compute-16">
 					<code>krystal_attention_backward_scores</code></a>
-				<span class="muted">as arena @0.1</span><br><a href="#program-compute-22">
+				<span class="muted">as arena @0.1</span><br><a href="#program-compute-17">
 					<code>krystal_attention_backward_qkv</code></a>
-				<span class="muted">as arena @0.1</span><br><a href="#program-compute-23">
+				<span class="muted">as arena @0.1</span><br><a href="#program-compute-18">
 					<code>krystal_field_embed_backward</code></a>
-				<span class="muted">as arena @0.1</span><br><a href="#program-compute-24">
+				<span class="muted">as arena @0.1</span><br><a href="#program-compute-19">
 					<code>krystal_field_embed_sgd</code></a>
-				<span class="muted">as arena @0.1</span><br><a href="#program-compute-25">
+				<span class="muted">as arena @0.1</span><br><a href="#program-compute-20">
 					<code>krystal_pool_backward</code></a>
-				<span class="muted">as arena @0.1</span><br><a href="#program-compute-26">
+				<span class="muted">as arena @0.1</span><br><a href="#program-compute-21">
 					<code>krystal_pool_dpool</code></a>
-				<span class="muted">as arena @0.1</span><br><a href="#program-compute-27">
+				<span class="muted">as arena @0.1</span><br><a href="#program-compute-22">
 					<code>krystal_selector_backward_scores</code></a>
-				<span class="muted">as arena @0.1</span><br><a href="#program-compute-28">
+				<span class="muted">as arena @0.1</span><br><a href="#program-compute-23">
 					<code>krystal_selector_backward_qkv</code></a>
-				<span class="muted">as arena @0.1</span><br><a href="#program-compute-29">
+				<span class="muted">as arena @0.1</span><br><a href="#program-compute-24">
 					<code>krystal_decision_head_backward</code></a>
-				<span class="muted">as arena @0.1</span><br><a href="#program-compute-30">
+				<span class="muted">as arena @0.1</span><br><a href="#program-compute-25">
 					<code>krystal_value_head_loss</code></a>
 				<span class="muted">as arena @0.1</span></dd></div></dl>
 		
@@ -6273,8 +5322,8 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 		<div class="types"><section class="type" id="type-_buffer_5">
 		<h4><code class="ident">_buffer_5</code> <span class="tag">alias</span></h4>
 		
-		<p class="muted">size <b>204113028</b> · align <b>4</b> · padded <b>204113028</b></p>
-		<p>Alias for <code>f32</code><code>[51028257]</code>.</p>
+		<p class="muted">size <b>210091908</b> · align <b>4</b> · padded <b>210091908</b></p>
+		<p>Alias for <code>f32</code><code>[52522977]</code>.</p>
 	</section></div>
 	</section><section class="card" id="buffer-6">
 		<h3><span class="tag buffer">buffer</span>
@@ -6283,23 +5332,21 @@ pre.wgsl code{background:none;padding:0;font-size:inherit}
 			<code>le</code> ·
 			word <code>32</code></dd></div><div><dt>used by</dt><dd><a href="#program-compute-0">
 					<code>matmul_f32</code></a>
-				<span class="muted">as weight32 @1.0</span><br><a href="#program-compute-3">
-					<code>embedding_f32</code></a>
-				<span class="muted">as weight32 @1.0</span><br><a href="#program-compute-7">
+				<span class="muted">as weight32 @1.0</span><br><a href="#program-compute-6">
 					<code>matmul_backward_input</code></a>
-				<span class="muted">as weight32 @1.0</span><br><a href="#program-compute-10">
+				<span class="muted">as weight32 @1.0</span><br><a href="#program-compute-8">
 					<code>sgd_step</code></a>
-				<span class="muted">as weight32 @1.0</span><br><a href="#program-compute-14">
+				<span class="muted">as weight32 @1.0</span><br><a href="#program-compute-9">
 					<code>krystal_field_embed</code></a>
-				<span class="muted">as weight32 @1.0</span><br><a href="#program-compute-17">
+				<span class="muted">as weight32 @1.0</span><br><a href="#program-compute-12">
 					<code>krystal_pool</code></a>
-				<span class="muted">as weight32 @1.0</span><br><a href="#program-compute-19">
+				<span class="muted">as weight32 @1.0</span><br><a href="#program-compute-14">
 					<code>krystal_decision_head</code></a>
-				<span class="muted">as weight32 @1.0</span><br><a href="#program-compute-24">
+				<span class="muted">as weight32 @1.0</span><br><a href="#program-compute-19">
 					<code>krystal_field_embed_sgd</code></a>
-				<span class="muted">as weight32 @1.0</span><br><a href="#program-compute-25">
+				<span class="muted">as weight32 @1.0</span><br><a href="#program-compute-20">
 					<code>krystal_pool_backward</code></a>
-				<span class="muted">as weight32 @1.0</span><br><a href="#program-compute-29">
+				<span class="muted">as weight32 @1.0</span><br><a href="#program-compute-24">
 					<code>krystal_decision_head_backward</code></a>
 				<span class="muted">as weight32 @1.0</span></dd></div></dl>
 		

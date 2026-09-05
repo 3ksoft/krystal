@@ -1,6 +1,6 @@
 // M2b Krystal forward runner: wires the packed SoA BrainFrameGpu (M2a) into
 // the record/query encoder and query-to-record mixer, GPU-resident in one
-// submit (WEBGPU_BACKWARD_PLAN.md §17 item 7, first half).
+// submit (docs/archive/WEBGPU_BACKWARD_PLAN.md §17 item 7, first half).
 //
 //   field embed (6 additive tables) -> fieldStates
 //   -> 2 encoder blocks: local masked self-attention + ReLU FFN
@@ -26,7 +26,6 @@ import {
   KRYSTAL_MAX_QUERIES,
   KRYSTAL_MAX_RECORDS,
   KRYSTAL_MAX_TOKENS,
-  TRAINING_READBACK_ELEMENTS,
 } from "./krystal-layout";
 import { krystal, type KrystalDefinition } from "./krystal";
 import { KrystalExecutor, type KrystalCommandEncoder } from "./pass";
@@ -43,12 +42,14 @@ import {
   type BrainForwardConfig,
   type BrainForwardWeights,
 } from "../../krystal/src/forward/model";
+import type { WeightChanges } from "../../krystal/src/host/backend";
 import type { v1_0_0 } from "../../schema/generated/krystal.types";
 import { BRAIN_LIMITS } from "../../schema/src/krystal-engine-schema";
 
 function validate(condition: boolean, message: string): void {
   if (!condition) throw new Error(`KrystalForward: ${message}`);
 }
+
 
 /**
  * Every mask the graph reads, and all of them come from the host.
@@ -137,6 +138,10 @@ export class KrystalForward {
   private readonly selectorWkPage: GPUBuffer;
   private readonly decisionHeadPage: GPUBuffer;
   private readonly valueHeadPage: GPUBuffer;
+  /** Our own MAP_READ buffer; see readMapped for why not the shared one. */
+  private mapped: GPUBuffer | undefined;
+  /** One map at a time: a mapped buffer cannot be mapped again. */
+  private reads: Promise<unknown> = Promise.resolve();
 
   constructor(
     weights: BrainForwardWeights,
@@ -200,11 +205,23 @@ export class KrystalForward {
     const t = active.activeTokens.length;
     const r = active.bankRecords.length;
     const q = active.queryRecords.length;
-    validate(t <= KRYSTAL_MAX_TOKENS, `active tokens ${t} exceed capacity`);
-    validate(r <= KRYSTAL_MAX_RECORDS, `bank records ${r} exceed capacity`);
-    validate(q <= KRYSTAL_MAX_QUERIES, `query records ${q} exceed capacity`);
+    // Slots, not bank records: the per-slot arrays (schema, band, stream, the
+    // compact ranges) are indexed by SLOT, and a query record occupies one like
+    // any other. Checking the bank alone left `r + q` free to run past the end
+    // of those regions and into the next one, silently, on a full frame.
+    const slots = frame.schemaIds.length;
+    validate(t <= KRYSTAL_MAX_TOKENS, `active tokens ${t} exceed capacity ${KRYSTAL_MAX_TOKENS}`);
+    validate(slots <= KRYSTAL_MAX_RECORDS, `record slots ${slots} exceed capacity ${KRYSTAL_MAX_RECORDS}`);
+    validate(q <= KRYSTAL_MAX_QUERIES, `query records ${q} exceed capacity ${KRYSTAL_MAX_QUERIES}`);
     validate(q > 0, "the frame must contain at least one query record for the mixer");
 
+    // Uploaded every frame, though the shader reads only each token's own
+    // record range and would find zeros everywhere else. Skipping the upload
+    // would make correctness depend on nobody else ever writing to this arena
+    // region — and the arena is shared by every runner and every test on one
+    // engine. That assumption is the same one that made the mixer mask disagree
+    // between CPU and GPU, so it stays paid: the mask carries the same-word
+    // bias, and at a realistic frame it is 264 KB, not the 9.4 MB of a full one.
     const { mask: recordMask } = compileRecordMask(active.activeTokens, wordBias);
     // Unconstrained by default, and it is the host that decides otherwise.
     const mixerMask = masks.mixer ?? new Float32Array(q * r);
@@ -613,18 +630,82 @@ export class KrystalForward {
     return this.config;
   }
 
-  /** Copy one arena region into the staging buffer and read it back. */
-  private async readbackRegion(offset: number, elements: number): Promise<Float32Array> {
-    validate(elements <= TRAINING_READBACK_ELEMENTS, `readback region ${elements} exceeds staging capacity`);
+  /**
+   * Read arena regions back through a buffer we own and map ourselves.
+   *
+   * The shared `trainingReadback` resource goes through Sandblaster's generic
+   * `readback()`, which copies a SECOND time into its own staging buffer, waits
+   * on a second submit, maps the WHOLE resource — 524,288 elements — and then
+   * builds a plain JS array one `codec.deserialize` call per element. Half a
+   * million of those to fetch a hundred kilobytes. On Dawn in-process that cost
+   * a few milliseconds; in a browser, where every submit and map crosses into
+   * the GPU process, it was most of a frame.
+   *
+   * `copies` are (arenaOffset, elements) pairs laid out back to back in the
+   * result. `dispatch`, when given, runs in the SAME submit as the copies —
+   * which is the other half of the fix: one submit and one map per encode
+   * instead of three and two.
+   */
+  private readMapped(
+    copies: readonly (readonly [offset: number, elements: number])[],
+    dispatch?: (encoder: KrystalCommandEncoder) => void,
+  ): Promise<Float32Array> {
+    const total = copies.reduce((sum, [, elements]) => sum + elements, 0);
+    const bytes = total * 4;
     const device = this.definition.engine.device;
-    const arena = this.definition.resources.arena;
-    const staging = this.definition.resources.trainingReadback;
-    const encoder = device.createCommandEncoder();
-    encoder.copyBufferToBuffer(arena.gpu, offset * 4, staging.gpu, 0, elements * 4);
-    device.queue.submit([encoder.finish()]);
-    await device.queue.onSubmittedWorkDone();
-    const raw = (await staging.readback()) as unknown as ArrayLike<number>;
-    return Float32Array.from(raw).slice(0, elements);
+    const arena = this.definition.resources.arena.gpu;
+
+    const run = async (): Promise<Float32Array> => {
+      if (!this.mapped || this.mapped.size < bytes) {
+        this.mapped?.destroy();
+        this.mapped = device.createBuffer({
+          label: "krystal.readback",
+          size: Math.max(bytes, 4),
+          usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
+        });
+      }
+      const target = this.mapped;
+      const emit = (encoder: GPUCommandEncoder): void => {
+        let at = 0;
+        for (const [offset, elements] of copies) {
+          encoder.copyBufferToBuffer(arena, offset * 4, target, at * 4, elements * 4);
+          at += elements;
+        }
+      };
+      if (dispatch) {
+        this.executor.submit((encoder) => {
+          dispatch(encoder);
+          emit(encoder.gpu);
+        });
+      } else {
+        const encoder = device.createCommandEncoder();
+        emit(encoder);
+        device.queue.submit([encoder.finish()]);
+      }
+      await target.mapAsync(GPUMapMode.READ, 0, bytes);
+      const out = new Float32Array(total);
+      out.set(new Float32Array(target.getMappedRange(0, bytes)));
+      target.unmap();
+      return out;
+    };
+
+    const task = this.reads.then(run, run);
+    this.reads = task.catch(() => undefined);
+    return task;
+  }
+
+  /** Copy one arena region into a mapped buffer and read it back. */
+  private async readbackRegion(offset: number, elements: number): Promise<Float32Array> {
+    return this.readMapped([[offset, elements]]);
+  }
+
+  /**
+   * Read several arena regions in one submit and one map, laid out back to
+   * back. The composed backward runner reads its gradients through this rather
+   * than through the shared readback resource, for the reason readMapped gives.
+   */
+  readRegions(copies: readonly (readonly [offset: number, elements: number])[]): Promise<Float32Array> {
+    return this.readMapped(copies);
   }
 
   /** Read back the record bank keys [R, H]. Test-only. */
@@ -661,6 +742,89 @@ export class KrystalForward {
   async readIntentIndices(q: number): Promise<Uint32Array> {
     const raw = await this.readbackRegion(this.region(KRYSTAL_FORWARD_ARENA.intentIndices, q), q);
     return new Uint32Array(raw.buffer, raw.byteOffset, q);
+  }
+
+  /**
+   * Encode one prepared frame and bring back everything a question needs.
+   *
+   * One submit, one map. The three matrices are the encoder's whole product —
+   * the mixed query output and the pooled bank — and every `choose` against
+   * this frame is a function of them and the host's mask.
+   */
+  async encodeAndRead(prepared: PreparedForward): Promise<{
+    readonly queryOutput: Float32Array;
+    readonly bankKeys: Float32Array;
+    readonly bankValues: Float32Array;
+  }> {
+    const A = KRYSTAL_FORWARD_ARENA;
+    const h = this.config.hiddenSize;
+    const qh = prepared.q * h;
+    const rh = prepared.r * h;
+    const raw = await this.readMapped(
+      [
+        [this.region(A.queryValues, qh), qh],
+        [this.region(A.bankKeys, rh), rh],
+        [this.region(A.bankValues, rh), rh],
+      ],
+      (encoder) => this.dispatchForward(encoder, prepared, false),
+    );
+    return {
+      queryOutput: raw.subarray(0, qh),
+      bankKeys: raw.subarray(qh, qh + rh),
+      bankValues: raw.subarray(qh + rh),
+    };
+  }
+
+  /**
+   * Re-upload the weight pages from the host arrays they were built from.
+   *
+   * The pages are a COPY: `learn` and `teach` mutate the host's Float32Arrays
+   * and the device knows nothing about it. Without this, a creature would keep
+   * thinking with the brain it had before it was taught — and nothing would
+   * report the divergence, because both sides are individually consistent.
+   */
+  uploadWeights(weights: BrainForwardWeights, changes?: WeightChanges): void {
+    validateBrainForwardWeights(this.config, weights);
+    const device = this.definition.engine.device;
+    const write = (buffer: GPUBuffer, values: Float32Array): void => device.queue.writeBuffer(buffer, 0, values);
+    const blocks = (): void => {
+      weights.enc.forEach((block, b) => {
+        const page = this.encPages[b]!;
+        write(page.wq, block.wq); write(page.wk, block.wk); write(page.wv, block.wv);
+        write(page.w1, block.w1); write(page.w2, block.w2);
+      });
+      weights.mixer.forEach((block, b) => {
+        const page = this.mixerPages[b]!;
+        write(page.wq, block.wq); write(page.wk, block.wk); write(page.wv, block.wv);
+        write(page.w1, block.w1); write(page.w2, block.w2);
+      });
+    };
+    if (!changes) {
+      write(this.embeddingsPage, weights.embeddings);
+      write(this.poolPage, weights.pool);
+      write(this.selectorWqPage, weights.selector.wq);
+      write(this.selectorWkPage, weights.selector.wk);
+      write(this.decisionHeadPage, weights.decisionHeadWh);
+      write(this.valueHeadPage, weights.valueHeadWv);
+      blocks();
+      return;
+    }
+    // Only what moved. An update to the selector and a handful of embedding
+    // rows is a few hundred kilobytes; the whole brain is seven megabytes, and
+    // it was being sent after every batch and every showing.
+    if (changes.selector) {
+      write(this.selectorWqPage, weights.selector.wq);
+      write(this.selectorWkPage, weights.selector.wk);
+    }
+    if (changes.pool) write(this.poolPage, weights.pool);
+    if (changes.valueHead) write(this.valueHeadPage, weights.valueHeadWv);
+    if (changes.decisionHead) write(this.decisionHeadPage, weights.decisionHeadWh);
+    if (changes.blocks) blocks();
+    if (changes.embeddingRows) {
+      const h = this.config.hiddenSize;
+      for (const start of changes.embeddingRows)
+        device.queue.writeBuffer(this.embeddingsPage, start * 4, weights.embeddings, start, h);
+    }
   }
 
   /** Read back the value head's prediction [Q]. Test-only. */

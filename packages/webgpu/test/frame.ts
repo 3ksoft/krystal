@@ -8,7 +8,7 @@
  * exercise: a frame is now sized by what was sent, not by a fixed geometry.
  */
 import { packHostFrame, type HostRecord } from "../../krystal/src/host/frame";
-import { compileActiveFrame, type ActiveFrame } from "../../krystal/src/forward/masks";
+import { compileActiveFrame, compileRecordMask, type ActiveFrame } from "../../krystal/src/forward/masks";
 import { BRAIN_FORWARD_CONFIG, type BrainForwardConfig } from "../../krystal/src/forward/model";
 import type { v1_0_0 } from "../../schema/generated/krystal.types";
 
@@ -38,5 +38,9 @@ export function testFrame(records: readonly HostRecord[] = TEST_RECORDS): {
   recordMask: Float32Array;
 } {
   const packed = packHostFrame(records);
-  return { frame: packed.gpu, active: compileActiveFrame(packed.gpu), recordMask: packed.recordMask };
+  const active = compileActiveFrame(packed.gpu);
+  // The device still compiles this mask (it carries the same-word bias); the
+  // CPU no longer needs one at all, so the parity comparison is between a
+  // masked device pass and an unmasked local one.
+  return { frame: packed.gpu, active, recordMask: compileRecordMask(active.activeTokens).mask };
 }
